@@ -1,0 +1,113 @@
+MODULE ManufacturingOrderStendex;
+
+REQUIRE ManufacturingOrder;
+
+NAMESPACE Manufacturing;
+
+captionMaterials 'Материалы' (ManufacturingOrder o) = GROUP CONCAT nameItem(ConsumedLine cl), 
+    ' / ' ORDER nameItem(cl) BY manufacturingOrder(cl) CHARWIDTH 14;
+
+responsible (ConsumedLine l) = responsible(manufacturingOrder(l));
+nameResponsible 'Responsible' (ConsumedLine l) = MasterData.name(responsible(l));
+
+status (ConsumedLine l) = status(manufacturingOrder(l));
+nameStatus 'Status' (ConsumedLine l) = name(status(l));
+
+date 'Дата' (ManufacturingOrder o) = DATE(scheduledDateTime(o));
+date 'Дата' (ConsumedLine l) = date(manufacturingOrder(l));
+
+FORM materialRequests 'Заявки'
+    OBJECTS o = ManufacturingOrder
+    PROPERTIES (o) READONLY date, number, nameType, captionMaterials, nameStatus, nameResponsible
+    PROPERTIES (o) NEWSESSION NEW, EDIT, DELETE
+
+    LIST ManufacturingOrder OBJECT o
+;
+
+
+@defineDocObjectsForm(materialRequests, o, 'Заявки');
+@defineDateFilterForm(materialRequests, o, , filters);
+
+FORM materialRequest 'Заявка'
+    OBJECTS o = ManufacturingOrder PANEL
+    PROPERTIES (o) scheduledDateTime, number
+    PROPERTIES (o) READONLY nameType, nameStatus,  nameResponsible
+
+    OBJECTS cl = ConsumedLine
+    PROPERTIES (cl) NOSELECT idItem, nameItem, nameUom, description, 'К заказу' = toConsume
+    PROPERTIES (cl) NEW, EDIT, DELETE
+    FILTERS manufacturingOrder(cl) = o
+
+    OBJECTS manufacturingOrderl = ManufacturingOrderHistory
+    PROPERTIES(manufacturingOrderl) READONLY dateTime, nameUser, hostnameComputer, type, description, pdescription = description PANEL
+    FILTERS manufacturingOrder(manufacturingOrderl) = o
+
+    EDIT ManufacturingOrder OBJECT o
+;
+
+DESIGN materialRequest{
+    OBJECTS {
+        NEW order{
+            NEW main{
+                horizontal = TRUE;
+                MOVE PROPERTY (nameType(o));
+                MOVE PROPERTY (nameStatus(o));
+            }
+            NEW extra{
+                horizontal = TRUE;
+                MOVE PROPERTY (number(o));
+                MOVE PROPERTY (scheduledDateTime(o));
+                MOVE PROPERTY (nameResponsible(o));
+            }
+        }
+        NEW details{
+            tabbed = TRUE;
+            fill = 0.5;
+            MOVE BOX(cl) {
+                GRID(cl){
+                    height = 150;
+                    PROPERTY (description(cl)) {charWidth = 20; }
+                    PROPERTY (nameItem(cl)) {charWidth = 16; }
+                }
+                caption = 'Материалы';
+            }
+            NEW history {
+                caption = 'History';
+                fill = 1;
+                type = SPLITH;
+                MOVE BOX(manufacturingOrderl) {
+                    fill = 2;
+                    caption = '';
+                    PROPERTY(description(manufacturingOrderl)) { valueHeight = 18; }
+                }
+                MOVE PROPERTY(pdescription) { panelCaptionVertical = TRUE; fill = 1; }
+            }
+        }
+    }
+}
+
+
+
+loadDefaultData () + {
+    NEW t = ManufacturingOrderType {
+        name(t) <- 'Заявка на материалы';
+        id(t) <- 'materialRequest';
+        NEW n = Numerator {
+            name(n) <- 'Заявка на материалы';
+            series(n) <- 'ЗМ';
+            minValue(n) <- 1;
+            maxValue(n) <- 999999;
+            stringLength(n) <- 6;
+            numerator(t) <- n;
+        }
+    }
+}
+
+WHEN LOCAL SET (ManufacturingOrder t IS ManufacturingOrder) AND NOT type(t) DO type(t) <- manufacturingOrderType('materialRequest');
+
+
+NAVIGATOR{
+    NEW FOLDER dashboard 'Рабочий стол' WINDOW toolbar FIRST {
+        NEW materialRequests;
+    }
+}

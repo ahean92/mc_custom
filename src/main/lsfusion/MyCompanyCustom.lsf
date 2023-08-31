@@ -19,9 +19,9 @@ REQUIRE Eval, ProcessMonitor, Backup,
         
         PurchaseSettings,
         PurchaseOrder, PurchaseOrderFilter, PurchaseOrderSelection,
-        PurchaseOrderSent, PurchaseOrderConfirmed, PurchaseOrderCanceled, PurchaseOrderLocked,
+        PurchaseOrderCanceled, PurchaseOrderLocked,
         PurchaseOrderSearch, PurchaseOrderPrint, PurchaseOrderPartner, PurchaseOrderItem, PurchaseOrderInitial,
-        PurchaseOrderManufacturing,
+        PurchaseOrderManufacturing, PurchaseManufacturingOrderStendex, PurchaseOrderStendex,
 
         SalesSettings,
         SalesOrder, SalesOrderFilter, SalesOrderSelection,
@@ -32,6 +32,6 @@ REQUIRE Eval, ProcessMonitor, Backup,
         SalesOrderReport, SalesLedgerReport, SalesSummary,
 
         Project,
-        ProjectPurchaseOrder,
-        ProjectSalesOrder,
+        ProjectPurchaseOrder, ProjectManufacturingOrderStendex,
+        ProjectSalesOrder, ProjectDashboardStendex,
         ProjectManufacturingOrder;

@@ -1,0 +1,112 @@
+MODULE PurchaseOrderStendex;
+
+REQUIRE PurchaseOrderSearch, ProjectPurchaseOrder, PurchaseOrderConfirmed;
+
+NAMESPACE Purchase;
+
+dataColor 'Цвет' = DATA COLOR (OrderStatus);
+caption 'Подпись' = DATA STRING[50] (OrderStatus);
+captionButton (OrderStatus s) = OVERRIDE caption(s), name(s);
+
+useCustomStatus = ABSTRACT BOOLEAN ();
+useCustomStatus() += TRUE;
+
+dataStatus = DATA OrderStatus (Order);
+status(Order o) += WHEN useCustomStatus() AND dataStatus(o) THEN dataStatus(o);
+
+
+EXTEND FORM Purchase.options
+    OBJECTS s = OrderStatus
+    PROPERTIES (s) name, imagedName, dataColor, caption
+;
+
+DESIGN Purchase.options{
+    tabbedPane{
+        NEW orderStatus{
+            caption = 'Статусы заказа';
+            MOVE BOX (s);
+        }
+    }
+}
+
+
+changeStatus ABSTRACT LIST (Order, OrderStatus);
+changeStatus (Order o, OrderStatus s) +{ 
+    APPLY;
+    IF canceled() THEN RETURN;
+}
+META defineStatusOrder(name, caption)
+EXTEND CLASS OrderStatus{
+    name caption
+}
+
+changeStatus (Order o, OrderStatus s) +{
+    IF s = OrderStatus.##name THEN NEWSESSION {
+        dataStatus(o) <- s;
+        APPLY;
+    }
+}
+END
+
+@defineStatusOrder(inPayment, 'В оплате');
+color(OrderStatus o) += WHEN o = OrderStatus.inPayment THEN RGB(255, 255, 51);
+
+
+@defineStatusOrder(partiallyPaid, 'Оплачено частитчно');
+color(OrderStatus o) += WHEN o = OrderStatus.partiallyPaid THEN RGB(255, 204, 102);
+
+@defineStatusOrder(awaitingDelivery, 'Ждем доставки');
+color(OrderStatus o) += WHEN o = OrderStatus.awaitingDelivery THEN RGB(204, 255, 204);
+
+@defineStatusOrder(closed, 'Закрыт');
+color(OrderStatus o) += WHEN o = OrderStatus.closed THEN RGB(102, 255, 102);
+
+@defineStatusOrder(review, 'На рассмотрении');
+
+@defineStatusOrder(delivered, 'Доставлен');
+WHEN SETCHANGED (dataStatus(Order o) = OrderStatus.delivered)  DO confirmed(o) <- TRUE;
+
+showStatus = ABSTRACT CASE BOOLEAN (Order, OrderStatus);
+showStatus(Order o, OrderStatus s) += WHEN status(o) = OrderStatus.draft AND (s = OrderStatus.review OR s = OrderStatus.canceled) THEN TRUE;
+showStatus(Order o, OrderStatus s) += WHEN status(o) = OrderStatus.review AND (s = OrderStatus.inPayment OR s = OrderStatus.canceled) THEN TRUE;
+showStatus(Order o, OrderStatus s) += WHEN status(o) = OrderStatus.partiallyPaid AND (s = OrderStatus.awaitingDelivery OR s = OrderStatus.canceled) THEN TRUE;
+showStatus(Order o, OrderStatus s) += WHEN status(o) = OrderStatus.inPayment AND (s = OrderStatus.partiallyPaid OR s = OrderStatus.awaitingDelivery OR s = OrderStatus.canceled) THEN TRUE;
+showStatus(Order o, OrderStatus s) += WHEN status(o) = OrderStatus.awaitingDelivery AND (s = OrderStatus.delivered OR s = OrderStatus.canceled) THEN TRUE;
+showStatus(Order o, OrderStatus s) += WHEN status(o) = OrderStatus.delivered AND (s = OrderStatus.closed OR s = OrderStatus.canceled) THEN TRUE;
+
+color(Order o, OrderStatus s) = IF o IS Order THEN color(s);
+
+EXTEND FORM order
+    OBJECTS s = OrderStatus
+    PROPERTIES (o, s) changeStatus COLUMNS (s) HEADER captionButton(s) BACKGROUND dataColor(s)
+    FILTERS showStatus(o, s)
+;
+DESIGN order{
+    REMOVE statusActions;
+    REMOVE status;
+    header{
+        horizontal = FALSE;
+        headerLeft{
+            horizontal = TRUE;
+            MOVE PROPERTY (imagedNameStatus(o)) {};
+            NEW statusButton{
+                caption = 'Действия';
+                MOVE PROPERTY (changeStatus(o, s));
+            }
+        }
+        headerRight{
+            horizontal = TRUE;
+        }
+    }
+    relatedDoc{
+        fill = 0;
+    }
+    details{
+        MOVE files AFTER lines;
+        MOVE search AFTER files;
+    }
+}
+    
+CONSTRAINT Order o IS Order AND NOT project(o) MESSAGE 'Создать счет можно только в рамках проекта. Выберите проект';
+
+@defineDocFilter(order, Project, project, o, 'Проект');

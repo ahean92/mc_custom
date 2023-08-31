@@ -1,0 +1,42 @@
+MODULE ProjectManufacturingOrderStendex;
+
+REQUIRE ManufacturingOrderStendex, ProjectManufacturingOrder;
+
+PRIORITY MasterData;
+
+NAMESPACE Manufacturing;
+
+EXTEND FORM materialRequests
+    PROPERTIES (o) FIRST READONLY nameProject
+;
+
+EXTEND FORM materialRequest
+    PROPERTIES (o) nameProject
+;
+DESIGN materialRequest{
+    main{
+        MOVE PROPERTY (nameProject(o));
+    }
+}
+
+@defineDocFilterCustom(materialRequests, manufacturingOrder,Project, project, o, 'Проект' );
+
+@defineDocFilterCustom(materialRequests, manufacturingOrder, Employee, responsible, o, 'Ответственный' );
+
+CONSTRAINT ManufacturingOrder o IS ManufacturingOrder AND NOT project(o) MESSAGE 'Заявку можно создать только в рамках проекта, выберите проект!';
+
+
+EXTEND FORM project
+    PROPERTIES (mo) READONLY captionMaterials, nameResponsible
+;
+
+DESIGN project{
+    BOX(mo){
+        caption = badged('Заявки', countOrders(p));
+        REMOVE PROPERTY (nameItem(mo));
+        REMOVE PROPERTY (descriptionBom(mo));
+    }
+}
+
+
+

@@ -432,4 +432,22 @@ META defineDocFilter(doc, cls, property, obj, caption)
 
 END
 
+META defineDocFilterCustom(form, doc, cls, property, obj, caption)
+    doc###property = DATA LOCAL NESTED cls ();
+    name###doc###property caption = name(doc###property());
+
+    EXTEND FORM form
+        PROPERTIES() name###doc###property
+
+        FILTERS property(obj) = doc###property() OR NOT doc###property()
+    ;
+
+    DESIGN form {
+        filters {
+            MOVE PROPERTY(name###doc###property());
+        }
+    }
+
+END
+
 badgedDoc(STRING caption, STRING number, DATETIME dateTime) = badged(caption, (CONCAT ' ', '№' + number, '(' + dateTime +  ')'));

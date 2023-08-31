@@ -1,0 +1,86 @@
+MODULE PurchaseManufacturingOrderStendex;
+
+REQUIRE ProjectManufacturingOrderStendex, PurchaseOrderManufacturing, PurchaseOrderSearch, ProjectPurchaseOrder;
+
+NAMESPACE Purchase;
+
+quantityOrderLine (OrderLine pl) = GROUP SUM toConsume(ConsumedLine cl) IF orderLine(cl) = pl;
+
+countOrderLine (OrderLine pl) = GROUP SUM 1 IF orderLine(ConsumedLine sl) = pl;
+
+add 'Add' (Order o, ConsumedLine sl) {
+    IF NOT lastOrderLine(o, item(sl)) THEN NEW pl = Purchase.OrderLine {
+        order(pl) <- o;
+        item(pl) <- item(sl);
+        quantity(pl) <- toConsume(sl);
+
+        orderLine(sl) <- pl;
+    }
+
+    FOR Purchase.OrderLine pl = lastOrderLine(o, item(sl)) DO {
+        orderLine(sl) <- pl;
+        quantity(pl) <- quantityOrderLine(pl);
+    }
+
+} IMAGE 'add.png' CHANGEKEY 'ADD';
+
+delete 'Delete' (Purchase.Order o, ConsumedLine sl) {
+    IF countOrderLine(orderLine(sl)) > 1 THEN {
+        orderLine(sl) <- NULL;
+        quantity(orderLine(sl)) <- quantityOrderLine(orderLine(sl));
+    } ELSE
+        DELETE Purchase.OrderLine pl WHERE pl = orderLine(sl);
+} IMAGE 'delete.png' CHANGEKEY 'SUBTRACT';
+
+in 'Отм.' = DATA LOCAL BOOLEAN (ConsumedLine);
+
+bulkAdd 'Добавить отм.'(Order o){
+    FOR in(ConsumedLine l)  DO add(o, l);
+    in(ConsumedLine l) <- NULL; 
+}IMAGE 'add.png';
+
+bulkDelete 'Удалить отм.' (Order o){
+    FOR in(ConsumedLine l) DO delete(o, l);
+    in(ConsumedLine l) <- NULL;
+}IMAGE 'delete.png';
+
+showBulkOperation = GROUP SUM 1 IF in(ConsumedLine l);
+
+EXTEND CLASS ManufacturingOrderStatus{
+    partialOrder 'Частично заказана',
+    inOrder 'Заказана'
+}
+countOrdered (ManufacturingOrder o) = GROUP SUM 1 IF orderLine(ConsumedLine l) BY manufacturingOrder(l);
+
+status(ManufacturingOrder o) += WHEN countOrdered(o) AND countConsumedLine(o) > countOrdered(o) THEN ManufacturingOrderStatus.partialOrder;
+status(ManufacturingOrder o) += WHEN countOrdered(o) AND countConsumedLine(o) = countOrdered(o) THEN ManufacturingOrderStatus.inOrder;
+
+EXTEND FORM Purchase.order
+    OBJECTS cl = ConsumedLine
+    PROPERTIES(cl) READONLY BACKGROUND o = order(orderLine(cl))
+     number, date, nameResponsible, description,
+        nameItem, toConsume, nameUom
+    PROPERTIES(o, cl) SHOWIF NOT showBulkOperation() TOOLBAR add, delete READONLYIF NOT order(orderLine(cl)) = o 
+    PROPERTIES (o) SHOWIF showBulkOperation() TOOLBAR DRAW cl bulkAdd, bulkDelete 
+    PROPERTIES (cl) in FIRST 
+    
+    FILTERS order(orderLine(cl)) = o OR
+        ((NOT orderLine(cl) OR canceled(orderLine(cl))) AND
+            status(cl) != ManufacturingOrderStatus.inOrder) AND project(o) = project(cl)
+;
+
+DESIGN Purchase.order {
+    details {
+        NEW requests{
+            caption = 'Заявки на материалы';
+            MOVE BOX(cl) { caption = ''; }
+        }
+        MOVE requests AFTER lines;
+    }
+}
+
+NAVIGATOR {
+    dashboard{
+        MOVE Purchase.orders;
+    }
+}

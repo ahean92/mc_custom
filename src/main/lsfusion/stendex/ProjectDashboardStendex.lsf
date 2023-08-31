@@ -1,0 +1,148 @@
+MODULE ProjectDashboardStendex;
+
+REQUIRE PurchaseOrderStendex, PurchaseManufacturingOrderStendex;
+
+EXTEND FORM project
+    OBJECTS pf = Purchase.OrderFile
+    PROPERTIES READONLY 'Заказ' = number(objet(pf))
+    PROPERTIES(pf) name, extension, description
+    PROPERTIES(pf) READONLY nameUser, dateTime
+    PROPERTIES(pf) GRID open, DELETE
+    FILTERS project(objet(pf)) = p
+;
+countPurchaseFile (Project p) = GROUP SUM 1 IF project(objet(Purchase.OrderFile f)) = p;
+
+DESIGN project{
+    REMOVE files;
+    details{
+        NEW filesTotal{
+            caption = badged('Файлы', countFiles(p) (+) countPurchaseFile(p));
+            tabbed = TRUE;
+            NEW fp{
+                caption = badged('По проекту', countFiles(p) );
+                MOVE BOX (of){
+                    caption = '';
+                }
+                MOVE PROPERTY(uploadFile()) {
+                    panelCaptionVertical = TRUE;
+                    fill = 0.3;
+                }
+            }
+            NEW pof{
+                caption = badged('По заказам', countPurchaseFile(p));
+                MOVE BOX(pf){
+                    caption = '';
+                }
+            }
+        }
+    }
+}
+NAVIGATOR {
+    dashboard{
+        MOVE projects;
+    }
+}
+//дашборд
+
+filterProject = DATA LOCAL NESTED Project ();
+nameFilterProject 'Проект' = name(filterProject());
+
+filterRepresentative = DATA LOCAL NESTED Employee ();
+nameFilterRepresentative 'Наш представитель' = MasterData.name(filterRepresentative());
+
+FORM projectDashboard 'Дашборд' 
+    PROPERTIES () nameFilterProject, nameFilterRepresentative
+
+    OBJECTS request = ManufacturingOrder
+    PROPERTIES (request) READONLY nameProject, date, number, nameType, captionMaterials, nameStatus,  nameResponsible
+    PROPERTIES (request) NEWSESSION EDIT
+    FILTERS project(request) = filterProject() OR NOT filterProject()
+    FILTERS responsible(request) = filterRepresentative() OR NOT filterRepresentative()
+;
+//
+filteredRequest(ManufacturingOrder o) = FILTER projectDashboard.request;
+countFilteredRequest = GROUP SUM 1 IF filteredRequest(ManufacturingOrder o);
+
+DESIGN projectDashboard{
+    OBJECTS{
+        class = '';
+        border = FALSE;
+        NEW filters {
+            caption = '';
+            alignment = CENTER;
+            horizontal = TRUE;
+            MOVE PROPERTY (nameFilterProject());
+            MOVE PROPERTY (nameFilterRepresentative());
+            MOVE PROPERTY (formRefresh());
+            
+            NEW action{
+                caption = '';
+            }
+        }
+        NEW tab{
+            fill = 1;
+            alignment = STRETCH;
+            tabbed = TRUE;
+            NEW request{
+                caption = badged('Заявки', countFilteredRequest());
+                MOVE BOX (request){
+                    caption = '';
+                    PROPERTY (nameType(request)){
+                        charWidth = 10;
+                    }
+                };
+            }
+        }
+        REMOVE TOOLBARBOX;
+    }
+}
+
+
+META dashboardStatus(st, capt)
+    EXTEND FORM projectDashboard
+        OBJECTS st = Purchase.Order
+        PROPERTIES (st) READONLY BACKGROUND colorStatus(st) nameCompany, nameProject, number, date, nameRepresentative, scheduledDateTime, nameVendor, note, untaxedAmount
+        PROPERTIES (st) NEWSESSION EDIT
+        FILTERS status(st) = Purchase.OrderStatus.st
+        FILTERS project(st) = filterProject() OR NOT filterProject()
+        FILTERS representative(st) = filterRepresentative() OR NOT filterRepresentative()
+        
+        OBJECTS st##Status = Purchase.OrderStatus
+        PROPERTIES (st, st##Status ) NEWSESSION changeStatus COLUMNS (st##Status) HEADER captionButton(st##Status) BACKGROUND dataColor(st##Status)
+        FILTERS showStatus(st, st##Status)
+    ;
+
+    filtered###st(Purchase.Order o) = FILTER projectDashboard.st;
+    countFiltered###st = GROUP SUM 1 IF filtered###st(Purchase.Order o);
+    DESIGN projectDashboard{
+        tab{
+            NEW st{
+                caption =  badged(capt, countFiltered###st());
+                NEW action##st{
+                    caption = '';
+                    alignment = END;
+                    MOVE PROPERTY (changeStatus(st, st##Status ));
+                }
+                MOVE BOX(st) {caption = ''; };
+            }
+        }
+    }
+    
+END 
+@dashboardStatus(draft, 'Формирование');
+@dashboardStatus(review, 'На рассмотрении');
+@dashboardStatus(inPayment, 'В оплате');
+@dashboardStatus(partiallyPaid, 'Частично оплачен');
+@dashboardStatus(awaitingDelivery, 'Ждем доставки');
+@dashboardStatus(delivered, 'Доставлен');
+@dashboardStatus(canceled, 'Отменен');
+
+@dashboardStatus(closed, 'Закрыт');
+
+
+NAVIGATOR {
+    dashboard{
+        NEW projectDashboard;
+    }
+}
+
