@@ -27,7 +27,7 @@ CONSTRAINT ManufacturingOrder o IS ManufacturingOrder AND NOT project(o) MESSAGE
 
 
 EXTEND FORM project
-    PROPERTIES (mo) READONLY captionMaterials, nameResponsible
+    PROPERTIES (mo) READONLY nameConsumedItem, nameResponsible
 ;
 
 DESIGN project{

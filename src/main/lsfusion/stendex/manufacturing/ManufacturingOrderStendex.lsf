@@ -4,21 +4,9 @@ REQUIRE ManufacturingOrder;
 
 NAMESPACE Manufacturing;
 
-captionMaterials 'Материалы' (ManufacturingOrder o) = GROUP CONCAT nameItem(ConsumedLine cl), 
-    ' / ' ORDER nameItem(cl) BY manufacturingOrder(cl) CHARWIDTH 14;
-
-responsible (ConsumedLine l) = responsible(manufacturingOrder(l));
-nameResponsible 'Responsible' (ConsumedLine l) = MasterData.name(responsible(l));
-
-status (ConsumedLine l) = status(manufacturingOrder(l));
-nameStatus 'Status' (ConsumedLine l) = name(status(l));
-
-date 'Дата' (ManufacturingOrder o) = DATE(scheduledDateTime(o));
-date 'Дата' (ConsumedLine l) = date(manufacturingOrder(l));
-
 FORM materialRequests 'Заявки'
     OBJECTS o = ManufacturingOrder
-    PROPERTIES (o) READONLY date, number, nameType, captionMaterials, nameStatus, nameResponsible
+    PROPERTIES (o) READONLY 'Дата' = scheduledDate, number, nameType, nameConsumedItem, nameStatus, nameResponsible
     PROPERTIES (o) NEWSESSION NEW, EDIT, DELETE
 
     LIST ManufacturingOrder OBJECT o
@@ -26,7 +14,7 @@ FORM materialRequests 'Заявки'
 
 
 @defineDocObjectsForm(materialRequests, o, 'Заявки');
-@defineDateFilterForm(materialRequests, o, , filters);
+@defineDateFilterForm(materialRequests, o, scheduled, filters);
 
 FORM materialRequest 'Заявка'
     OBJECTS o = ManufacturingOrder PANEL

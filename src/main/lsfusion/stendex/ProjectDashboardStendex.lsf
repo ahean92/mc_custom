@@ -54,7 +54,7 @@ FORM projectDashboard 'Дашборд'
     PROPERTIES () nameFilterProject, nameFilterRepresentative
 
     OBJECTS request = ManufacturingOrder
-    PROPERTIES (request) READONLY nameProject, date, number, nameType, captionMaterials, nameStatus,  nameResponsible
+    PROPERTIES (request) READONLY nameProject, 'Дата' = scheduledDate, number, nameType, nameConsumedItem, nameStatus,  nameResponsible
     PROPERTIES (request) NEWSESSION EDIT
     FILTERS project(request) = filterProject() OR NOT filterProject()
     FILTERS responsible(request) = filterRepresentative() OR NOT filterRepresentative()
