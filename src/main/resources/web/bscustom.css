@@ -16,6 +16,16 @@
     --bs-nav-link-padding-y: 0.25rem;
 }
 
+.navbar-text {
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+}
+
+.card {
+    --bs-card-spacer-y: 0.333rem;
+    --bs-card-spacer-x: 0.333rem;
+}
+
 .dropdown-menu {
     --bs-dropdown-item-padding-x: 0.5rem;
     --bs-dropdown-item-padding-y: 0.125rem;
@@ -34,6 +44,6 @@
 }
 :root {
     --border-padding: 0.25rem;
-    --border-cont-horz-padding: 0.5rem;
-    --border-cont-vert-padding: 0.5rem;
+    --border-cont-horz-padding: 0.333rem;
+    --border-cont-vert-padding: 0.333rem;
 }
