@@ -25,6 +25,13 @@
     padding: 0.25rem 0.25rem;
 }
 
+.dataGridHeaderCell-caption {
+    font-size: 0.8rem;
+}
+
+.caption-panel-header {
+    font-size: 0.8rem;
+}
 :root {
     --border-padding: 0.25rem;
     --border-cont-horz-padding: 0.5rem;
