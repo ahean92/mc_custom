@@ -35,3 +35,9 @@ REQUIRE Eval, ProcessMonitor, Backup,
         ProjectPurchaseOrder, ProjectManufacturingOrderStendex,
         ProjectSalesOrder, ProjectDashboardStendex,
         ProjectManufacturingOrder;
+
+
+onWebClientLoad() +{
+    IF useBootstrap() THEN
+        INTERNAL CLIENT 'bscustom.css';
+}

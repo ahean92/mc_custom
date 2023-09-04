@@ -1,0 +1,32 @@
+.form-control {
+    padding: 0.125rem 0.25rem;
+}
+
+.form-select {
+    padding: 0.125rem 0.75rem 0.125rem 0.25rem;
+}
+
+.btn {
+    --bs-btn-padding-x: 0.25rem;
+    --bs-btn-padding-y: 0.125rem;
+}
+
+.nav {
+    --bs-nav-link-padding-x: 0.5rem;
+    --bs-nav-link-padding-y: 0.25rem;
+}
+
+.dropdown-menu {
+    --bs-dropdown-item-padding-x: 0.5rem;
+    --bs-dropdown-item-padding-y: 0.125rem;
+}
+
+.table>:not(caption)>*>* {
+    padding: 0.25rem 0.25rem;
+}
+
+:root {
+    --border-padding: 0.25rem;
+    --border-cont-horz-padding: 0.5rem;
+    --border-cont-vert-padding: 0.5rem;
+}
