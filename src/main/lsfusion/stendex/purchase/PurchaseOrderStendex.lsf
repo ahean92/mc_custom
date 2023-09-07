@@ -29,9 +29,44 @@ DESIGN Purchase.options{
     }
 }
 
+//прикрепление файлов
+CLASS TypeFile{
+    paymentOrder 'Платежное поручение',
+    invoice 'Счет',
+    consignment 'Накладная',
+    other 'Другое'
+}
+
+type = DATA TypeFile (OrderFile) NONULL;
+nameType 'Тип' (OrderFile f) = staticCaption(type(f));
+WHEN SET (OrderFile f IS OrderFile) AND NOT type(f) DO type(f) <- TypeFile.other;
+
+
+isPP (OrderFile f) = type(f) = TypeFile.paymentOrder;
+amount 'Сумма' = DATA NUMERIC[16,2](OrderFile);
+overDescription (OrderFile f) = CONCAT ' /', description(f), 'Сумма: ' + amount(f);
+
+amountPayed 'Оплачено' (Order o) = GROUP SUM amount(OrderFile f) IF isPP(f) BY objet(f);
+CONSTRAINT SET (OrderFile f IS OrderFile) AND isPP(f) AND NOT amount(f) MESSAGE 'При загрузке платежного поручения необходимо ввести сумму';
+
+payedPartial (Order o) = amountPayed(o) AND untaxedAmount(o) AND amountPayed(o) < untaxedAmount(o);
+payed (Order o) = amountPayed(o) AND untaxedAmount(o) AND amountPayed(o) >= untaxedAmount(o);
+invoice 'Счет' (Order o) = GROUP LAST OrderFile f ORDER dateTime(f) WHERE type(f) = TypeFile.invoice AND objet(f) = o;
+openInvoice 'Счет' (Order f) { open(file(invoice(f)), nameExtension(invoice(f))); } IMAGE 'open.png';
+fileInvoice (Purchase.Order o) = file(invoice(o));
+
+EXTEND FORM order
+    PROPERTIES (of) nameType FIRST, amount READONLYIF NOT isPP(of)
+    PROPERTIES (o) amountPayed
+;
+DESIGN order{
+    total{
+        MOVE PROPERTY (amountPayed(o));
+    }
+}
 
 changeStatus ABSTRACT LIST (Order, OrderStatus);
-changeStatus (Order o, OrderStatus s) +{ 
+changeStatus (Order o, OrderStatus s) +{
     APPLY;
     IF canceled() THEN RETURN;
 }
@@ -67,10 +102,10 @@ color(OrderStatus o) += WHEN o = OrderStatus.closed THEN RGB(102, 255, 102);
 WHEN SETCHANGED (dataStatus(Order o) = OrderStatus.delivered)  DO confirmed(o) <- TRUE;
 
 showStatus = ABSTRACT CASE BOOLEAN (Order, OrderStatus);
-showStatus(Order o, OrderStatus s) += WHEN status(o) = OrderStatus.draft AND (s = OrderStatus.review OR s = OrderStatus.canceled) THEN TRUE;
+showStatus(Order o, OrderStatus s) += WHEN status(o) = OrderStatus.draft AND ((s = OrderStatus.review AND invoice(o)) OR s = OrderStatus.canceled) THEN TRUE;
 showStatus(Order o, OrderStatus s) += WHEN status(o) = OrderStatus.review AND (s = OrderStatus.inPayment OR s = OrderStatus.canceled) THEN TRUE;
-showStatus(Order o, OrderStatus s) += WHEN status(o) = OrderStatus.partiallyPaid AND (s = OrderStatus.awaitingDelivery OR s = OrderStatus.canceled) THEN TRUE;
-showStatus(Order o, OrderStatus s) += WHEN status(o) = OrderStatus.inPayment AND (s = OrderStatus.partiallyPaid OR s = OrderStatus.awaitingDelivery OR s = OrderStatus.canceled) THEN TRUE;
+showStatus(Order o, OrderStatus s) += WHEN status(o) = OrderStatus.partiallyPaid AND (( s = OrderStatus.awaitingDelivery AND payed(o)) OR s = OrderStatus.canceled) THEN TRUE;
+showStatus(Order o, OrderStatus s) += WHEN status(o) = OrderStatus.inPayment AND ((s = OrderStatus.partiallyPaid AND payedPartial(o)) OR (s = OrderStatus.awaitingDelivery AND payed(o))OR s = OrderStatus.canceled) THEN TRUE;
 showStatus(Order o, OrderStatus s) += WHEN status(o) = OrderStatus.awaitingDelivery AND (s = OrderStatus.delivered OR s = OrderStatus.canceled) THEN TRUE;
 showStatus(Order o, OrderStatus s) += WHEN status(o) = OrderStatus.delivered AND (s = OrderStatus.closed OR s = OrderStatus.canceled) THEN TRUE;
 
@@ -78,7 +113,7 @@ color(Order o, OrderStatus s) = IF o IS Order THEN color(s);
 
 EXTEND FORM order
     OBJECTS s = OrderStatus
-    PROPERTIES (o, s) changeStatus COLUMNS (s) HEADER captionButton(s) BACKGROUND dataColor(s)
+    PROPERTIES (o, s) changeStatus COLUMNS (s) HEADER captionButton(s) BACKGROUND dataColor(s) SHOWIF countOrderLine(o)
     FILTERS showStatus(o, s)
 ;
 DESIGN order{
@@ -88,8 +123,9 @@ DESIGN order{
         horizontal = FALSE;
         headerLeft{
             horizontal = TRUE;
-            MOVE PROPERTY (imagedNameStatus(o)) {};
+            MOVE PROPERTY (imagedNameStatus(o));
             NEW statusButton{
+                horizontal = TRUE;
                 caption = 'Действия';
                 MOVE PROPERTY (changeStatus(o, s));
             }
@@ -104,9 +140,31 @@ DESIGN order{
     details{
         MOVE files AFTER lines;
         MOVE search AFTER files;
+        lines{
+            caption = badged('Товары', countOrderLine(o));
+        }
     }
 }
-    
-CONSTRAINT Order o IS Order AND NOT project(o) MESSAGE 'Создать счет можно только в рамках проекта. Выберите проект';
 
 @defineDocFilter(order, Project, project, o, 'Проект');
+
+showPanel = DATA LOCAL BOOLEAN ();
+
+showPanelControl(){
+    showPanel() <- NOT showPanel();
+}
+EXTEND FORM orders
+    PROPERTIES () showPanelControl TOOLBAR DRAW o
+;
+
+DESIGN orders{
+    REMOVE PROPERTY (nameProject(o));
+    PROPERTY (showPanelControl()) {
+        caption = IF showPanel() THEN 'Скрыть фильтры' ELSE 'Фильтры';
+    }
+    rightPane{
+        showIf = showPanel();
+    }
+}
+CONSTRAINT SET(vendor(Order o)) AND vendor(o) IS Employee CHECKED BY vendor[Order] 
+    MESSAGE 'Сотрудник не может быть поставщиком';

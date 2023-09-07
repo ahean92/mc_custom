@@ -54,25 +54,36 @@ status(ManufacturingOrder o) += WHEN countOrdered(o) AND countConsumedLine(o) = 
 EXTEND FORM Purchase.order
     OBJECTS cl = ConsumedLine
     PROPERTIES(cl) READONLY BACKGROUND o = order(orderLine(cl))
-        number, 'Дата' = scheduledDate, nameResponsible, description,
+        number, 'Дата' = scheduledDate, namePriority, nameResponsible,  description,
         nameItem, toConsume, nameUom
+    PROPERTIES (cl) link AFTER description(cl) ON CHANGE { open(link(cl)); } BACKGROUND o = order(orderLine(cl))
     PROPERTIES(o, cl) SHOWIF NOT showBulkOperation() TOOLBAR add, delete READONLYIF NOT order(orderLine(cl)) = o 
     PROPERTIES (o) SHOWIF showBulkOperation() TOOLBAR DRAW cl bulkAdd, bulkDelete 
     PROPERTIES (cl) in FIRST 
     
     FILTERS order(orderLine(cl)) = o OR
         ((NOT orderLine(cl) OR canceled(orderLine(cl))) AND
-            status(cl) != ManufacturingOrderStatus.inOrder) AND project(o) = project(cl)
+            status(cl) != ManufacturingOrderStatus.inOrder)
 ;
 
 DESIGN Purchase.order {
+    PROPERTY (in(cl)) {changeOnSingleClick = TRUE; }
+    PROPERTY (link(cl)) {changeOnSingleClick = TRUE; }
     details {
         NEW requests{
             caption = 'Заявки на материалы';
-            MOVE BOX(cl) { caption = ''; }
+            MOVE BOX(cl) { 
+                caption = ''; 
+                PROPERTY (description(cl)){ charWidth = 10; }
+                PROPERTY (namePriority(cl)) {valueAlignment = CENTER; }
+            }
         }
         MOVE requests AFTER lines;
     }
+}
+
+DESIGN orders{
+    REMOVE PROPERTY (numberDateManufacturingOrders(o));
 }
 
 NAVIGATOR {

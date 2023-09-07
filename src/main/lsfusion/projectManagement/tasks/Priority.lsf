@@ -8,24 +8,37 @@ CLASS Priority 'Priority';
 TABLE priority (Priority);
 
 name 'Name' = DATA ISTRING[100] (Priority) CHARWIDTH 10;
+color 'Color' = DATA COLOR (Priority);
+
+CLASS BadgedType{
+    info 'info',
+    warning 'warning',
+    danger 'danger',
+    success 'success'
+}
+
+badged (STRING s, BadgedType t) = HTML('<p align="center" class="badge bg-' + staticCaption(t) + ' wrap-text-img">'+ s +'</p>');
+badgedType = DATA BadgedType (Priority);
+nameBadgedType 'Badged Type' (Priority p)= staticCaption(badgedType(p));
+badged 'Priority' (Priority p) = badged(name(p), badgedType(p));
 
 FORM priority 'Priority'
     OBJECTS p = Priority PANEL
-    PROPERTIES(p) name
+    PROPERTIES(p) name, color, nameBadgedType, badged READONLY
     
     EDIT Priority OBJECT p
 ;
 
 FORM priorities 'Priorities'
     OBJECTS p = Priority
-    PROPERTIES(p) READONLY name
+    PROPERTIES(p) READONLY name BACKGROUND color(p)
     
     LIST Priority OBJECT p
 ;
 
 EXTEND FORM options
     OBJECTS p = Priority
-    PROPERTIES(p) READONLY name
+    PROPERTIES(p) READONLY name BACKGROUND color(p), badged
     PROPERTIES(p) NEWSESSION NEW, EDIT, DELETE
 ;
 

@@ -4,6 +4,8 @@ REQUIRE ManufacturingOrder;
 
 NAMESPACE Manufacturing;
 
+link 'Ссылка' = DATA LINK (ConsumedLine) CHARWIDTH 25;
+
 FORM materialRequests 'Заявки'
     OBJECTS o = ManufacturingOrder
     PROPERTIES (o) READONLY 'Дата' = scheduledDate, number, nameType, nameConsumedItem, nameStatus, nameResponsible
@@ -11,7 +13,6 @@ FORM materialRequests 'Заявки'
 
     LIST ManufacturingOrder OBJECT o
 ;
-
 
 @defineDocObjectsForm(materialRequests, o, 'Заявки');
 @defineDateFilterForm(materialRequests, o, scheduled, filters);
@@ -22,7 +23,7 @@ FORM materialRequest 'Заявка'
     PROPERTIES (o) READONLY nameType, nameStatus,  nameResponsible
 
     OBJECTS cl = ConsumedLine
-    PROPERTIES (cl) NOSELECT idItem, nameItem, nameUom, description, 'К заказу' = toConsume
+    PROPERTIES (cl) NOSELECT idItem, nameItem, nameUom, description, link, 'Количество' = toConsume
     PROPERTIES (cl) NEW, EDIT, DELETE
     FILTERS manufacturingOrder(cl) = o
 

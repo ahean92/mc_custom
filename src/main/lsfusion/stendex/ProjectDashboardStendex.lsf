@@ -1,8 +1,22 @@
 MODULE ProjectDashboardStendex;
 
-REQUIRE PurchaseOrderStendex, PurchaseManufacturingOrderStendex;
+REQUIRE PurchaseOrderStendex, ProjectPurchaseOrderStendex;
+
+length 'Длина, м' = DATA NUMERIC[8,2] (Project);
+width 'Ширина, м' = DATA NUMERIC[8,2] (Project);
+square 'Площадь, м²' (Project p) = round2(length(p) * width(p));
+budget 'Бюджет' = DATA NUMERIC[15,2] (Project);
+
+EXTEND FORM projects
+    PROPERTIES (p) READONLY budget, square
+;
+DESIGN projects{
+    REMOVE PROPERTY (startDate(p));
+    REMOVE PROPERTY (endDate(p));
+}
 
 EXTEND FORM project
+    PROPERTIES (p) length, width, square, budget
     OBJECTS pf = Purchase.OrderFile
     PROPERTIES READONLY 'Заказ' = number(objet(pf))
     PROPERTIES(pf) name, extension, description
@@ -14,24 +28,43 @@ countPurchaseFile (Project p) = GROUP SUM 1 IF project(objet(Purchase.OrderFile 
 
 DESIGN project{
     REMOVE files;
-    details{
-        NEW filesTotal{
-            caption = badged('Файлы', countFiles(p) (+) countPurchaseFile(p));
-            tabbed = TRUE;
-            NEW fp{
-                caption = badged('По проекту', countFiles(p) );
-                MOVE BOX (of){
-                    caption = '';
+    REMOVE PROPERTY (startDate(p));
+    REMOVE PROPERTY (endDate(p));
+    header{
+        fill = 1;
+        NEW headerExtra{
+            caption = '';
+            border = FALSE;
+            fill = 0.3;
+        }
+        headerLeft{
+            MOVE PROPERTY (budget(p));
+        }
+        headerRight{
+            MOVE PROPERTY (length(p));
+            MOVE PROPERTY (width(p));
+            MOVE PROPERTY (square(p));
+        }
+        PROPERTY (namePartner(p)) { caption = 'Клиент'; }
+        details{
+            NEW filesTotal{
+                caption = badged('Файлы', countFiles(p) (+) countPurchaseFile(p));
+                tabbed = TRUE;
+                NEW fp{
+                    caption = badged('По проекту', countFiles(p) );
+                    MOVE BOX (of){
+                        caption = '';
+                    }
+                    MOVE PROPERTY(uploadFile()) {
+                        panelCaptionVertical = TRUE;
+                        fill = 0.3;
+                    }
                 }
-                MOVE PROPERTY(uploadFile()) {
-                    panelCaptionVertical = TRUE;
-                    fill = 0.3;
-                }
-            }
-            NEW pof{
-                caption = badged('По заказам', countPurchaseFile(p));
-                MOVE BOX(pf){
-                    caption = '';
+                NEW pof{
+                    caption = badged('По заказам', countPurchaseFile(p));
+                    MOVE BOX(pf){
+                        caption = '';
+                    }
                 }
             }
         }
@@ -52,9 +85,8 @@ nameFilterRepresentative 'Наш представитель' = MasterData.name(f
 
 FORM projectDashboard 'Дашборд' 
     PROPERTIES () nameFilterProject, nameFilterRepresentative
-
     OBJECTS request = ManufacturingOrder
-    PROPERTIES (request) READONLY nameProject, 'Дата' = scheduledDate, number, nameType, nameConsumedItem, nameStatus,  nameResponsible
+    PROPERTIES (request) READONLY nameProject, 'Дата' = scheduledDate, namePriority, number, nameType, nameConsumedItem, nameStatus,  nameResponsible
     PROPERTIES (request) NEWSESSION EDIT
     FILTERS project(request) = filterProject() OR NOT filterProject()
     FILTERS responsible(request) = filterRepresentative() OR NOT filterRepresentative()
@@ -69,12 +101,16 @@ DESIGN projectDashboard{
         border = FALSE;
         NEW filters {
             caption = '';
-            alignment = CENTER;
-            horizontal = TRUE;
-            MOVE PROPERTY (nameFilterProject());
-            MOVE PROPERTY (nameFilterRepresentative());
-            MOVE PROPERTY (formRefresh());
-            
+            alignment = STRETCH;
+            NEW select{
+                caption = '';
+                border = FALSE;
+                alignment = CENTER;
+                horizontal = TRUE;
+                MOVE PROPERTY (nameFilterProject());
+                MOVE PROPERTY (nameFilterRepresentative());
+                MOVE PROPERTY (formRefresh());
+            }
             NEW action{
                 caption = '';
             }
@@ -90,6 +126,7 @@ DESIGN projectDashboard{
                     PROPERTY (nameType(request)){
                         charWidth = 10;
                     }
+                    PROPERTY (namePriority(request)) {valueAlignment = CENTER; charWidth = 6;}
                 };
             }
         }
@@ -101,14 +138,15 @@ DESIGN projectDashboard{
 META dashboardStatus(st, capt)
     EXTEND FORM projectDashboard
         OBJECTS st = Purchase.Order
-        PROPERTIES (st) READONLY BACKGROUND colorStatus(st) nameCompany, nameProject, number, date, nameRepresentative, scheduledDateTime, nameVendor, note, untaxedAmount
+        PROPERTIES (st) READONLY BACKGROUND colorStatus(st) nameCompany, nameProjects, number, date, nameRepresentative, scheduledDateTime, nameVendor, note, untaxedAmount
         PROPERTIES (st) NEWSESSION EDIT
+        PROPERTIES fileInvoice(st) AFTER nameVendor(st) ON CHANGE { openInvoice(st); }
         FILTERS status(st) = Purchase.OrderStatus.st
-        FILTERS project(st) = filterProject() OR NOT filterProject()
+        FILTERS inOrder(filterProject(), st) OR NOT filterProject()
         FILTERS representative(st) = filterRepresentative() OR NOT filterRepresentative()
         
         OBJECTS st##Status = Purchase.OrderStatus
-        PROPERTIES (st, st##Status ) NEWSESSION changeStatus COLUMNS (st##Status) HEADER captionButton(st##Status) BACKGROUND dataColor(st##Status)
+        PROPERTIES (st, st##Status ) NEWSESSION changeStatus COLUMNS (st##Status) HEADER captionButton(st##Status) BACKGROUND dataColor(st##Status) SHOWIF countOrderLine(st)
         FILTERS showStatus(st, st##Status)
     ;
 
@@ -123,7 +161,10 @@ META dashboardStatus(st, capt)
                     alignment = END;
                     MOVE PROPERTY (changeStatus(st, st##Status ));
                 }
-                MOVE BOX(st) {caption = ''; };
+                MOVE BOX(st) {
+                    caption = ''; 
+                    PROPERTY (fileInvoice(st)) { charWidth = 7; caption = 'Счет'; }
+                }
             }
         }
     }

@@ -1,0 +1,23 @@
+MODULE ProjectPurchaseOrderStendex;
+
+REQUIRE PurchaseManufacturingOrderStendex;
+
+NAMESPACE Purchase;
+
+inOrder(Project p, Order o) = GROUP SUM 1 IF project(ConsumedLine l) = p AND order(orderLine(l)) = o;
+nameProjects 'Проекты' (Order o) = GROUP CONCAT name(Project p) IF inOrder(p, o), '/' ORDER p;
+
+EXTEND FORM order
+    PROPERTIES (o) nameProjects
+;
+
+DESIGN order{
+    headerRight{
+        REMOVE PROPERTY (nameProject(o));
+        MOVE PROPERTY (nameProjects(o));
+    }
+    
+}
+EXTEND FORM orders
+    PROPERTIES (o) nameProjects
+;

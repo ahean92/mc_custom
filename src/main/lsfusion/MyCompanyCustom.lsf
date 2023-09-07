@@ -2,7 +2,7 @@ MODULE MyCompanyCustom;
 
 REQUIRE Eval, ProcessMonitor, Backup,
         Individual, IndividualImport, IndividualInitial, Employee, EmployeeImport,
-        LegalEntity, LegalEntityImport,
+        LegalEntity, LegalEntityImport, DaDataLegalEntityFind, PartnerStendex,
         Contract, ContractPartner, ContractImport,
         Company, CompanyInitial,
         Category, CategoryImport, CategoryImage,
@@ -31,7 +31,7 @@ REQUIRE Eval, ProcessMonitor, Backup,
         SalesLedgerPartner,
         SalesOrderReport, SalesLedgerReport, SalesSummary,
 
-        Project,
+        Project, Priority,
         ProjectPurchaseOrder, ProjectManufacturingOrderStendex,
         ProjectSalesOrder, ProjectDashboardStendex,
         ProjectManufacturingOrder;
