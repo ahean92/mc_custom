@@ -128,7 +128,7 @@ showStatusRule(Order o, OrderStatus s) += WHEN status(o) = OrderStatus.partially
 showStatusRule(Order o, OrderStatus s) += WHEN status(o) = OrderStatus.inPayment AND ((s = OrderStatus.partiallyPaid AND payedPartial(o)) OR (s = OrderStatus.awaitingDelivery AND payed(o))OR s = OrderStatus.canceled) THEN TRUE;
 showStatusRule(Order o, OrderStatus s) += WHEN status(o) = OrderStatus.awaitingDelivery AND (s = OrderStatus.delivered OR s = OrderStatus.canceled) THEN TRUE;
 showStatusRule(Order o, OrderStatus s) += WHEN status(o) = OrderStatus.delivered AND ((s = OrderStatus.closed AND consignment(o)) OR s = OrderStatus.canceled) THEN TRUE;
-showStatus (Order o, OrderStatus s) = showStatusRule(o, s) AND allowStatusSet(s, mainRole(currentUser()));
+showStatus (Order o, OrderStatus s) = showStatusRule(o, s) AND (GROUP SUM 1 IF allowStatusSet(s, UserRole r) AND in(currentUser(), r));
 
 color(Order o, OrderStatus s) = IF o IS Order THEN color(s);
 uploadFile 'Загрузить файл'(Order o){
@@ -210,4 +210,4 @@ WHEN SETCHANGED (isPP(OrderFile f)) AND amountPayed(objet(f)) < untaxedAmount(ob
 
 WHEN SETCHANGED (isPP(OrderFile f)) AND amountPayed(objet(f)) >= untaxedAmount(objet(f)) 
     AND (status(objet(f)) = OrderStatus.inPayment OR status(objet(f)) = OrderStatus.partiallyPaid)
-    DO changeStatus(objet(f), OrderStatus.partiallyPaid);
+    DO changeStatus(objet(f), OrderStatus.awaitingDelivery);
