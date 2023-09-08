@@ -54,7 +54,7 @@ status(ManufacturingOrder o) += WHEN countOrdered(o) AND countConsumedLine(o) = 
 EXTEND FORM Purchase.order
     OBJECTS cl = ConsumedLine
     PROPERTIES(cl) READONLY BACKGROUND o = order(orderLine(cl))
-        number, 'Дата' = scheduledDate, namePriority, nameResponsible,  description,
+        number, 'Дата' = scheduledDate, nameProject, namePriority, nameResponsible,  description,
         nameItem, toConsume, nameUom
     PROPERTIES (cl) link AFTER description(cl) ON CHANGE { open(link(cl)); } BACKGROUND o = order(orderLine(cl))
     PROPERTIES(o, cl) SHOWIF NOT showBulkOperation() TOOLBAR add, delete READONLYIF NOT order(orderLine(cl)) = o 

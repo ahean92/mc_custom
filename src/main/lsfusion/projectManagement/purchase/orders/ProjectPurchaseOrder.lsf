@@ -33,7 +33,6 @@ EXTEND FORM project
     PROPERTIES(po) READONLY number, dateTime,
                             imagedNameStatus BACKGROUND colorStatus(po), nameType,
                             scheduledDateTime, nameLocation, amount
-    FILTERS project(po) = p
 ;
 
 DESIGN project {

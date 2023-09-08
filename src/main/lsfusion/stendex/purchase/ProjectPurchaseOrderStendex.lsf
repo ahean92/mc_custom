@@ -21,3 +21,7 @@ DESIGN order{
 EXTEND FORM orders
     PROPERTIES (o) nameProjects
 ;
+
+EXTEND FORM project
+    FILTERS inOrder(p, po)
+;

@@ -13,18 +13,28 @@ useCustomStatus() += TRUE;
 
 dataStatus = DATA OrderStatus (Order);
 status(Order o) += WHEN useCustomStatus() AND dataStatus(o) THEN dataStatus(o);
+allowStatusSet 'Разрешить' = DATA BOOLEAN (OrderStatus, UserRole);
 
 
 EXTEND FORM Purchase.options
     OBJECTS s = OrderStatus
     PROPERTIES (s) name, imagedName, dataColor, caption
+    
+    OBJECTS role = UserRole
+    PROPERTIES allowStatusSet(s, role), name(role) READONLY 
 ;
 
 DESIGN Purchase.options{
     tabbedPane{
         NEW orderStatus{
             caption = 'Статусы заказа';
-            MOVE BOX (s);
+            horizontal = TRUE;
+            MOVE BOX (s){
+                fill = 0.8;
+            }
+            MOVE BOX (role) {
+                fill = 0.2;
+            }
         }
     }
 }
@@ -54,6 +64,10 @@ payed (Order o) = amountPayed(o) AND untaxedAmount(o) AND amountPayed(o) >= unta
 invoice 'Счет' (Order o) = GROUP LAST OrderFile f ORDER dateTime(f) WHERE type(f) = TypeFile.invoice AND objet(f) = o;
 openInvoice 'Счет' (Order f) { open(file(invoice(f)), nameExtension(invoice(f))); } IMAGE 'open.png';
 fileInvoice (Purchase.Order o) = file(invoice(o));
+
+consignment 'Накладная' (Order o) = GROUP LAST OrderFile f ORDER dateTime(f) WHERE type(f) = TypeFile.consignment AND objet(f) = o;
+openConsignment 'Накладная' (Order f) { open(file(consignment(f)), nameExtension(invoice(f))); } IMAGE 'open.png';
+fileConsignment (Purchase.Order o) = file(consignment(o));
 
 EXTEND FORM order
     PROPERTIES (of) nameType FIRST, amount READONLYIF NOT isPP(of)
@@ -101,24 +115,42 @@ color(OrderStatus o) += WHEN o = OrderStatus.closed THEN RGB(102, 255, 102);
 @defineStatusOrder(delivered, 'Доставлен');
 WHEN SETCHANGED (dataStatus(Order o) = OrderStatus.delivered)  DO confirmed(o) <- TRUE;
 
-showStatus = ABSTRACT CASE BOOLEAN (Order, OrderStatus);
-showStatus(Order o, OrderStatus s) += WHEN status(o) = OrderStatus.draft AND ((s = OrderStatus.review AND invoice(o)) OR s = OrderStatus.canceled) THEN TRUE;
-showStatus(Order o, OrderStatus s) += WHEN status(o) = OrderStatus.review AND (s = OrderStatus.inPayment OR s = OrderStatus.canceled) THEN TRUE;
-showStatus(Order o, OrderStatus s) += WHEN status(o) = OrderStatus.partiallyPaid AND (( s = OrderStatus.awaitingDelivery AND payed(o)) OR s = OrderStatus.canceled) THEN TRUE;
-showStatus(Order o, OrderStatus s) += WHEN status(o) = OrderStatus.inPayment AND ((s = OrderStatus.partiallyPaid AND payedPartial(o)) OR (s = OrderStatus.awaitingDelivery AND payed(o))OR s = OrderStatus.canceled) THEN TRUE;
-showStatus(Order o, OrderStatus s) += WHEN status(o) = OrderStatus.awaitingDelivery AND (s = OrderStatus.delivered OR s = OrderStatus.canceled) THEN TRUE;
-showStatus(Order o, OrderStatus s) += WHEN status(o) = OrderStatus.delivered AND (s = OrderStatus.closed OR s = OrderStatus.canceled) THEN TRUE;
+changeStatus (Order o, OrderStatus s) +{
+    IF s = OrderStatus.canceled THEN  NEWSESSION {
+        dataStatus(o) <- s;
+        APPLY;
+    }
+}
+showStatusRule = ABSTRACT CASE BOOLEAN (Order, OrderStatus);
+showStatusRule(Order o, OrderStatus s) += WHEN status(o) = OrderStatus.draft AND ((s = OrderStatus.review AND invoice(o)) OR s = OrderStatus.canceled) THEN TRUE;
+showStatusRule(Order o, OrderStatus s) += WHEN status(o) = OrderStatus.review AND (s = OrderStatus.inPayment OR s = OrderStatus.canceled) THEN TRUE;
+showStatusRule(Order o, OrderStatus s) += WHEN status(o) = OrderStatus.partiallyPaid AND (( s = OrderStatus.awaitingDelivery AND payed(o)) OR s = OrderStatus.canceled) THEN TRUE;
+showStatusRule(Order o, OrderStatus s) += WHEN status(o) = OrderStatus.inPayment AND ((s = OrderStatus.partiallyPaid AND payedPartial(o)) OR (s = OrderStatus.awaitingDelivery AND payed(o))OR s = OrderStatus.canceled) THEN TRUE;
+showStatusRule(Order o, OrderStatus s) += WHEN status(o) = OrderStatus.awaitingDelivery AND (s = OrderStatus.delivered OR s = OrderStatus.canceled) THEN TRUE;
+showStatusRule(Order o, OrderStatus s) += WHEN status(o) = OrderStatus.delivered AND ((s = OrderStatus.closed AND consignment(o)) OR s = OrderStatus.canceled) THEN TRUE;
+showStatus (Order o, OrderStatus s) = showStatusRule(o, s) AND allowStatusSet(s, mainRole(currentUser()));
 
 color(Order o, OrderStatus s) = IF o IS Order THEN color(s);
+uploadFile 'Загрузить файл'(Order o){
+    INPUT uf = NAMEDFILE DO NEW uof = OrderFile {
+        objet(uof) <- o;
+        file(uof) <- RAWFILE(uf);
+        name(uof) <- name(uf);
+        extension(uof) <- extension(uf);
+    }
+} IMAGE 'add.png';
 
 EXTEND FORM order
     OBJECTS s = OrderStatus
     PROPERTIES (o, s) changeStatus COLUMNS (s) HEADER captionButton(s) BACKGROUND dataColor(s) SHOWIF countOrderLine(o)
     FILTERS showStatus(o, s)
+    PROPERTIES uploadFile(o) TOOLBAR DRAW of
 ;
+
 DESIGN order{
     REMOVE statusActions;
     REMOVE status;
+    REMOVE PROPERTY (uploadFile());
     header{
         horizontal = FALSE;
         headerLeft{
@@ -144,6 +176,9 @@ DESIGN order{
             caption = badged('Товары', countOrderLine(o));
         }
     }
+    files{
+        
+    }
 }
 
 @defineDocFilter(order, Project, project, o, 'Проект');
@@ -166,5 +201,13 @@ DESIGN orders{
         showIf = showPanel();
     }
 }
-CONSTRAINT SET(vendor(Order o)) AND vendor(o) IS Employee CHECKED BY vendor[Order] 
+CONSTRAINT SETCHANGED (vendor(Order o)) AND vendor(o) IS Employee CHECKED BY vendor[Order] 
     MESSAGE 'Сотрудник не может быть поставщиком';
+
+WHEN SETCHANGED (invoice(Order o)) AND status(o) = OrderStatus.draft DO changeStatus(o, OrderStatus.review);
+WHEN SETCHANGED (isPP(OrderFile f)) AND amountPayed(objet(f)) < untaxedAmount(objet(f)) AND status(objet(f)) = OrderStatus.inPayment 
+    DO changeStatus(objet(f), OrderStatus.partiallyPaid);
+
+WHEN SETCHANGED (isPP(OrderFile f)) AND amountPayed(objet(f)) >= untaxedAmount(objet(f)) 
+    AND (status(objet(f)) = OrderStatus.inPayment OR status(objet(f)) = OrderStatus.partiallyPaid)
+    DO changeStatus(objet(f), OrderStatus.partiallyPaid);
