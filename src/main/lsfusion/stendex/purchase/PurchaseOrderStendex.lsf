@@ -78,6 +78,11 @@ DESIGN order{
         MOVE PROPERTY (amountPayed(o));
     }
 }
+EXTEND FORM orders
+    FILTERGROUP statusCustom
+        FILTER 'Draft' status(o) = OrderStatus.draft
+        FILTER 'Отменен' status(o) = OrderStatus.canceled
+;
 
 changeStatus ABSTRACT LIST (Order, OrderStatus);
 changeStatus (Order o, OrderStatus s) +{
@@ -95,6 +100,10 @@ changeStatus (Order o, OrderStatus s) +{
         APPLY;
     }
 }
+EXTEND FORM orders
+    EXTEND FILTERGROUP statusCustom
+        FILTER caption status(o) = OrderStatus.name
+;
 END
 
 @defineStatusOrder(inPayment, 'В оплате');
@@ -194,6 +203,7 @@ EXTEND FORM orders
 
 DESIGN orders{
     REMOVE PROPERTY (nameProject(o));
+    REMOVE FILTERGROUP (status);
     PROPERTY (showPanelControl()) {
         caption = IF showPanel() THEN 'Скрыть фильтры' ELSE 'Фильтры';
     }
