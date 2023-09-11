@@ -20,9 +20,23 @@ DESIGN order{
     }
     
 }
+orderProject = DATA LOCAL NESTED Project ();
+nameOrderProject 'Проект' = name(orderProject());
+
 EXTEND FORM orders
     PROPERTIES (o) nameProjects
+    PROPERTIES() nameOrderProject
+
+    FILTERS inOrder(orderProject(), o) OR NOT orderProject()
 ;
+
+DESIGN orders {
+    filters {
+        MOVE PROPERTY(nameOrderProject());
+    }
+}
+
+
 
 EXTEND FORM project
     FILTERS inOrder(p, po)

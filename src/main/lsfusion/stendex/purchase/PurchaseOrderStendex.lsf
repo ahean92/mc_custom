@@ -190,8 +190,6 @@ DESIGN order{
     }
 }
 
-@defineDocFilter(order, Project, project, o, 'Проект');
-
 showPanel = DATA LOCAL BOOLEAN ();
 
 showPanelControl(){
