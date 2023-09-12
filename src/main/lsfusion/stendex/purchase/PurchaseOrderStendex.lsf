@@ -220,3 +220,7 @@ WHEN SETCHANGED (isPP(OrderFile f)) AND amountPayed(objet(f)) < untaxedAmount(ob
 WHEN SETCHANGED (isPP(OrderFile f)) AND amountPayed(objet(f)) >= untaxedAmount(objet(f)) 
     AND (status(objet(f)) = OrderStatus.inPayment OR status(objet(f)) = OrderStatus.partiallyPaid)
     DO changeStatus(objet(f), OrderStatus.awaitingDelivery);
+
+changedLines (Order o) = [GROUP SUM 1 IF SETCHANGED (item(OrderLine l)) OR SETCHANGED (quantity(l)) OR SETCHANGED (price(l)) BY order(l)](o);
+
+CONSTRAINT LOCAL CHANGED(changedLines(Order o)) AND invoice(o) MESSAGE 'Нельзя изменять документ после прикрепления счета';

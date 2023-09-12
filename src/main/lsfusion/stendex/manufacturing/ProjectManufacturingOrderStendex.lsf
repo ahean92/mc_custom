@@ -27,7 +27,8 @@ DESIGN materialRequests{
 DESIGN materialRequest{
     main{
         MOVE PROPERTY (nameProject(o));
-        MOVE PROPERTY (namePriority(o)) { valueAlignment = CENTER; };
+        MOVE PROPERTY (namePriority(o)) {
+            charWidth = 20; };
     }
 }
 
