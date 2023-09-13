@@ -46,3 +46,6 @@
     --border-cont-vert-padding: 0.333rem;
     --bs-body-font-size: 0.8rem;
 }
+.wrap-center {
+    justify-content: start;
+}
