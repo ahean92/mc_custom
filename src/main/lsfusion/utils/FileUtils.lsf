@@ -50,7 +50,7 @@ META defineObjectFiles(object, fobj, classCaption)
         details {
             NEW files {
                 caption = badged('Files', countFiles(fobj)); 
-                type = CONTAINERH;
+                horizontal = TRUE;
                 MOVE BOX(of) {
                     caption = '';
                 }

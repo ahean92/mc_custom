@@ -63,7 +63,7 @@ DESIGN materialRequest{
             NEW history {
                 caption = 'History';
                 fill = 1;
-                type = SPLITH;
+                
                 MOVE BOX(manufacturingOrderl) {
                     fill = 2;
                     caption = '';

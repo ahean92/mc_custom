@@ -29,7 +29,7 @@ DESIGN manufacturingOrders {
         NEW total {
             showIf = countSelectedManufacturingOrders();
             caption = 'Total';
-            type = SPLITV;
+            
             MOVE BOX(i);
             MOVE BOX(cl);
         } 

@@ -41,13 +41,11 @@ DESIGN salesSummary {
             MOVE BOX(sc);
             NEW salesLocation {
                 caption = 'Sales by location';
-                type = SPLITV;
                 MOVE BOX(sls);
                 MOVE BOX(slm);
             }
             NEW salesCategory {
                 caption = 'Sales by category';
-                type = SPLITH;
                 MOVE BOX(sis);
                 MOVE BOX(sim);
             }

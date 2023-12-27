@@ -9,7 +9,7 @@ META defineDocObjectsForm (form, obj, title)
         OBJECTS {
             NEW pane {
                 fill = 1;
-                type = CONTAINERH;
+                horizontal = TRUE;
                 NEW tabbedPane {
                     tabbed = TRUE;
                     fill = 1000;
@@ -22,7 +22,7 @@ META defineDocObjectsForm (form, obj, title)
                         caption = 'Filters';
                         alignment = STRETCH;
                         MOVE FILTERGROUPS(obj) {
-                            type = CONTAINERV;
+                            
                             alignment = STRETCH;
                         }
                     }
@@ -79,20 +79,20 @@ META defineDocStatusForm (doc, let, beforeProp)
     DESIGN doc {
         NEW statusPane FIRST {
             caption = 'Statuses';
-            type = CONTAINERH;
+            horizontal = TRUE;
             alignment = STRETCH;                          
             NEW statusActions {
-                type = CONTAINERH;                    
+                horizontal = TRUE;                    
                 flex = 1; 
                 NEW primaryActions {
-                    type = CONTAINERH;
+                    horizontal = TRUE;
                 }
                 NEW secondaryActions {
-                    type = CONTAINERH;
+                    horizontal = TRUE;
                 }           
             }
             NEW status {
-                type = CONTAINERH;
+                horizontal = TRUE;
                 MOVE PROPERTY(imagedNameStatus(##let));
             }
         }    
@@ -155,7 +155,7 @@ META defineDocSearchTab (doc, it)
         details {
             NEW search {
                 caption = 'Search';
-                type = SPLITH;
+                
                 fill = 1;
                 NEW filters {
                     fill = 1;
@@ -242,7 +242,7 @@ META defineDocHistoryHeader(doc, let)
             NEW history {
                 caption = 'History';
                 fill = 1;
-                type = SPLITH;
+                
                 MOVE BOX(doc##l) {
                     fill = 2;
                     caption = '';

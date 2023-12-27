@@ -23,7 +23,6 @@ EXTEND FORM item
 DESIGN item {
     sales {
         NEW prices {
-            type = SPLITH;
             fill = 1;
             caption = 'Prices';
             NEW pricesLeft {

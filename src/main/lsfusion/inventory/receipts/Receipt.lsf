@@ -111,7 +111,7 @@ DESIGN receipt {
         NEW header {
             NEW headerCenter {
                 alignment = STRETCH;
-                type = CONTAINERH;
+                horizontal = TRUE;
                 NEW headerLeft {
                     MOVE PROPERTY(nameType(r)) { notNull = TRUE; }
                     MOVE PROPERTY(scheduledDateTime(r));
@@ -132,7 +132,6 @@ DESIGN receipt {
             tabbed = TRUE;
             NEW lines {
                 caption = 'Lines';
-                type = SPLITH;
                 MOVE BOX(l) {
                     caption = '';
                     PROPERTY(nameProduct(l)) { notNull = TRUE; }
@@ -147,7 +146,7 @@ DESIGN receipt {
     }
     TOOLBARBOX {
         NEW footer FIRST {
-            type = CONTAINERH;
+            horizontal = TRUE;
         }
     }
 }

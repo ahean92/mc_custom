@@ -43,11 +43,10 @@ DESIGN shipments {
         NEW total {
             showIf = countSelectedShipments();
             caption = 'Total';
-            type = SPLITH;
             MOVE BOX(TREE categories);
             NEW products {
                 fill = 3;
-                NEW productParams { type = CONTAINERH; }
+                NEW productParams { horizontal = TRUE; }
                 MOVE BOX(p) {
                     caption = '';
                     PROPERTY(initialDemand(ss, p)) { charWidth = 6; background = #EEEEFF; }

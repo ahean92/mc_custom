@@ -119,7 +119,7 @@ DESIGN adjustment {
         NEW header {
             NEW headerCenter {
                 alignment = STRETCH;
-                type = CONTAINERH;
+                horizontal = TRUE;
                 NEW headerLeft {
                     MOVE PROPERTY(dateTime(a));
                     MOVE PROPERTY(number(a));
@@ -140,7 +140,7 @@ DESIGN adjustment {
             tabbed = TRUE;
             NEW lines {
                 caption = 'Lines';
-                type = SPLITH;
+                
                 MOVE BOX(l) { caption = ''; }
                 NEW linesTab {
                     fill = 0.3;

@@ -72,7 +72,6 @@ EXTEND FORM shipment
 
 DESIGN shipment {
     lines {
-        type = SPLITH;
         linesTab {
             MOVE BOX(loc) {
                 caption = 'Picking';

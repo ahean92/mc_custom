@@ -43,7 +43,7 @@ FORM employee 'Employee'
 DESIGN employee {
     OBJECTS {
         NEW pane {
-            type = SPLITH;
+            
             fill = 1;
             NEW header {
                 fill = 1;
@@ -85,14 +85,13 @@ DESIGN employee {
         }
     }
     NEW container BEFORE TOOLBARBOX {
-        type = CONTAINERH;
+        horizontal = TRUE;
         fill = 1;
         MOVE BOX(e) {
             flex = 0.3;
         };
         GROUP(,e) {
-            type = COLUMNS;
-            columns = 1;
+            lines=1;
         }
     }
 }

@@ -108,7 +108,7 @@ DESIGN attribute {
     OBJECTS {
         NEW pane {
             fill = 1;
-            type = SPLITH;
+            
             NEW attribute {
                 fill = 1;
                 NEW name {
@@ -125,7 +125,7 @@ DESIGN attribute {
                     caption = 'Categories';
                 }
                 NEW values {
-                    type = CONTAINERH;
+                    horizontal = TRUE;
                     caption = 'Values';
                     fill = 2;
                     MOVE BOX(v);

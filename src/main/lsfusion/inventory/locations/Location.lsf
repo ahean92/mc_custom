@@ -64,23 +64,21 @@ DESIGN location {
     OBJECTS {
         NEW pane {
             NEW id {
-                type = CONTAINERH;
+                horizontal = TRUE;
                 MOVE PROPERTY(name(l));
                 MOVE PROPERTY(id(l));
             }
             MOVE PROPERTY(canonicalNameParent(l));
             MOVE PROPERTY(nameCompany(l));
             NEW address {
-                type = COLUMNS;
-                columns = 2;
+                lines=2;
                 MOVE PROPERTY(address(l));
                 MOVE PROPERTY(city(l));
                 MOVE PROPERTY(state(l));
                 MOVE PROPERTY(zip(l));
             }
             NEW params {
-                type = COLUMNS;
-                columns = 2;
+                lines=2;
             }
             NEW tabbedPane {
                 tabbed = TRUE;
