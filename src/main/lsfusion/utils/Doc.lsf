@@ -158,7 +158,7 @@ META defineDocSearchTab (doc, it)
         details {
             NEW search {
                 caption = 'Search';
-                type = SPLITH;
+                horizontal = TRUE;
                 fill = 1;
                 NEW filters {
                     fill = 1;
@@ -245,7 +245,7 @@ META defineDocHistoryHeader(doc, let)
             NEW history {
                 caption = 'History';
                 fill = 1;
-                type = SPLITH;
+                horizontal = TRUE;
                 MOVE BOX(doc##l) {
                     fill = 2;
                     caption = '';

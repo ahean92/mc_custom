@@ -15,7 +15,7 @@ FORM materialRequests 'Заявки'
 ;
 
 @defineDocObjectsForm(materialRequests, o, 'Заявки');
-@defineDateFilterForm(materialRequests, o, scheduled, filters);
+@defineDateFilterForm(materialRequests, o, scheduled);
 
 FORM materialRequest 'Заявка'
     OBJECTS o = ManufacturingOrder PANEL
