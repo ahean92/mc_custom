@@ -63,6 +63,8 @@ WHEN LOCAL (CHANGED(customer(Order o)) OR CHANGED(department(o))) AND NOT CHANGE
 // location
 location = DATA Location (Order) PREREAD;
 nameLocation 'Location' (Order o) = name(location(o));
+CONSTRAINT SETCHANGED(location(Order o)) AND internalUse(location(o)) CHECKED BY location[Order]
+    MESSAGE 'The selected location is for internal use';
 
 // currency
 currency = DATA Currency (Order);
@@ -79,7 +81,7 @@ representative(Order o) <- currentUser() IF currentUser() IS Employee WHEN SET(o
 CONSTRAINT representative(Order o) AND NOT legalEntity(representative(o)) = company(o) 
     CHECKED BY representative MESSAGE 'There must be our worker';
 
-customerReference '{Customer_reference}' = DATA STRING[30] (Order);
+customerReference '{Customer_reference}' = DATA STRING[30] (Order) INDEXED;
 note 'Note' = DATA ISTRING (Order) CHARWIDTH 20;
 
 details 'Details' = DATA RICHTEXT (Order);
@@ -166,7 +168,7 @@ FORM order 'Sales order'
 ;      
 
 DESIGN order {
-    caption = badged('Sales order', CONCAT ' ', '№' + number(o), '(' + dateTime(o) + ')');
+    caption = badged('Sales order', number(o) + '(' + dateTime(o) + ')');
     OBJECTS {
         NEW header {
             alignment = STRETCH;   
@@ -315,6 +317,6 @@ EXTEND FORM order PROPERTIES copy(o);
 
 DESIGN order {
     secondaryActions {
-        MOVE PROPERTY(copy(o));
+        MOVE PROPERTY(copy(o)) { valueClass = 'btn-secondary'; };
     }
 }

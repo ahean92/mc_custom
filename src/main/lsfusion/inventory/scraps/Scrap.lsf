@@ -26,6 +26,8 @@ numberDate 'Description' (Scrap s) = number(s) + ' (' + dateTime(s) + ')' IN id;
 
 location 'Location' = DATA Location (Scrap) NONULL;
 nameLocation 'Location' (Scrap s) = name(location(s));
+CONSTRAINT SETCHANGED(location(Scrap o)) AND internalUse(location(o)) CHECKED BY location[Scrap]
+    MESSAGE 'The selected location is for internal use';
 
 company 'Company' (Scrap s) = company(location(s));
 
@@ -61,7 +63,7 @@ FORM scrap 'Scrap'
 ;
 
 DESIGN scrap {
-    caption = badged('Scrap', CONCAT ' ', '№' + number(s), '(' + dateTime(s) + ')');
+    caption = badged('Scrap', number(s) + '(' + dateTime(s) + ')');
     OBJECTS {
         PROPERTY(nameType(s)) { notNull = TRUE; }
         NEW details {
@@ -69,6 +71,7 @@ DESIGN scrap {
             tabbed = TRUE;
             NEW lines {
                 caption = 'Lines';
+                horizontal = TRUE;
                 MOVE BOX(l) { caption = ''; }
                 NEW linesTab {
                     fill = 0.3;
@@ -88,6 +91,15 @@ FORM scraps 'Scrap'
     
     LIST Scrap OBJECT s
 ;
+
+DESIGN scraps {
+    OBJECTS {
+        NEW filters FIRST { 
+            caption = 'Filters';
+            horizontal = TRUE;
+        }
+    }
+}
 
 @defineDocStatusForm(scrap, s);
 @defineDocLinesCount(scrap, s);
@@ -123,6 +135,6 @@ EXTEND FORM scrap
 
 DESIGN scrap {
     secondaryActions {
-        MOVE PROPERTY(copy(s));
+        MOVE PROPERTY(copy(s)) { valueClass = 'btn-secondary'; }
     }
 }

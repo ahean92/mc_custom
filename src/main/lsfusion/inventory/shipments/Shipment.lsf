@@ -29,13 +29,17 @@ numberDate 'Description' (Shipment s) = number(s) + ' (' + scheduledDateTime(s) 
 // locations
 location 'Source location' = DATA Location (Shipment) NONULL INDEXED;
 nameLocation 'Source location' (Shipment s) = name(location(s));
-WHEN LOCAL SETCHANGED(type(Shipment s)) AND defaultLocation(type(s)) AND NOT CHANGED(location(s)) DO location(s) <- defaultLocation(type(s));  
+WHEN LOCAL SETCHANGED(type(Shipment s)) AND defaultLocation(type(s)) AND NOT CHANGED(location(s)) DO location(s) <- defaultLocation(type(s));
+CONSTRAINT SETCHANGED(location(Shipment o)) AND internalUse(location(o)) CHECKED BY location[Shipment]
+    MESSAGE 'The selected location is for internal use';
 
 company 'Company' (Shipment s) = company(location(s));
 
 toLocation 'Destination location' = DATA Location (Shipment);
 nameToLocation 'Destination location' (Shipment s) = name(toLocation(s));
-WHEN LOCAL SETCHANGED(type(Shipment s)) AND defaultToLocation(type(s)) AND NOT CHANGED(toLocation(s)) DO toLocation(s) <- defaultToLocation(type(s));  
+WHEN LOCAL SETCHANGED(type(Shipment s)) AND defaultToLocation(type(s)) AND NOT CHANGED(toLocation(s)) DO toLocation(s) <- defaultToLocation(type(s));
+CONSTRAINT SETCHANGED(toLocation(Shipment o)) AND internalUse(location(o)) CHECKED BY toLocation[Shipment]
+    MESSAGE 'The selected location is for internal use';
 
 CONSTRAINT location(Shipment s) = toLocation(s)
     CHECKED BY toLocation[Shipment]
@@ -62,6 +66,7 @@ deliveryAddress 'Delivery address' = DATA STRING (Shipment) CHARWIDTH 20;
 WHEN LOCAL (CHANGED(customer(Shipment s)) OR SETCHANGED(department(s))) AND NOT CHANGED(deliveryAddress(s)) DO 
     deliveryAddress(s) <- OVERRIDE addressCsv(department(s)), addressCsvCustomer(s);
 
+customerReference 'Customer reference' = DATA STRING[30] (Shipment) INDEXED;
 note 'Note' = DATA ISTRING (Shipment) CHARWIDTH 20;
 
 // lines
@@ -82,6 +87,8 @@ CONSTRAINT product(ShipmentLine l) AND NOT canBeSold(product(l))
             CHECKED BY product[ShipmentLine] 
             MESSAGE 'This product is not for sale';
 
+@defineDocSingleLineForItem(shipment, product);
+
 uom (ShipmentLine l) = uom(product(l));
 nameUom 'UoM' (ShipmentLine l) = name(uom(l));
 
@@ -89,6 +96,8 @@ initialDemand 'Initial demand' = DATA NUMERIC[16,3] (ShipmentLine);
 
 CONSTRAINT initialDemand(ShipmentLine l) < 0 OR initialDemand(l) > maxQuantity(type(shipment(l))) AND maxQuantity(type(shipment(l))) 
     MESSAGE 'The initial amount should be between 0 and the maximum allowed';
+
+initialDemand 'Initial demand' (Shipment s) = GROUP SUM initialDemand(ShipmentLine l) IF shipment(l) = s;
 
 // line properties
 imagedNameStatus 'Status' (ShipmentLine l) = imagedNameStatus(shipment(l));
@@ -114,7 +123,7 @@ FORM shipment 'Shipment'
     PROPERTIES(s) nameType, scheduledDateTime, number, 
                   nameCustomer SHOWIF NOT isTransfer(type(s)), nameDepartment SHOWIF countDepartment(customer(s)), 
                   nameLocation, nameToLocation SHOWIF isTransfer(type(s)),
-                  deliveryAddress, note
+                  deliveryAddress, customerReference, note
                   
     OBJECTS l = ShipmentLine
     PROPERTIES(l) index READONLY, nameProduct, nameUom, idBarCodeProduct, idProduct, referenceProduct, 
@@ -126,7 +135,7 @@ FORM shipment 'Shipment'
 ;
 
 DESIGN shipment {
-    caption = badged('Shipment', CONCAT ' ', '№' + number(s), '(' + scheduledDateTime(s) + ')');
+    caption = badged('Shipment', number(s) + '(' + scheduledDateTime(s) + ')');
     OBJECTS {       
         NEW header {
             NEW headerCenter {
@@ -136,6 +145,7 @@ DESIGN shipment {
                     MOVE PROPERTY(nameType(s)) { notNull = TRUE; }
                     MOVE PROPERTY(scheduledDateTime(s));
                     MOVE PROPERTY(number(s));
+                    MOVE PROPERTY(customerReference(s));
                 }
                 NEW headerRight {
                     MOVE PROPERTY(nameCustomer(s));
@@ -254,6 +264,6 @@ EXTEND FORM shipment
 
 DESIGN shipment {
     secondaryActions {
-        MOVE PROPERTY(copy(s)); 
+        MOVE PROPERTY(copy(s)) { valueClass = 'btn-secondary'; }
     }
 }

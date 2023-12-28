@@ -51,6 +51,8 @@ WHEN LOCAL SET(ManufacturingOrder o IS ManufacturingOrder) AND NOT CHANGED(compa
 materialsLocation 'Materials location' = DATA Location (ManufacturingOrder);
 nameMaterialsLocation 'Materials location' (ManufacturingOrder m) = name(materialsLocation(m));
 WHEN LOCAL SETCHANGED(type(ManufacturingOrder mo)) AND NOT materialsLocation(mo) DO materialsLocation(mo) <- materialsLocation(type(mo));
+CONSTRAINT SETCHANGED(materialsLocation(ManufacturingOrder o)) AND internalUse(materialsLocation(o)) CHECKED BY materialsLocation[ManufacturingOrder]
+    MESSAGE 'The selected location is for internal use';
 
 unbuild 'Unbuild' (ManufacturingOrder mo)= unbuild(type(mo)); 
 
@@ -145,7 +147,7 @@ FORM manufacturingOrder 'Manufacturing order'
 ;
 
 DESIGN manufacturingOrder {
-    caption = badged('Manufacturing order', CONCAT ' ', '№' + number(o), '(' + scheduledDateTime(o) + ')');
+    caption = badged('Manufacturing order', number(o) + '(' + scheduledDateTime(o) + ')');
     OBJECTS {
         NEW header {
             alignment = STRETCH;
@@ -175,7 +177,7 @@ DESIGN manufacturingOrder {
                 caption = 'Materials';
                 MOVE PROPERTY(nameMaterialsLocation(o));
                 NEW consumedPane {
-                    
+                    horizontal = TRUE;
                     fill = 1; 
                     MOVE BOX(c) { caption = ''; }
                     NEW consumedLinesTab {
@@ -191,7 +193,7 @@ DESIGN manufacturingOrder {
                     alignment = STRETCH; 
                 }
                 NEW finishedPane {
-                    
+                    horizontal = TRUE;
                     fill = 1; 
                     MOVE BOX(l) { caption = ''; }
                     NEW finishedLinesTab {
@@ -286,7 +288,7 @@ EXTEND FORM manufacturingOrder
 
 DESIGN manufacturingOrder {
     secondaryActions {
-        MOVE PROPERTY(copy(o)); 
+        MOVE PROPERTY(copy(o)) { valueClass = 'btn-secondary'; }
     }
 }
 
@@ -356,6 +358,6 @@ EXTEND FORM manufacturingOrder
 
 DESIGN manufacturingOrder {
     primaryActions {
-        MOVE PROPERTY(fillLines(o)) { fontStyle = 'bold'; }
+        MOVE PROPERTY(fillLines(o)) { valueClass = 'btn-primary'; }
     }
 }

@@ -11,13 +11,14 @@ class 'Type' (Item i) = objectClassName(i) IF i IS Item CHARWIDTH 6;
 
 @defineID(item, '{Items}', 'NM', 6);
 
-dataName 'Name' = DATA ISTRING[200] (Item) IN id NONULL CHARWIDTH 20;
+dataName '{Name}' = DATA ISTRING[200] (Item) IN id NONULL CHARWIDTH 20;
 prefixName 'Prefix' = ABSTRACT STRING (Item);
 suffixName 'Suffix' = ABSTRACT STRING (Item);
 
 name 'Name (full)' (Item i) = CONCAT ' ', prefixName(i), dataName(i), suffixName(i) CHARWIDTH 30 MATERIALIZED INDEXED;
 
-reference 'Reference' = DATA STRING[50] (Item) CHARWIDTH 10;
+reference 'Reference' = DATA STRING[50] (Item) CHARWIDTH 10 INDEXED;
+itemReference (STRING[50] ref) = GROUP MIN Item i BY reference(i); 
 
 description 'Description' = DATA TEXT (Item);
 
@@ -41,7 +42,7 @@ DESIGN category { default { MOVE PROPERTY(nameDataDefaultUom(c)); } }
 defaultUom (Category c) = GROUP LAST dataDefaultUom(Category parent) ORDER DESC level(c, parent);
 WHEN LOCAL SETCHANGED(category(Item i)) AND NOT uom(i) DO uom(i) <- defaultUom(category(i));
 
-archived 'Inactive' = DATA BOOLEAN (Item) CHARWIDTH 10;
+archived 'Archived' = DATA BOOLEAN (Item) CHARWIDTH 10;
 active '{Active}' (Item i) = NOT archived(i) CHARWIDTH 10;
 
 level1 'Category 1' (Item i) = nameCategory1(category(i));
@@ -96,6 +97,7 @@ DESIGN item {
                 alignment = STRETCH;
                 MOVE PROPERTY(dataName(i));
                 MOVE PROPERTY(class(i));
+                MOVE PROPERTY(archived(i)) { valueClass = 'btn-check'; }
             }
             MOVE PROPERTY(name(i)) { alignment = STRETCH; }                   
             MOVE PROPERTY(canonicalNameCategory(i));
@@ -110,7 +112,6 @@ DESIGN item {
                     MOVE PROPERTY(nameUom(i));
                 }        
                 NEW column3 {
-                    MOVE PROPERTY(archived(i));
                 }
             }    
         }
@@ -144,7 +145,7 @@ FORM items '{Items}'
         FILTER 'By category' level(category(i), c) DEFAULT
     FILTERGROUP active
         FILTER '{Active}' active(i) 'F8' DEFAULT 
-        FILTER 'Inactive' archived(i) 'F7'
+        FILTER 'Archived' archived(i) 'F7'
         
     LIST Item OBJECT i
 ;
@@ -154,12 +155,11 @@ FORM items '{Items}'
 DESIGN items {
     OBJECTS {
         NEW pane {
-            
+            horizontal = TRUE;
             fill = 1;
             NEW options {
                 fill = 1;
                 width = 200;
-                
                 NEW categories {
                     fill = 1;
                     MOVE BOX(TREE categories);
@@ -172,12 +172,14 @@ DESIGN items {
             NEW details {
                 fill = 3;
                 width = 200;
+                NEW filters {
+                    caption = 'Filters';
+                    horizontal = TRUE;
+                    MOVE FILTERGROUP(category);
+                    MOVE FILTERGROUP(active);
+                }
                 MOVE BOX(i) {
                     caption = '';
-                    FILTERBOX(i) { 
-                        MOVE FILTERGROUP(category); 
-                        MOVE FILTERGROUP(active);
-                    }
                     GRID(i) { defaultComponent = TRUE; }
                 }
             }
@@ -189,5 +191,13 @@ DESIGN items {
 NAVIGATOR {
     masterData {
         NEW items;
+    }
+}
+
+DESIGN options {
+    pane {
+        NEW items {
+            caption = 'Items';
+        }
     }
 }

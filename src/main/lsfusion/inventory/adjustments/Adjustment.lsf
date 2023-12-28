@@ -26,6 +26,8 @@ DESIGN options {
 
 location 'Location' = DATA Location (Adjustment) NONULL;
 nameLocation 'Location' (Adjustment a) = name(location(a));
+CONSTRAINT SETCHANGED(location(Adjustment o)) AND internalUse(location(o)) CHECKED BY location[Adjustment]
+    MESSAGE 'The selected location is for internal use';
 
 // type
 CLASS AdjustmentType 'Adjustment type' {
@@ -33,13 +35,20 @@ CLASS AdjustmentType 'Adjustment type' {
     category 'By category',
     manual 'Manually'
 }
-name '{First_name}' (AdjustmentType o) = ISTRING[100](staticCaption(o)) IF o IS AdjustmentType CHARWIDTH 15;
+name '{Name}' (AdjustmentType o) = ISTRING[100](staticCaption(o)) IF o IS AdjustmentType CHARWIDTH 15;
 
-FORM type 'Adjustment type'
+FORM adjustmentType 'Adjustment type'
     OBJECTS t = AdjustmentType PANEL
-    PROPERTIES(t) 'Adjustment type' = name
+    PROPERTIES(t) name
     
     EDIT AdjustmentType OBJECT t  
+;
+
+FORM adjustmentTypes 'Adjustment types'
+    OBJECTS t = AdjustmentType
+    PROPERTIES(t) READONLY name
+
+    LIST AdjustmentType OBJECT t
 ;
 
 type 'Type' =  DATA AdjustmentType (Adjustment) NONULL;
@@ -114,7 +123,7 @@ FORM adjustment 'Adjustment'
 ;
 
 DESIGN adjustment {
-    caption = badged('Adjustment', CONCAT ' ', '№' + number(a), '(' + dateTime(a) + ')');
+    caption = badged('Adjustment', number(a) + '(' + dateTime(a) + ')');
     OBJECTS {
         NEW header {
             NEW headerCenter {
@@ -140,7 +149,7 @@ DESIGN adjustment {
             tabbed = TRUE;
             NEW lines {
                 caption = 'Lines';
-                
+                horizontal = TRUE;
                 MOVE BOX(l) { caption = ''; }
                 NEW linesTab {
                     fill = 0.3;
@@ -153,13 +162,23 @@ DESIGN adjustment {
 
 @defineDocHistory(adjustment, a, product, theoreticalQuantity);
 
-FORM adjustments 'Adjustment'
+FORM adjustments 'Adjustments'
     OBJECTS a = Adjustment
     PROPERTIES(a) READONLY number, dateTime, nameType, nameLocation, nameCategory, note
     PROPERTIES(a) NEWSESSION NEW, EDIT, DELETE 
     
     LIST Adjustment OBJECT a
 ;
+
+DESIGN adjustments {
+    OBJECTS {
+        NEW filters FIRST { 
+            caption = 'Filters';
+            horizontal = TRUE;
+        }
+    }
+}
+
 
 @defineDocStatusForm(adjustment, a);
 @defineDocLinesCount(adjustment, a);
@@ -193,6 +212,6 @@ EXTEND FORM adjustment
 
 DESIGN adjustment {
     secondaryActions {
-        MOVE PROPERTY(fill(a));
+        MOVE PROPERTY(fill(a)) { valueClass = 'btn-secondary'; }
     }
 }

@@ -23,6 +23,7 @@ EXTEND FORM item
 DESIGN item {
     sales {
         NEW prices {
+            horizontal = TRUE;
             fill = 1;
             caption = 'Prices';
             NEW pricesLeft {

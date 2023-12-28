@@ -1,0 +1,44 @@
+.shift-schedule {
+}
+
+.shift-schedule-templates {
+    display: flex;
+}
+.shift-schedule-template {
+    margin: var(--border-comp-vert-padding) var(--border-comp-horz-padding)
+}
+.shift-schedule-table {
+}
+
+.shift-schedule-header {
+}
+
+.shift-schedule-header-employee {
+}
+
+.shift-schedule-header-cell {
+}
+
+.shift-schedule-row {
+}
+
+.shift-schedule-row-employee {
+    height: 3em;
+}
+
+.shift-schedule-row-cell {
+    display: flex;
+    flex-direction: column;
+}
+
+td.shift-schedule-row-sunday {
+    background-color: #ffcccc;
+}
+
+.shift-schedule-cell-shift {
+    margin-bottom: 0.25rem;
+}
+
+td.shift-schedule-drag-over {
+    background-color: lightgrey;
+}

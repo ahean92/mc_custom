@@ -1,0 +1,96 @@
+MODULE TaskKanban;
+
+REQUIRE Task, ProjectTask;
+
+PRIORITY MasterData;
+
+NAMESPACE ProjectManagement;
+
+taskStatuses () = JSON FROM id = TaskStatus s, name(s) WHERE s IS TaskStatus;
+taskEmployees () = JSON FROM id = Employee e, name(e) WHERE e IS Employee;
+
+jsonTags (Task t) = JSON FROM name(TaskTag tg), idColor(tg) WHERE in(t, tg);
+
+order = DATA LONG (CustomUser, Task);
+currentOrder (Task t) =  order(currentUser(), t);
+
+createTask() {
+    INPUT id = LONG DO {
+        NEW tt = Task {
+            FOR LONG(TaskStatus s AS TaskStatus) = id DO 
+                status(tt) <- s;
+            order(currentUser(), tt) <- -LONG(tt);
+        }
+    }
+}
+
+EXTEND FORM tasks
+    OBJECTS tt = Task CUSTOM 'taskKanban'
+            OPTIONS JSON FROM employees = taskEmployees(), statuses = taskStatuses()
+    PROPERTIES(tt) nameProject,
+                   name,
+                   tags = jsonTags,
+                   nameAuthor,
+                   deadline,
+                   status ON CHANGE {
+                       INPUT l = LONG DO
+                           FOR LONG(TaskStatus ts AS TaskStatus) = l DO
+                               status(tt) <- ts;
+                           ELSE
+                               status(tt) <- NULL;
+                   },
+                   idColorPriority,
+                   nameAssignedTo,
+                   currentOrder ON CHANGE {
+                       INPUT ord = INTEGER DO order(currentUser(), tt) <- ord;
+                   }
+
+    ORDERS status(tt), currentOrder(tt)
+    FILTERS active(tt)
+
+    FILTERS [FILTER tasks.t](tt)
+    
+    PROPERTIES() createTask
+
+    PROPERTIES(tt) PANEL pnameProject = nameProject, pname = name, pnamePriority = namePriority, ptags = tags, 
+                         pnameAssignedTo = nameAssignedTo, pdeadline = deadline, pdescription = description,
+                         edit = EDIT, delete = DELETE
+;
+
+DESIGN tasks {
+    tabbedPane {
+        NEW kanban FIRST {
+            caption = 'Kanban';
+            MOVE GRID(tt) {
+                fill = 1;
+                MOVE PROPERTY(pnameProject) { alignment = STRETCH; }
+                MOVE PROPERTY(pname) { alignment = STRETCH; }
+                MOVE PROPERTY(pnamePriority) { alignment = STRETCH; }
+                MOVE PROPERTY(ptags) { alignment = STRETCH; }
+                MOVE PROPERTY(pnameAssignedTo) { alignment = STRETCH; }
+                MOVE PROPERTY(pdeadline) { alignment = STRETCH; }
+                MOVE PROPERTY(pdescription) {
+                    size = (300, 120);
+                    panelCaptionVertical = TRUE; 
+                    alignment = STRETCH; 
+                }
+                NEW panelActions {
+                    horizontal = TRUE;
+                    MOVE PROPERTY(edit) { fill = 1; }
+                    MOVE PROPERTY(delete) { fill = 1; }
+                    alignment = STRETCH;
+                }
+            }
+            REMOVE PROPERTY(createTask());
+            REMOVE BOX(tt);
+        }
+    }
+}
+
+// change interval
+onWebClientInit() + {
+    onWebClientInit('dragula.js') <- 1;
+    onWebClientInit('dragula.css') <- 1;
+    onWebClientInit('taskkanban.js') <- 2;
+    onWebClientInit('taskkanban.css') <- 2;
+}

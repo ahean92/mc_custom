@@ -6,7 +6,7 @@ NAMESPACE Sales;
 
 CLASS Discount 'Discount';
 
-name 'Name' = DATA STRING[50] (Discount);
+name '{Name}' = DATA STRING[50] (Discount);
 manual 'Manually' = DATA BOOLEAN (Discount);
 
 startDateTime 'Start date' = DATA DATETIME (Discount);
@@ -115,6 +115,7 @@ DESIGN discount {
             fill = 1;
             NEW items {
                 caption = '{Items}';
+                horizontal = TRUE;
                 MOVE BOX(TREE categories);
                 MOVE BOX(i) { fill = 2; }
             }

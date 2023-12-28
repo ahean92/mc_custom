@@ -16,17 +16,18 @@ beforeProcessReceiptLineLotBarCode(Receipt r, STRING s) + {
     }
 }
 
-@defineDocDesignLotTab(receipt, done, product, linesTab);
+@defineDocLot (receipt, product, initialDemand, initialDemand, ' (initial demand)');
+
+initialDemandOrDone(ReceiptLine sl, Lot l) = initialDemand(sl, l) OR done(sl, l);
+@defineDocDesignLotTab(receipt, ReceiptLine, done, product, l, linesTab, initialDemandOrDone);
 
 @defineDocLotGenerate(receipt, product, done);
 
-initialDemand 'Initial demand' = DATA NUMERIC[16,3] (ReceiptLine, Lot);
-initialDemandLot 'Lot initial demand' (ReceiptLine rl) = GROUP SUM initialDemand(rl, Lot l);
-
 EXTEND FORM receipt 
-    PROPERTIES (l, lotL) BEFORE done(l, lotL) initialDemand READONLY
+    PROPERTIES (l, lotL) BEFORE done(l, lotL) initialDemand
     PROPERTIES (lotL) DELETE GRID
 ;
 
 //ledger
-quantity(ReceiptInvLedger rl, Lot l) += done(line(rl), l);
+ledgerDone = ABSTRACT NUMERIC[16,3] (ReceiptLine, Lot);
+quantity(ReceiptInvLedger rl, Lot l) += done(line(rl), l) (-) ledgerDone(line(rl), l);

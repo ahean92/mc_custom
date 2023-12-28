@@ -11,7 +11,7 @@ CLASS ChangePriceType 'Price change type' {
     pricePriceList 'Set prices from previous prices'
 }
 
-name 'Name' (ChangePriceType o) = staticCaption(o) IF o IS ChangePriceType CHARWIDTH 50;
+name '{Name}' (ChangePriceType o) = staticCaption(o) IF o IS ChangePriceType CHARWIDTH 50;
 
 FORM dialogChangePriceTypes 'Price change type'
     OBJECTS o = ChangePriceType
@@ -79,6 +79,6 @@ EXTEND FORM pricelist
 
 DESIGN pricelist {
     secondaryActions {
-        MOVE PROPERTY(changePrices(p));
+        MOVE PROPERTY(changePrices(p)) { valueClass = 'btn-secondary'; }
     } 
 }

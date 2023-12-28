@@ -66,6 +66,15 @@ FORM sessions 'Sessions'
     LIST Session OBJECT o
 ;
 
+DESIGN sessions {
+    OBJECTS {
+        NEW filters FIRST { 
+            caption = 'Filters';
+            horizontal = TRUE;
+        }
+    }
+}
+
 @defineDateFilterForm(sessions, o, opening);
 
 NAVIGATOR {

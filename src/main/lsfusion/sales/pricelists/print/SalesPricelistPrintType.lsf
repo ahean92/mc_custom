@@ -6,7 +6,7 @@ NAMESPACE Sales;
 
 CLASS PrintPricelistType 'Pricelist template';
 
-name 'Name' = DATA STRING[50] (PrintPricelistType);
+name '{Name}' = DATA STRING[50] (PrintPricelistType);
 
 company = DATA Company (PrintPricelistType);
 nameCompany 'Company' (PrintPricelistType t) = name(company(t)); 
@@ -126,7 +126,11 @@ DESIGN pricelists {
             caption = 'Print';
             MOVE BOX(pp) { caption = ''; }
         }
-        MOVE BOX(p) { caption = 'Pricelists'; }
+        NEW lists {
+            caption = 'Pricelists';
+            MOVE filters;
+            MOVE BOX(p) { caption = ''; }
+        }
     }
 }
 

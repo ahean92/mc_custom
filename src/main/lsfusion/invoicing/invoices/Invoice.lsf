@@ -90,7 +90,7 @@ representative(Invoice o) <- currentUser() IF currentUser() IS Employee WHEN SET
 CONSTRAINT representative(Invoice o) AND NOT legalEntity(representative(o)) = company(o)
     CHECKED BY representative MESSAGE 'There must be our worker';
 
-customerReference '{Customer_reference}' = DATA STRING[30] (Invoice);
+customerReference '{Customer_reference}' = DATA STRING[30] (Invoice) INDEXED;
 note 'Note' = DATA ISTRING (Invoice) CHARWIDTH 20;
 
 // lines
@@ -171,7 +171,7 @@ FORM invoice 'Invoice'
 ;
 
 DESIGN invoice {
-    caption = badged('Invoice', CONCAT ' ', '№' + number(i), '(' + dateTime(i) + ')');
+    caption = badged('Invoice', number(i) + '(' + dateTime(i) + ')');
     OBJECTS {
         NEW header {
             horizontal = TRUE;
@@ -302,6 +302,6 @@ EXTEND FORM invoice PROPERTIES(i) copy;
 
 DESIGN invoice {
     secondaryActions {
-        MOVE PROPERTY(copy(i)); 
+        MOVE PROPERTY(copy(i)) { valueClass = 'btn-secondary'; } 
     }
 }

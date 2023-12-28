@@ -17,12 +17,13 @@ META defineDocObjectsForm (form, obj, title)
                 }
                 NEW rightPane {
                     tabbed = TRUE;
+                    width = 200;
                     fill = 1;
                     NEW filters {
                         caption = 'Filters';
                         alignment = STRETCH;
                         MOVE FILTERGROUPS(obj) {
-                            
+                            horizontal = FALSE;
                             alignment = STRETCH;
                         }
                     }
@@ -48,13 +49,13 @@ META defineDocStatus (doc, title)
     name '{First_name}' (###doc##Status s) = staticCaption(s) IF s IS ###doc##Status CHARWIDTH 12;
     imagedName '{First_name}' (###doc##Status s) = imagedCaption(s) IF s IS ###doc##Status CHARWIDTH 12;
 
-    color 'Colour' = ABSTRACT CASE COLOR (###doc##Status) MATERIALIZED;
+    color 'Color' = ABSTRACT CASE COLOR (###doc##Status) MATERIALIZED;
     color (###doc##Status s) += WHEN s = ###doc##Status.draft THEN RGB(187,242,210);
 
     status 'Status' = ABSTRACT CASE ###doc##Status (###doc) MATERIALIZED INDEXED;
     nameStatus 'Status' (###doc d) = name(status(d));
     imagedNameStatus 'Status' (###doc d) = imagedName(status(d));
-    colorStatus 'Colour' (###doc d) = color(status(d));
+    colorStatus 'Color' (###doc d) = color(status(d));
     
     status(###doc d) += WHEN d IS ###doc THEN ###doc##Status.draft;
     
@@ -69,7 +70,9 @@ META defineDocStatusForm (doc, let, beforeProp)
     ;
     
     DESIGN doc##s {
-        FILTERGROUP(status) { alignment = STRETCH; }
+        filters {
+            MOVE FILTERGROUP(status) { alignment = STRETCH; }
+        }
     }
     
     EXTEND FORM doc
@@ -155,7 +158,7 @@ META defineDocSearchTab (doc, it)
         details {
             NEW search {
                 caption = 'Search';
-                
+                type = SPLITH;
                 fill = 1;
                 NEW filters {
                     fill = 1;
@@ -242,7 +245,7 @@ META defineDocHistoryHeader(doc, let)
             NEW history {
                 caption = 'History';
                 fill = 1;
-                
+                type = SPLITH;
                 MOVE BOX(doc##l) {
                     fill = 2;
                     caption = '';
@@ -415,9 +418,9 @@ META defineDocLinesCount(doc, d)
     EXTEND FORM doc##s PROPERTIES(d) READONLY count###doc###Line;
 END
 
-META defineDocFilter(doc, cls, property, obj, caption)
+META defineDocFilter(doc, cls, property, obj, capt)
     doc###property = DATA LOCAL NESTED cls ();
-    name###doc###property caption = name(doc###property());
+    name###doc###property capt = name(doc###property());
 
     EXTEND FORM doc##s 
         PROPERTIES() name###doc###property
@@ -427,7 +430,7 @@ META defineDocFilter(doc, cls, property, obj, caption)
     
     DESIGN doc##s {
         filters {
-            MOVE PROPERTY(name###doc###property());
+            MOVE PROPERTY(name###doc###property()) { caption = ''; placeholder = capt; };
         }
     }
 
@@ -452,3 +455,15 @@ META defineDocFilterCustom(form, doc, cls, property, obj, caption)
 END
 
 badgedDoc(STRING caption, STRING number, DATETIME dateTime) = badged(caption, (CONCAT ' ', '№' + number, '(' + dateTime +  ')'));
+
+META defineDocSingleLineForItem(doc, docLine, itemProp)
+    oneLineForItem 'Only one line for one item' = DATA BOOLEAN (###doc##Type);
+    EXTEND FORM doc##Type PROPERTIES(o) oneLineForItem;
+    
+    CONSTRAINT SET([GROUP SUM 1 BY doc(###docLine l), itemProp(l)](###doc d, Item i) > 1) AND oneLineForItem(type(d))
+        MESSAGE 'Only one line for one item';
+END
+
+META defineDocSingleLineForItem(doc, itemProp)
+    @defineDocSingleLineForItem(doc, doc##Line, itemProp);
+END

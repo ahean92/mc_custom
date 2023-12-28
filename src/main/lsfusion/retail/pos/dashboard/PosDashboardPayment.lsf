@@ -36,8 +36,8 @@ DESIGN posPayment {
                 MOVE BOX(pm) {
                     GRID(pm) {
                         defaultComponent = TRUE;
-                        PROPERTY(name(pm)) { fontSize = 24; focusable = FALSE; }
-                        PROPERTY(amount(pm)) { fontSize = 24; }
+                        PROPERTY(name(pm)) { fontSize = 24; charWidth = 10; focusable = FALSE; }
+                        PROPERTY(amount(pm)) { fontSize = 24; charWidth = 6; }
                     }
                     REMOVE TOOLBARBOX(pm);
                 }
@@ -98,7 +98,7 @@ EXTEND FORM posDashboard
 
 DESIGN posDashboard {
     actions {
-        MOVE PROPERTY(posPayment(s, i)) { fill = 1; fontStyle = 'bold'; }
+        MOVE PROPERTY(posPayment(s, i)) { fill = 1; valueClass = 'btn-primary'; }
     }
 }
 

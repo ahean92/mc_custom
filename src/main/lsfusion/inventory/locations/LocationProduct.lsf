@@ -1,0 +1,61 @@
+MODULE LocationProduct;
+
+REQUIRE Location, Product;
+
+NAMESPACE Inventory;
+
+location = DATA Location (Location, Product) INDEXED;
+idLocation 'Location code' (Location l, Product p) = id(location(l, p));
+nameLocation 'Location' (Location l, Product p) = name(location(l, p));
+canonicalNameLocation 'Canonical location name' (Location l, Product p) = canonicalName(location(l, p));
+
+CONSTRAINT location(Location l, Product p) AND NOT level(location(l, p), l)
+    CHECKED BY location[Location, Product]
+    MESSAGE 'Incorrect location for the product';
+
+// default type
+countProducts 'Number of products' (Location lp, Location l) = GROUP SUM 1 BY location(lp, Product p);
+firstProduct (Location lp, Location l) = GROUP LAST Product p ORDER DESC p WHERE location(lp, p) = l;
+
+defaultProduct (Location lp, Location l) = firstProduct(lp, l) IF countProducts(lp, l) = 1;
+
+countProducts 'Number of products' (Location l) = GROUP SUM 1 BY location(Location lp, Product p);
+firstProduct (Location l) = GROUP LAST Product p ORDER DESC p WHERE location(Location lp, p) = l;
+
+defaultProduct (Location l) = firstProduct(l) IF countProducts(l) = 1;
+
+FORM locationProduct 'Location of products'
+    OBJECTS l = Location PANEL
+    PROPERTIES(l) 'Location' = canonicalName SELECTOR
+    FILTERS NOT internalUse(l)
+
+    TREE categories c = Category PARENT parent(c)
+    PROPERTIES READONLY name(c)
+    ORDERS name(c)
+
+    OBJECTS p = Product
+    PROPERTIES(p) READONLY name, id, nameCategory, nameUom, reference
+    PROPERTIES(l, p) idLocation, nameLocation, canonicalNameLocation
+    ORDERS name(p)
+    FILTERS level(category(p), c)
+    FILTERGROUP active
+        FILTER '{Active}' active(p) 'F8' DEFAULT
+        FILTER 'Archived' archived(p) 'F7'
+;
+
+DESIGN locationProduct {
+    OBJECTS {
+        NEW pane {
+            fill = 1;
+            horizontal = TRUE;
+            MOVE BOX(TREE categories);
+            MOVE BOX(p) { fill = 2; }
+        }
+    }
+}
+
+NAVIGATOR {
+    settings {
+        NEW locationProduct;
+    }
+}

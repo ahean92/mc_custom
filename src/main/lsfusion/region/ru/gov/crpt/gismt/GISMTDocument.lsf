@@ -54,6 +54,15 @@ FORM documents 'Документы ГИС МТ'
     LIST Document OBJECT d
 ;
 
+DESIGN documents {
+    OBJECTS {
+        NEW filters FIRST {
+            caption = 'Filters';
+            horizontal = TRUE;
+        }
+    }
+}
+
 NAVIGATOR {
     CRPT {
         NEW documents;
@@ -106,7 +115,7 @@ META defineDocGISMT(doc, docLine, item, quantity, obj)
      
     DESIGN doc {
         primaryActions {
-            MOVE PROPERTY(createDocument(obj)) { fontStyle = 'bold'; };
+            MOVE PROPERTY(createDocument(obj)) { valueClass = 'btn-primary'; };
         }
         details  {
             NEW gismt {

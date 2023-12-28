@@ -6,9 +6,11 @@ NAMESPACE Inventory;
 
 CLASS Location 'Location';
 
-@defineID(location, 'Locations', 'MX', 4);
+@defineID(location, 'Locations', 'MX', 6);
 
-name 'Name' = DATA ISTRING[30] (Location) IN id NONULL CHARWIDTH 15;
+name '{Name}' = DATA ISTRING[30] (Location) IN id NONULL CHARWIDTH 15;
+
+internalUse 'For internal use' = DATA BOOLEAN (Location);
 
 // hierarchy
 parent 'Parent' = DATA Location (Location);
@@ -53,7 +55,7 @@ addressLines 'Address' (Location l) = CONCAT '\n', hierarchyAddress(l), hierarch
   
 FORM location 'Location'
     OBJECTS l = Location PANEL
-    PROPERTIES(l) name, id, 
+    PROPERTIES(l) name, id, internalUse,
                   canonicalNameParent, nameCompany,
                   address, city, state, zip
      
@@ -67,6 +69,7 @@ DESIGN location {
                 horizontal = TRUE;
                 MOVE PROPERTY(name(l));
                 MOVE PROPERTY(id(l));
+                MOVE PROPERTY(internalUse(l));
             }
             MOVE PROPERTY(canonicalNameParent(l));
             MOVE PROPERTY(nameCompany(l));
@@ -91,7 +94,8 @@ DESIGN location {
 background (Location l) = ABSTRACT CASE COLOR (Location);
 FORM locations 'Locations'
     OBJECTS l = Location BACKGROUND background(l)
-    PROPERTIES(l) READONLY name, id, 
+    PROPERTIES(l) READONLYIF isReadonly() 
+                           name, id, internalUse,
                            canonicalNameParent, nameCompany,
                            address, city, state, zip
     PROPERTIES(l) NEWSESSION NEW, EDIT, DELETE
@@ -105,6 +109,8 @@ FORM locations 'Locations'
     
     EVENTS ON CHANGE lt { SEEK locations.l = lt; }
 ;
+
+@extendFormEditable(locations);
 
 DESIGN locations {
     OBJECTS {

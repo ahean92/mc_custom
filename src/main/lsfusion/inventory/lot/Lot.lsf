@@ -53,6 +53,20 @@ DESIGN lot {
     }  
 }
 
+FORM lots 'Lots'
+    OBJECTS l = Lot
+    PROPERTIES(l) READONLY id, idProduct, nameProduct
+    PROPERTIES(l) NEWSESSION NEW, EDIT, DELETE
+    
+    LIST Lot OBJECT l
+;
+
+NAVIGATOR {
+    operations {
+        NEW lots;
+    }
+}
+
 useLot 'Use lots' = DATA BOOLEAN ();
 
 EXTEND FORM options 
@@ -75,13 +89,15 @@ META defineDocLot (doc, line, item, quantity, status, caption)
     
     quantity##Lot 'Lot quantity'##caption (line rl) = GROUP SUM quantity(rl, Lot l);
     quantity##LotLeft (line rl) = quantity(rl) - OVERRIDE quantity##Lot(rl), 0;
-       
+
+    quantity##Lot 'Lot initial demand' (###doc d) = GROUP SUM quantity(line l, Lot lot) IF doc(l) = d;
+        
     WHEN LOCAL CHANGED(quantity##Lot(line rl)) AND NOT status(doc(rl)) DO {
         quantity(rl) <- quantity##Lot(rl);
     }
     
     CONSTRAINT quantity(line rl, Lot l) AND item(rl) != product(l)
-                    MESSAGE 'The line for the batch must refer to the same product as the batch';
+                    MESSAGE 'Document line product is not equal to lot product';
     CONSTRAINT SET(((OVERRIDE quantity(line rl), 0.0) - quantity##Lot(rl) < 0) AND status(doc(rl))) AND useLot(item(rl))
                     MESSAGE 'Mismatch between quantity and quantity in lots'##caption;                   
 END 
@@ -144,7 +160,7 @@ META defineDocBarCodeLot (doc, item, quantity)
     @defineDocBarCodeLot (doc, ###doc##Line, item, quantity);
 END
 
-META defineDocDesignLotTab(doc, docLine, quantity, item, line, container)
+META defineDocDesignLotTab(doc, docLine, quantity, item, line, container, filter)
     EXTEND FORM doc
         PROPERTIES(line) AFTER quantity(line) SHOWIF useLot() BACKGROUND RGB(198,230,247) IF useLot(item(line)) 
                       quantity##Lot 
@@ -153,7 +169,7 @@ META defineDocDesignLotTab(doc, docLine, quantity, item, line, container)
         PROPERTIES (lot###line) id READONLY
         PROPERTIES (line, lot###line) quantity READONLYIF NOT useLot(product(lot###line))
         PROPERTIES (lot###line) EDIT
-        FILTERS quantity(line, lot###line)   
+        FILTERS filter(line, lot###line)   
     ;
     
     DESIGN doc {
@@ -170,6 +186,10 @@ META defineDocDesignLotTab(doc, docLine, quantity, item, line, container)
         ACTIVATE TAB doc.BOX(lot###line);
         ACTIVATE PROPERTY doc.quantity(line, lot###line); 
     }    
+END
+
+META defineDocDesignLotTab(doc, docLine, quantity, item, line, container)
+    @defineDocDesignLotTab(doc, docLine, quantity, item, line, container, quantity);
 END
 
 META defineDocDesignLotTab(doc, quantity, item, container)

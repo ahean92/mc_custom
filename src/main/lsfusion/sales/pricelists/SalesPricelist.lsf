@@ -130,7 +130,7 @@ FORM pricelist 'Pricelist'
 ;
 
 DESIGN pricelist {
-    caption = badged('Pricelist', CONCAT ' ', '№' + number(p), '(' + startDateTime(p) + ')');
+    caption = badged('Pricelist', number(p) + '(' + startDateTime(p) + ')');
     OBJECTS {
         NEW header {
             horizontal = TRUE;
@@ -178,6 +178,15 @@ FORM pricelists 'Pricelists'
     LIST Pricelist OBJECT p
 ;
 
+DESIGN pricelists {
+    OBJECTS {
+        NEW filters FIRST { 
+            caption = 'Filters';
+            horizontal = TRUE;
+        }
+    }
+}
+
 @defineDocStatusForm(pricelist, p);
 @defineDocLinesCount(pricelist, p);
 
@@ -212,6 +221,6 @@ EXTEND FORM pricelist
 
 DESIGN pricelist {
     secondaryActions {
-        MOVE PROPERTY(copy(p)); 
+        MOVE PROPERTY(copy(p)) { valueClass = 'btn-secondary'; }
     }
 }

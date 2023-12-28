@@ -43,6 +43,7 @@ DESIGN shipments {
         NEW total {
             showIf = countSelectedShipments();
             caption = 'Total';
+            horizontal = TRUE;
             MOVE BOX(TREE categories);
             NEW products {
                 fill = 3;

@@ -54,6 +54,8 @@ WHEN LOCAL SET(Order o IS Order) AND NOT CHANGED(company(o)) DO company(o) <- de
 // location
 location = DATA Location (Order);
 nameLocation 'Location' (Order o) = name(location(o));
+CONSTRAINT SETCHANGED(location(Order o)) AND internalUse(location(o)) CHECKED BY location[Order]
+    MESSAGE 'The selected location is for internal use';
 
 // currency
 currency = DATA Currency (Order);
@@ -70,7 +72,7 @@ representative(Order o) <- currentUser() IF currentUser() IS Employee WHEN SET(o
 CONSTRAINT representative(Order o) AND NOT legalEntity(representative(o)) = company(o) 
     CHECKED BY representative MESSAGE 'There must be our worker';
 
-vendorReference 'Vendor reference' = DATA STRING[30] (Order);
+vendorReference 'Vendor reference' = DATA STRING[30] (Order) INDEXED;
 note 'Note' = DATA ISTRING (Order) CHARWIDTH 20;
 
 details 'Details' = DATA RICHTEXT (Order);
@@ -281,6 +283,6 @@ EXTEND FORM order PROPERTIES copy(o);
 
 DESIGN order {
     secondaryActions {
-        MOVE PROPERTY(copy(o));
+        MOVE PROPERTY(copy(o)) { valueClass = 'btn-secondary'; }
     }
 }

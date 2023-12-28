@@ -6,14 +6,16 @@ NAMESPACE MasterData;
 
 CLASS Category 'Category';
 
-@defineID(category, 'Categories', 'CT', 4);
+@defineID(category, 'Categories', 'CT', 6);
 
-name 'Name' = DATA ISTRING[50] (Category) IN id NONULL;
+name '{Name}' = DATA ISTRING[50] (Category) IN id NONULL;
 
 // hierarchy
 parent = DATA Category (Category) INDEXED;
 idParent 'Parent ID' (Category c) = id(parent(c));
 nameParent 'Parent' (Category c) = name(parent(c));
+
+rootCategory() = GROUP MIN Category c AS Category IF NOT parent(c);
 
 CONSTRAINT DROPPED(Category c IS Category) AND PREV(parent(Category child) = c)
         MESSAGE 'It is forbidden to delete categories that are referenced by other categories';

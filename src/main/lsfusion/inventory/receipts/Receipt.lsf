@@ -31,6 +31,8 @@ numberDate 'Description' (Receipt r) = number(r) + ' (' + scheduledDateTime(r) +
 location 'Location' = DATA Location (Receipt) NONULL INDEXED;
 nameLocation 'Location' (Receipt r) = name(location(r));
 WHEN LOCAL SETCHANGED(type(Receipt r)) AND defaultLocation(type(r)) AND NOT CHANGED(location(r)) DO location(r) <- defaultLocation(type(r));
+CONSTRAINT SETCHANGED(location(Receipt o)) AND internalUse(location(o)) CHECKED BY location[Receipt]
+    MESSAGE 'The selected location is for internal use';
 
 company 'Company' (Receipt r) = company(location(r));
 
@@ -44,6 +46,7 @@ CONSTRAINT vendor(Receipt r) AND NOT isVendor(r)
                 CHECKED BY vendor[Receipt]
                 MESSAGE 'The partner must be a vendor';
 
+vendorReference 'Vendor reference' = DATA STRING[30] (Receipt) INDEXED;
 note 'Note' = DATA ISTRING (Receipt) CHARWIDTH 20;
 
 // lines
@@ -64,6 +67,8 @@ CONSTRAINT product(ReceiptLine l) AND NOT canBePurchased(product(l))
             CHECKED BY product[ReceiptLine]
             MESSAGE 'The product is not intended for purchase';
 
+@defineDocSingleLineForItem(receipt, product);
+
 uom (ReceiptLine l) = uom(product(l));
 nameUom 'UoM' (ReceiptLine l) = name(uom(l));
 
@@ -71,7 +76,9 @@ initialDemand 'Initial demand' = DATA NUMERIC[16,3] (ReceiptLine);
 
 CONSTRAINT initialDemand(ReceiptLine l) < 0 OR initialDemand(l) > maxQuantity(type(receipt(l))) AND maxQuantity(type(receipt(l))) 
     MESSAGE 'The planned amount should be between 0 and the maximum allowed';
-    
+
+initialDemand 'Initial demand' (Receipt r) = GROUP SUM initialDemand(ReceiptLine l) IF receipt(l) = r MATERIALIZED;
+
 // Line properties
 imagedNameStatus 'Status' (ReceiptLine l) = imagedNameStatus(receipt(l));
 number 'Number' (ReceiptLine l) = number(receipt(l)) IN id;
@@ -94,7 +101,7 @@ FORM receipt 'Receipt'
     OBJECTS r = Receipt PANEL
     PROPERTIES(r) nameType, scheduledDateTime, number, 
                   nameVendor, nameLocation,
-                  note
+                  vendorReference, note
 
     OBJECTS l = ReceiptLine
     PROPERTIES(l) index READONLY, nameProduct, nameUom, idBarCodeProduct, idProduct, referenceProduct,
@@ -106,8 +113,8 @@ FORM receipt 'Receipt'
 ;
 
 DESIGN receipt {
-    caption = badged('Receipt', CONCAT ' ', '№' + number(r), '(' + scheduledDateTime(r) + ')');
-    OBJECTS {
+    caption = badged('Receipt', number(r) + '(' + scheduledDateTime(r) + ')');
+    OBJECTS {       
         NEW header {
             NEW headerCenter {
                 alignment = STRETCH;
@@ -119,7 +126,8 @@ DESIGN receipt {
                 }
                 NEW headerRight {
                     MOVE PROPERTY(nameVendor(r));
-                    MOVE PROPERTY(nameLocation(r)) { notNull = TRUE; }           
+                    MOVE PROPERTY(nameLocation(r)) { notNull = TRUE; }
+                    MOVE PROPERTY(vendorReference(r));
                 }
             }
             NEW headerBottom {
@@ -132,6 +140,7 @@ DESIGN receipt {
             tabbed = TRUE;
             NEW lines {
                 caption = 'Lines';
+                horizontal = TRUE;
                 MOVE BOX(l) {
                     caption = '';
                     PROPERTY(nameProduct(l)) { notNull = TRUE; }
@@ -162,7 +171,7 @@ FORM receipts 'Receipts'
                            number, scheduledDateTime, nameVendor,
                            nameType, 
                            nameLocation,
-                           note, countLines
+                           vendorReference, note, countLines
     PROPERTIES(r) NEWSESSION NEW, EDIT, DELETE
 ;
 
@@ -223,6 +232,6 @@ EXTEND FORM receipt
 
 DESIGN receipt {
     secondaryActions {
-        MOVE PROPERTY(copy(r));
+        MOVE PROPERTY(copy(r)) { valueClass = 'btn-secondary'; }
     }
 }

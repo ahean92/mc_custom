@@ -67,7 +67,7 @@ EXTEND FORM item
 ;
 DESIGN item {
     secondaryActions {
-        MOVE PROPERTY(copyProduct);
+        MOVE PROPERTY(copyProduct) { valueClass = 'btn-secondary'; }
     }
 }
 
@@ -88,7 +88,7 @@ FORM products 'Finished products'
     FILTERS level(category(p), c)
     FILTERGROUP active
         FILTER '{Active}' active(p) 'F8' DEFAULT 
-        FILTER 'Inactive' archived(p) 'F7'
+        FILTER 'Archived' archived(p) 'F7'
         
     LIST Product OBJECT p
 ;
@@ -96,7 +96,7 @@ FORM products 'Finished products'
 DESIGN products {
     OBJECTS {
         NEW pane {
-            
+            horizontal = TRUE;
             fill = 1;
             NEW categories {
                 fill = 1;

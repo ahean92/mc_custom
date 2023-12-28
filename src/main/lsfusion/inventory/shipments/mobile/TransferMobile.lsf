@@ -19,7 +19,7 @@ FORM transferMobile 'Mobile transfer'
     FILTERS accessGranted(l)
 
     OBJECTS p = Product PAGESIZE 50
-    PROPERTIES BACKGROUND backgroundQuantity(l, p) READONLY 'Name' = name(p), 'On hand' = onHand(l, p)
+    PROPERTIES BACKGROUND backgroundQuantity(l, p) READONLY '{Name}' = name(p), 'On hand' = onHand(l, p)
     PROPERTIES BACKGROUND backgroundQuantity(l, p) quantity (p)
     PROPERTIES(p) READONLY PANEL pName '' = name, '' = id, '' = idBarCode, '' = nameUom
     ORDERS name(p)
@@ -89,8 +89,7 @@ DESIGN transferMobile {
             alignment = STRETCH;
             NEW searchKeyboard {
                 fill = 1;
-                type = COLUMNS;
-                columns = 5;
+                lines = 5;
             }
             MOVE PROPERTY(increaseQuantity(p)) { fill = 1; focusable = FALSE; }
             MOVE PROPERTY(decreaseQuantity(p)) { fill = 1; focusable = FALSE; }

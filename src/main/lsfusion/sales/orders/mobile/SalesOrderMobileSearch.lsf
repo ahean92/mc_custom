@@ -33,7 +33,7 @@ DESIGN orderMobile {
                     MOVE FILTERGROUPS(i);
                 }
             }
-            MOVE USERFILTER(i);
+            MOVE FILTERS(i);
             MOVE GRID(i) {
                 PROPERTY(name(i)) { charWidth = 25; fontSize = 10; }
                 PROPERTY(overListPrice(o, i)) { charWidth = 4; }
@@ -82,8 +82,7 @@ DESIGN orderMobile {
             alignment = STRETCH;
             NEW searchKeyboard {
                 fill = 1;
-                type = COLUMNS;
-                columns = 5;
+                lines = 5;
             }
             MOVE PROPERTY(increaseQuantity(o, i)) { fill = 1; focusable = FALSE; }
             MOVE PROPERTY(decreaseQuantity(o, i)) { fill = 1; focusable = FALSE; }
