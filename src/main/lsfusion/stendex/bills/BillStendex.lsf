@@ -47,7 +47,7 @@ addServiceCustom 'Добавить' () {
     NEW s = Service {
         category(s) <- GROUP LAST Category c ORDER DESC c WHERE countServices(c); 
         SHOW serviceCustom OBJECTS s = s;
-        seek(s);
+        IF PREV(s IS Service) THEN seek(s);
     }
 } IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE TOOLBAR;
 
