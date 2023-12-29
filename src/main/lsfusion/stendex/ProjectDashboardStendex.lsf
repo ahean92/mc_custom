@@ -18,24 +18,22 @@ DESIGN projects{
 EXTEND FORM project
     PROPERTIES (p) length, width, square, budget
     OBJECTS pf = Purchase.OrderFile
-    PROPERTIES READONLY 'Заказ' = number(objet(pf))
+    PROPERTIES READONLY 'Заказ' = number(order(pf))
     PROPERTIES(pf) name, extension, description
     PROPERTIES(pf) READONLY nameUser, dateTime
     PROPERTIES(pf) GRID open, DELETE
-    FILTERS project(objet(pf)) = p
+    FILTERS project(order(pf)) = p
 ;
-countPurchaseFile (Project p) = GROUP SUM 1 IF project(objet(Purchase.OrderFile f)) = p;
+countPurchaseFile (Project p) = GROUP SUM 1 IF project(order(Purchase.OrderFile f)) = p;
 
 DESIGN project{
     REMOVE files;
     REMOVE PROPERTY (startDate(p));
     REMOVE PROPERTY (endDate(p));
-    header{
-        fill = 1;
+    header {
         NEW headerExtra{
             caption = '';
             border = FALSE;
-            fill = 0.3;
         }
         headerLeft{
             MOVE PROPERTY (budget(p));
@@ -46,25 +44,25 @@ DESIGN project{
             MOVE PROPERTY (square(p));
         }
         PROPERTY (namePartner(p)) { caption = 'Клиент'; }
-        details{
-            NEW filesTotal{
-                caption = badged('Файлы', countFiles(p) (+) countPurchaseFile(p));
-                tabbed = TRUE;
-                NEW fp{
-                    caption = badged('По проекту', countFiles(p) );
-                    MOVE BOX (of){
-                        caption = '';
-                    }
-                    MOVE PROPERTY(uploadFile()) {
-                        panelCaptionVertical = TRUE;
-                        fill = 0.3;
-                    }
+    }
+    details {
+        NEW filesTotal{
+            caption = badged('Файлы', countFiles(p) (+) countPurchaseFile(p));
+            tabbed = TRUE;
+            NEW fp{
+                caption = badged('По проекту', countFiles(p) );
+                MOVE BOX (of){
+                    caption = '';
                 }
-                NEW pof{
-                    caption = badged('По заказам', countPurchaseFile(p));
-                    MOVE BOX(pf){
-                        caption = '';
-                    }
+                MOVE PROPERTY(uploadFile()) {
+                    panelCaptionVertical = TRUE;
+                    fill = 0.3;
+                }
+            }
+            NEW pof{
+                caption = badged('По заказам', countPurchaseFile(p));
+                MOVE BOX(pf){
+                    caption = '';
                 }
             }
         }
@@ -83,7 +81,7 @@ nameFilterProject 'Проект' = name(filterProject());
 filterRepresentative = DATA LOCAL NESTED Employee ();
 nameFilterRepresentative 'Наш представитель' = MasterData.name(filterRepresentative());
 
-FORM projectDashboard 'Дашборд' 
+FORM projectDashboard 'Закупка материалов' 
     PROPERTIES () nameFilterProject, nameFilterRepresentative
     OBJECTS request = ManufacturingOrder
     PROPERTIES (request) READONLY nameProject, 'Дата' = scheduledDate, namePriority, number, nameType, nameConsumedItem, nameStatus,  nameResponsible

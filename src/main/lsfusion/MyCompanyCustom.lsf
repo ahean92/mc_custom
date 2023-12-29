@@ -34,7 +34,9 @@ REQUIRE Eval, ProcessMonitor, Backup,
         Project, Priority,
         ProjectPurchaseOrder, ProjectManufacturingOrderStendex,
         ProjectSalesOrder, ProjectDashboardStendex,
-        ProjectManufacturingOrder;
+        ProjectManufacturingOrder,
+
+        BillStendex, ProjectBillStendex;
 
 
 onWebClientLoad() +{

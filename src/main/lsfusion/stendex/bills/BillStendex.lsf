@@ -1,0 +1,173 @@
+MODULE BillStendex;
+
+REQUIRE Bill, ProjectBill, ServiceP, UtilsStendex;
+
+NAMESPACE Invoicing;
+
+forLegalEntity 'Для организаций' = DATA BOOLEAN (BillType);
+legalEntityType () = GROUP MIN BillType t IF forLegalEntity(t);
+
+forIndividual 'Для фрилансеров' = DATA BOOLEAN (BillType);
+individualType () = GROUP MIN BillType t IF forIndividual(t);
+
+defaultItem = DATA Item (BillType);
+nameDefaultItem 'Услуга по умолчанию' (BillType t) = name(defaultItem(t));
+
+EXTEND FORM billType
+    PROPERTIES(o) forLegalEntity, forIndividual, nameDefaultItem
+;
+
+legalEntity (Bill b) = forLegalEntity(type(b));
+individual (Bill b) = forIndividual(type(b));
+
+CONSTRAINT vendor(Bill b) IS LegalEntity AND NOT legalEntity(b) CHECKED BY vendor[Bill]
+    MESSAGE 'Запрещено выбирать не организацию для этого типа счета';
+CONSTRAINT vendor(Bill b) IS Individual AND NOT individual(b) CHECKED BY vendor[Bill]
+    MESSAGE 'Запрещено выбирать не физическое лицо для этого типа счета';
+
+WHEN LOCAL SETCHANGED(type(BillLine l)) AND NOT item(l) DO
+    item(l) <- defaultItem(type(l));
+
+paid 'Оплачено' = DATA NUMERIC[16,3] (Bill); // пока как DATA свойство
+toPay 'К оплате' (Bill b) = amount(b) (-) paid(b);
+
+FORM serviceCustom 'Услуга'
+    OBJECTS s = Service PANEL
+    PROPERTIES(s) dataName
+//    EDIT Service OBJECT s
+;
+
+DESIGN serviceCustom {
+    PROPERTY(dataName(s)) { charWidth = 50; }
+}
+
+addServiceCustom 'Добавить' (Service s) {
+    SHOW serviceCustom OBJECTS s = s;
+} IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE;
+
+editServiceCustom 'Редактировать' (Service s) {
+    SHOW serviceCustom OBJECTS s = s;
+} IMAGE 'edit.png' CHANGEKEY 'BACK_SPACE' HIDE CHANGEMOUSE 'DBLCLK' TOOLBAR;
+
+FORM servicesCustom 'Услуги'
+    OBJECTS s = Service
+    PROPERTIES(s) READONLY name
+    PROPERTIES(s) NEWSESSION addServiceCustom, editServiceCustom
+;
+
+changeItems (Bill b) {
+    DIALOG servicesCustom OBJECTS s INPUT LIST name(s) FILTERS s IS Service DO {
+        IF NOT GROUP SUM 1 IF b = bill(BillLine bl) AND NOT item(bl) IS Product THEN 
+            NEW l = BillLine {
+                bill(l) <- b;
+                item(l) <- s;
+            }
+        ELSE
+            item(BillLine l) <- s WHERE bill(l) = b AND NOT item(l) IS Product;
+    }
+}
+
+changeAmount (Bill b) {
+    INPUT a = amount(b) DO {
+        IF NOT countServiceLine(b) THEN
+            NEW l = BillLine {
+                bill(l) <- b;
+                untaxedAmount(l) <- a;
+            }
+        ELSE
+            untaxedAmount(BillLine l) <- a WHERE bill(l) = b AND NOT item(l) IS Product;
+    }
+}
+
+FORM billCustom 'Счет'
+    OBJECTS b = Bill PANEL
+    PROPERTIES(b) 'Услуга' = items ON CHANGE changeItems(b) SHOWIF NOT defaultItem(type(b)),
+                  nameCompany,
+                  nameProject,
+                  nameVendor,
+                  note,
+                  amount ON CHANGE changeAmount(b), paid,
+                  details
+;
+
+DESIGN billCustom {
+    OBJECTS {
+        NEW header {
+            lines = 2;
+            MOVE PROPERTY(items(b)) { charWidth = 40; fontSize = 24; }
+            MOVE PROPERTY(nameCompany(b)) { charWidth = 40; fontSize = 24; }
+            MOVE PROPERTY(nameProject(b)) { charWidth = 40; fontSize = 24; }
+            MOVE PROPERTY(nameVendor(b)) { charWidth = 40; fontSize = 24; }
+            MOVE PROPERTY(note(b)) { fontSize = 24; }
+            NEW amount {
+                horizontal = TRUE;
+                alignment = STRETCH;
+                MOVE PROPERTY(amount(b)) { panelCaptionVertical = TRUE; fontSize = 24; }
+                MOVE PROPERTY(paid(b)) { panelCaptionVertical = TRUE; fontSize = 24; }
+            }
+        }
+        NEW details {
+            tabbed = TRUE;
+            fill = 1;
+        }
+    }
+}
+
+@defineObjectFilesForm(bill, billCustom, b);
+
+DESIGN billCustom {
+    details {
+        NEW detailsInformation {
+            caption = 'Details';
+            MOVE PROPERTY(details(b)) {
+                caption = '';
+                fill = 1;
+                height = 300;
+            }
+        }
+    }
+}
+
+newLegalEntityBill 'Добавить' () {
+    NEWSESSION {
+        NEW b = Bill {
+            type(b) <- legalEntityType(); 
+            SHOW billCustom OBJECTS b = b;
+        }
+    }
+}
+
+newIndividualBill 'Добавить' () {
+    NEWSESSION {
+        NEW b = Bill {
+            type(b) <- individualType();
+            SHOW billCustom OBJECTS b = b;
+        }
+    }
+}
+
+editBillCustom 'Редактировать' (Bill b) {
+    SHOW billCustom OBJECTS b = b;
+} IMAGE 'edit.png' CHANGEKEY 'BACK_SPACE' HIDE CHANGEMOUSE 'DBLCLK' TOOLBAR;
+
+FORM billDashboard 'Счета на услуги'
+    OBJECTS bl 'Счета на оплату' = Bill
+    PROPERTIES(bl) READONLY number, date, nameProject, note, nameRepresentative, amount, paid, toPay
+    PROPERTIES(bl) 'Счет' = openFiles GRID
+    PROPERTIES newLegalEntityBill() DRAW bl TOOLBAR
+    PROPERTIES(bl) NEWSESSION editBillCustom, DELETE
+    FILTERS legalEntity(bl)
+
+    OBJECTS bi 'Оплата freelance' = Bill
+    PROPERTIES(bi) READONLY number, date, nameProject, note, nameRepresentative, amount, paid, toPay
+    PROPERTIES(bi) 'Счет' = openFiles GRID
+    PROPERTIES newIndividualBill() DRAW bi TOOLBAR
+    PROPERTIES(bi) NEWSESSION editBillCustom, DELETE
+    FILTERS individual(bi)
+;
+
+NAVIGATOR {
+    dashboard {
+        NEW billDashboard;
+    }
+}

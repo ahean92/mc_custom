@@ -1,0 +1,8 @@
+MODULE UtilsStendex;
+
+NAMESPACE Utils;
+
+NAVIGATOR {
+    NEW FOLDER dashboard 'Рабочий стол' WINDOW toolbar FIRST {
+    }
+}

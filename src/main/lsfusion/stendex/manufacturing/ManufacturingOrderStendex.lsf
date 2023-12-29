@@ -1,6 +1,6 @@
 MODULE ManufacturingOrderStendex;
 
-REQUIRE ManufacturingOrder;
+REQUIRE ManufacturingOrder, UtilsStendex;
 
 NAMESPACE Manufacturing;
 
@@ -96,7 +96,7 @@ WHEN LOCAL SET (ManufacturingOrder t IS ManufacturingOrder) AND NOT type(t) DO t
 
 
 NAVIGATOR{
-    NEW FOLDER dashboard 'Рабочий стол' WINDOW toolbar FIRST {
+    dashboard {
         NEW materialRequests;
     }
 }

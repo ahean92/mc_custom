@@ -56,16 +56,16 @@ isPP (OrderFile f) = type(f) = TypeFile.paymentOrder;
 amount 'Сумма' = DATA NUMERIC[16,2](OrderFile);
 overDescription (OrderFile f) = CONCAT ' /', description(f), 'Сумма: ' + amount(f);
 
-amountPayed 'Оплачено' (Order o) = GROUP SUM amount(OrderFile f) IF isPP(f) BY objet(f);
+amountPayed 'Оплачено' (Order o) = GROUP SUM amount(OrderFile f) IF isPP(f) BY order(f);
 CONSTRAINT SET (OrderFile f IS OrderFile) AND isPP(f) AND NOT amount(f) MESSAGE 'При загрузке платежного поручения необходимо ввести сумму';
 
 payedPartial (Order o) = amountPayed(o) AND untaxedAmount(o) AND amountPayed(o) < untaxedAmount(o);
 payed (Order o) = amountPayed(o) AND untaxedAmount(o) AND amountPayed(o) >= untaxedAmount(o);
-invoice 'Счет' (Order o) = GROUP LAST OrderFile f ORDER dateTime(f) WHERE type(f) = TypeFile.invoice AND objet(f) = o;
+invoice 'Счет' (Order o) = GROUP LAST OrderFile f ORDER dateTime(f) WHERE type(f) = TypeFile.invoice AND order(f) = o;
 openInvoice 'Счет' (Order f) { open(file(invoice(f)), nameExtension(invoice(f))); } IMAGE 'open.png';
 fileInvoice (Purchase.Order o) = file(invoice(o));
 
-consignment 'Накладная' (Order o) = GROUP LAST OrderFile f ORDER dateTime(f) WHERE type(f) = TypeFile.consignment AND objet(f) = o;
+consignment 'Накладная' (Order o) = GROUP LAST OrderFile f ORDER dateTime(f) WHERE type(f) = TypeFile.consignment AND order(f) = o;
 openConsignment 'Накладная' (Order f) { open(file(consignment(f)), nameExtension(invoice(f))); } IMAGE 'open.png';
 fileConsignment (Purchase.Order o) = file(consignment(o));
 
@@ -142,7 +142,7 @@ showStatus (Order o, OrderStatus s) = showStatusRule(o, s) AND (GROUP SUM 1 IF a
 color(Order o, OrderStatus s) = IF o IS Order THEN color(s);
 uploadFile 'Загрузить файл'(Order o){
     INPUT uf = NAMEDFILE DO NEW uof = OrderFile {
-        objet(uof) <- o;
+        order(uof) <- o;
         file(uof) <- RAWFILE(uf);
         name(uof) <- name(uf);
         extension(uof) <- extension(uf);
@@ -214,12 +214,12 @@ CONSTRAINT SETCHANGED (vendor(Order o)) AND vendor(o) IS Employee CHECKED BY ven
     MESSAGE 'Сотрудник не может быть поставщиком';
 
 WHEN SETCHANGED (invoice(Order o)) AND status(o) = OrderStatus.draft DO changeStatus(o, OrderStatus.review);
-WHEN SETCHANGED (isPP(OrderFile f)) AND amountPayed(objet(f)) < untaxedAmount(objet(f)) AND status(objet(f)) = OrderStatus.inPayment 
-    DO changeStatus(objet(f), OrderStatus.partiallyPaid);
+WHEN SETCHANGED (isPP(OrderFile f)) AND amountPayed(order(f)) < untaxedAmount(order(f)) AND status(order(f)) = OrderStatus.inPayment 
+    DO changeStatus(order(f), OrderStatus.partiallyPaid);
 
-WHEN SETCHANGED (isPP(OrderFile f)) AND amountPayed(objet(f)) >= untaxedAmount(objet(f)) 
-    AND (status(objet(f)) = OrderStatus.inPayment OR status(objet(f)) = OrderStatus.partiallyPaid)
-    DO changeStatus(objet(f), OrderStatus.awaitingDelivery);
+WHEN SETCHANGED (isPP(OrderFile f)) AND amountPayed(order(f)) >= untaxedAmount(order(f)) 
+    AND (status(order(f)) = OrderStatus.inPayment OR status(order(f)) = OrderStatus.partiallyPaid)
+    DO changeStatus(order(f), OrderStatus.awaitingDelivery);
 
 changedLines (Order o) = [GROUP SUM 1 IF SETCHANGED (item(OrderLine l)) OR SETCHANGED (quantity(l)) OR SETCHANGED (price(l)) BY order(l)](o);
 
