@@ -26,14 +26,14 @@ newIndividualBill 'Добавить' (Project p) {
 
 EXTEND FORM project
     OBJECTS bl 'Счета на оплату' = Bill
-    PROPERTIES(bl) READONLY number, date, nameProject, note, nameRepresentative, amount, paid, toPay
+    PROPERTIES(bl) READONLY number, date, items, nameProject, note, nameRepresentative, amount, paid, toPay
     PROPERTIES(bl) 'Счет' = openFiles GRID
     PROPERTIES newLegalEntityBill(p) DRAW bl TOOLBAR
     PROPERTIES(bl) NEWSESSION editBillCustom, DELETE
     FILTERS legalEntity(bl)
 
     OBJECTS bi 'Оплата freelance' = Bill
-    PROPERTIES(bi) READONLY number, date, nameProject, note, nameRepresentative, amount, paid, toPay
+    PROPERTIES(bi) READONLY number, date, items, nameProject, note, nameRepresentative, amount, paid, toPay
     PROPERTIES(bi) 'Счет' = openFiles GRID
     PROPERTIES newIndividualBill(p) DRAW bi TOOLBAR
     PROPERTIES(bi) NEWSESSION editBillCustom, DELETE

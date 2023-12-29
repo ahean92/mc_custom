@@ -41,9 +41,15 @@ DESIGN serviceCustom {
     PROPERTY(dataName(s)) { charWidth = 50; }
 }
 
-addServiceCustom 'Добавить' (Service s) {
-    SHOW serviceCustom OBJECTS s = s;
-} IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE;
+countServices (Category c) = GROUP SUM 1 IF category(Item i) = c AND i IS Service;
+
+addServiceCustom 'Добавить' () {
+    NEW s = Service {
+        category(s) <- GROUP LAST Category c ORDER DESC c WHERE countServices(c); 
+        SHOW serviceCustom OBJECTS s = s;
+        seek(s);
+    }
+} IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE TOOLBAR;
 
 editServiceCustom 'Редактировать' (Service s) {
     SHOW serviceCustom OBJECTS s = s;
@@ -52,7 +58,7 @@ editServiceCustom 'Редактировать' (Service s) {
 FORM servicesCustom 'Услуги'
     OBJECTS s = Service
     PROPERTIES(s) READONLY name
-    PROPERTIES(s) NEWSESSION addServiceCustom, editServiceCustom
+    PROPERTIES NEWSESSION addServiceCustom() DRAW s, editServiceCustom(s)
 ;
 
 changeItems (Bill b) {
@@ -152,14 +158,14 @@ editBillCustom 'Редактировать' (Bill b) {
 
 FORM billDashboard 'Счета на услуги'
     OBJECTS bl 'Счета на оплату' = Bill
-    PROPERTIES(bl) READONLY number, date, nameProject, note, nameRepresentative, amount, paid, toPay
+    PROPERTIES(bl) READONLY number, date, items, nameProject, note, nameRepresentative, amount, paid, toPay
     PROPERTIES(bl) 'Счет' = openFiles GRID
     PROPERTIES newLegalEntityBill() DRAW bl TOOLBAR
     PROPERTIES(bl) NEWSESSION editBillCustom, DELETE
     FILTERS legalEntity(bl)
 
     OBJECTS bi 'Оплата freelance' = Bill
-    PROPERTIES(bi) READONLY number, date, nameProject, note, nameRepresentative, amount, paid, toPay
+    PROPERTIES(bi) READONLY number, date, items, nameProject, note, nameRepresentative, amount, paid, toPay
     PROPERTIES(bi) 'Счет' = openFiles GRID
     PROPERTIES newIndividualBill() DRAW bi TOOLBAR
     PROPERTIES(bi) NEWSESSION editBillCustom, DELETE
