@@ -51,7 +51,7 @@ DESIGN materialRequest{
         }
         NEW details{
             tabbed = TRUE;
-            fill = 0.5;
+            fill = 1;
             MOVE BOX(cl) {
                 GRID(cl){
                     height = 150;

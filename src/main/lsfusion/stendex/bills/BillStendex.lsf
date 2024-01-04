@@ -1,6 +1,6 @@
 MODULE BillStendex;
 
-REQUIRE Bill, ProjectBill, ServiceP, UtilsStendex;
+REQUIRE BillDone, ProjectBill, ServiceP, UtilsStendex;
 
 NAMESPACE Invoicing;
 
@@ -157,20 +157,67 @@ editBillCustom 'Редактировать' (Bill b) {
 } IMAGE 'edit.png' CHANGEKEY 'BACK_SPACE' HIDE CHANGEMOUSE 'DBLCLK' TOOLBAR;
 
 FORM billDashboard 'Счета на услуги'
-    OBJECTS bl 'Счета на оплату' = Bill
-    PROPERTIES(bl) READONLY number, date, items, nameProject, note, nameRepresentative, amount, paid, toPay
+    OBJECTS bl = Bill
+    PROPERTIES(bl) READONLY number, date, imagedNameStatus BACKGROUND colorStatus(bl),
+                            items, nameProject, note, nameRepresentative, amount, paid, toPay
     PROPERTIES(bl) 'Счет' = openFiles GRID
     PROPERTIES newLegalEntityBill() DRAW bl TOOLBAR
     PROPERTIES(bl) NEWSESSION editBillCustom, DELETE
+    PROPERTIES(bl) markAsToDo SHOWIF NOT ready(bl), markAsDone SHOWIF ready(bl) AND NOT done(bl)
     FILTERS legalEntity(bl)
 
     OBJECTS bi 'Оплата freelance' = Bill
-    PROPERTIES(bi) READONLY number, date, items, nameProject, note, nameRepresentative, amount, paid, toPay
+    PROPERTIES(bi) READONLY number, date, imagedNameStatus BACKGROUND colorStatus(bl),
+                            items, nameProject, note, nameRepresentative, amount, paid, toPay
     PROPERTIES(bi) 'Счет' = openFiles GRID
     PROPERTIES newIndividualBill() DRAW bi TOOLBAR
     PROPERTIES(bi) NEWSESSION editBillCustom, DELETE
+    PROPERTIES(bi) markAsToDo SHOWIF NOT ready(bi), markAsDone SHOWIF ready(bi) AND NOT done(bi)
     FILTERS individual(bi)
 ;
+
+DESIGN billDashboard {
+    OBJECTS {
+        NEW billLegalEntity {
+            caption = 'Счета на оплату';
+            fill = 1;
+            NEW headerLegalEntity {
+                horizontal = TRUE;
+                alignment = STRETCH;
+                MOVE TOOLBAR(bl);
+                NEW actionsLegalEntity {
+                    fill = 1;
+                    NEW markLegalEntity {
+                        horizontal = TRUE;
+                        alignment = END;
+                        MOVE PROPERTY(markAsToDo(bl));
+                        MOVE PROPERTY(markAsDone(bl));
+                    }
+                }
+            }
+            MOVE BOX(bl) { caption = ''; };
+        }
+        NEW billIndividual {
+            caption = 'Оплата freelance';
+            fill = 1;
+            NEW headerIndividual {
+                horizontal = TRUE;
+                alignment = STRETCH;
+                MOVE TOOLBAR(bi);
+                NEW actionsIndividual {
+                    fill = 1;
+                    NEW markIndividual {
+                        horizontal = TRUE;
+                        alignment = END;
+                        MOVE PROPERTY(markAsToDo(bi));
+                        MOVE PROPERTY(markAsDone(bi));
+                    }
+                }
+            }
+            MOVE BOX(bi) { caption = ''; }
+        }
+    }
+}
 
 NAVIGATOR {
     dashboard {
