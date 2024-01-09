@@ -1,12 +1,13 @@
 MODULE PartnerStendex;
 
-REQUIRE Partner, LegalEntityRu, Individual;
+REQUIRE Partner, LegalEntityRu, Employee;
 
 NAMESPACE MasterData;
 
 EXTEND FORM partners
     FILTERGROUP type
-        FILTER 'Legal entities' p IS LegalEntity DEFAULT
-        FILTER 'Individuals' p IS Individual
+        FILTER 'Legal entities' p IS LegalEntity
+        FILTER 'Individuals' p IS Individual AND NOT p IS Employee
+        FILTER 'Employees' p IS Employee
 ;
         

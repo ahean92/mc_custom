@@ -20,10 +20,12 @@ EXTEND FORM billType
 legalEntity (Bill b) = forLegalEntity(type(b));
 individual (Bill b) = forIndividual(type(b));
 
-CONSTRAINT vendor(Bill b) IS LegalEntity AND NOT legalEntity(b) CHECKED BY vendor[Bill]
+CONSTRAINT SETCHANGED(vendor(Bill b)) AND vendor(b) IS LegalEntity AND NOT legalEntity(b) CHECKED BY vendor[Bill]
     MESSAGE 'Запрещено выбирать не организацию для этого типа счета';
-CONSTRAINT vendor(Bill b) IS Individual AND NOT individual(b) CHECKED BY vendor[Bill]
+CONSTRAINT SETCHANGED(vendor(Bill b)) AND vendor(b) IS Individual AND NOT individual(b) CHECKED BY vendor[Bill]
     MESSAGE 'Запрещено выбирать не физическое лицо для этого типа счета';
+CONSTRAINT SETCHANGED(vendor(Bill b)) AND vendor(b) IS Employee CHECKED BY vendor[Bill]
+    MESSAGE 'Запрещено выбирать сотрудника для этого типа счета';
 
 WHEN LOCAL SETCHANGED(type(BillLine l)) AND NOT item(l) DO
     item(l) <- defaultItem(type(l));
@@ -85,19 +87,47 @@ changeAmount (Bill b) {
     }
 }
 
+WHEN SET(done(Bill b)) DO {
+    paid(b) <- amount(b);
+}
+
 FORM billCustom 'Счет'
     OBJECTS b = Bill PANEL
-    PROPERTIES(b) 'Услуга' = items ON CHANGE changeItems(b) SHOWIF NOT defaultItem(type(b)),
+    PROPERTIES(b) imagedNameStatus,
+                  'Услуга' = items ON CHANGE changeItems(b) SHOWIF NOT defaultItem(type(b)),
                   nameCompany,
                   nameProject,
                   nameVendor,
                   note,
                   amount ON CHANGE changeAmount(b), paid,
                   details
+
+    PROPERTIES(b) ready, done
+    PROPERTIES(b) markAsToDo SHOWIF NOT ready(b), markAsDone SHOWIF ready(b) AND NOT done(b)
 ;
 
 DESIGN billCustom {
     OBJECTS {
+        NEW statusPane {
+            caption = 'Statuses';
+            horizontal = TRUE;
+            alignment = STRETCH;
+            NEW statusActions {
+                horizontal = TRUE;
+                MOVE PROPERTY(markAsToDo(b));
+                MOVE PROPERTY(markAsDone(b));
+            }
+            NEW status {
+                flex = 1;
+                NEW statusInfo {
+                    alignment = END;
+                    horizontal = TRUE;
+                    MOVE PROPERTY(imagedNameStatus(b));
+                    MOVE PROPERTY(ready(b));
+                    MOVE PROPERTY(done(b));
+                }
+            }
+        }
         NEW header {
             lines = 2;
             MOVE PROPERTY(items(b)) { charWidth = 40; fontSize = 24; }
