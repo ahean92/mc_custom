@@ -114,7 +114,7 @@ DESIGN billCustom {
             alignment = STRETCH;
             NEW statusActions {
                 horizontal = TRUE;
-                MOVE PROPERTY(markAsToDo(b));
+                MOVE PROPERTY(markAsToDo(b)) { caption = 'К оплате'; };
                 MOVE PROPERTY(markAsDone(b));
             }
             NEW status {
@@ -135,12 +135,8 @@ DESIGN billCustom {
             MOVE PROPERTY(nameProject(b)) { charWidth = 40; fontSize = 24; }
             MOVE PROPERTY(nameVendor(b)) { charWidth = 40; fontSize = 24; }
             MOVE PROPERTY(note(b)) { fontSize = 24; }
-            NEW amount {
-                horizontal = TRUE;
-                alignment = STRETCH;
-                MOVE PROPERTY(amount(b)) { panelCaptionVertical = TRUE; fontSize = 24; }
-                MOVE PROPERTY(paid(b)) { panelCaptionVertical = TRUE; fontSize = 24; }
-            }
+            MOVE PROPERTY(amount(b)) { fontSize = 24; }
+            MOVE PROPERTY(paid(b)) { fontSize = 24; }
         }
         NEW details {
             tabbed = TRUE;
@@ -151,7 +147,21 @@ DESIGN billCustom {
 
 @defineObjectFilesForm(bill, billCustom, b);
 
+uploadFile 'Загрузить файл'(Bill b){
+    INPUT uf = NAMEDFILE DO NEW uof = BillFile {
+        bill(uof) <- b;
+        file(uof) <- RAWFILE(uf);
+        name(uof) <- name(uf);
+        extension(uof) <- extension(uf);
+    }
+} IMAGE 'add.png';
+
+EXTEND FORM billCustom
+    PROPERTIES (b) uploadFile TOOLBAR DRAW of
+;
+
 DESIGN billCustom {
+    REMOVE PROPERTY (uploadFile());
     details {
         NEW detailsInformation {
             caption = 'Details';
@@ -186,6 +196,14 @@ editBillCustom 'Редактировать' (Bill b) {
     SHOW billCustom OBJECTS b = b;
 } IMAGE 'edit.png' CHANGEKEY 'BACK_SPACE' HIDE CHANGEMOUSE 'DBLCLK' TOOLBAR;
 
+filterProject = DATA LOCAL NESTED Project ();
+nameFilterProject 'Проект' = name(filterProject());
+
+filterRepresentative = DATA LOCAL NESTED Employee ();
+nameFilterRepresentative 'Наш представитель' = MasterData.name(filterRepresentative());
+filterStatus = DATA BillStatus ();
+nameFilterStatus 'Статус оплаты' = name(filterStatus());
+
 FORM billDashboard 'Счета на услуги'
     OBJECTS bl = Bill
     PROPERTIES(bl) READONLY number, date, imagedNameStatus BACKGROUND colorStatus(bl),
@@ -204,47 +222,66 @@ FORM billDashboard 'Счета на услуги'
     PROPERTIES(bi) NEWSESSION editBillCustom, DELETE
     PROPERTIES(bi) markAsToDo SHOWIF NOT ready(bi), markAsDone SHOWIF ready(bi) AND NOT done(bi)
     FILTERS individual(bi)
+
+    PROPERTIES() nameFilterProject, nameFilterRepresentative, nameFilterStatus 
+    FILTERS project(bl) = filterProject() OR NOT filterProject(), 
+        project(bi) = filterProject() OR NOT filterProject(),
+        representative(bl) = filterRepresentative() OR NOT filterRepresentative(), 
+        representative(bi) = filterRepresentative() OR NOT filterRepresentative(),
+        status(bl) = filterStatus() OR NOT filterStatus(), status(bi) = filterStatus() OR NOT filterStatus()
 ;
 
 DESIGN billDashboard {
     OBJECTS {
-        NEW billLegalEntity {
-            caption = 'Счета на оплату';
-            fill = 1;
-            NEW headerLegalEntity {
-                horizontal = TRUE;
-                alignment = STRETCH;
-                MOVE TOOLBAR(bl);
-                NEW actionsLegalEntity {
-                    fill = 1;
-                    NEW markLegalEntity {
-                        horizontal = TRUE;
-                        alignment = END;
-                        MOVE PROPERTY(markAsToDo(bl)) {caption = 'К оплате'; }
-                        MOVE PROPERTY(markAsDone(bl));
-                    }
-                }
-            }
-            MOVE BOX(bl) { caption = ''; };
+        NEW filters {
+            caption = '';
+            border = FALSE;
+            alignment = CENTER;
+            horizontal = TRUE;
+            MOVE PROPERTY (nameFilterProject());
+            MOVE PROPERTY (nameFilterRepresentative());
+            MOVE PROPERTY (nameFilterStatus());
         }
-        NEW billIndividual {
-            caption = 'Оплата freelance';
+        NEW pane{
             fill = 1;
-            NEW headerIndividual {
-                horizontal = TRUE;
-                alignment = STRETCH;
-                MOVE TOOLBAR(bi);
-                NEW actionsIndividual {
-                    fill = 1;
-                    NEW markIndividual {
-                        horizontal = TRUE;
-                        alignment = END;
-                        MOVE PROPERTY(markAsToDo(bi));
-                        MOVE PROPERTY(markAsDone(bi));
+            NEW billLegalEntity {
+                caption = 'Счета на оплату';
+                fill = 1;
+                NEW headerLegalEntity {
+                    horizontal = TRUE;
+                    alignment = STRETCH;
+                    MOVE TOOLBAR(bl);
+                    NEW actionsLegalEntity {
+                        fill = 1;
+                        NEW markLegalEntity {
+                            horizontal = TRUE;
+                            alignment = END;
+                            MOVE PROPERTY(markAsToDo(bl)) {caption = 'К оплате'; }
+                            MOVE PROPERTY(markAsDone(bl));
+                        }
                     }
                 }
+                MOVE BOX(bl) { caption = ''; };
             }
-            MOVE BOX(bi) { caption = ''; }
+            NEW billIndividual {
+                caption = 'Оплата freelance';
+                fill = 1;
+                NEW headerIndividual {  
+                    horizontal = TRUE;
+                    alignment = STRETCH;
+                    MOVE TOOLBAR(bi);
+                    NEW actionsIndividual {
+                        fill = 1;
+                        NEW markIndividual {
+                            horizontal = TRUE;
+                            alignment = END;
+                            MOVE PROPERTY(markAsToDo(bi));
+                            MOVE PROPERTY(markAsDone(bi));
+                        }
+                    }
+                }
+                MOVE BOX(bi) { caption = ''; }
+            }
         }
     }
 }
