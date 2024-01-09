@@ -42,8 +42,8 @@ DESIGN category { default { MOVE PROPERTY(nameDataDefaultUom(c)); } }
 defaultUom (Category c) = GROUP LAST dataDefaultUom(Category parent) ORDER DESC level(c, parent);
 WHEN LOCAL SETCHANGED(category(Item i)) AND NOT uom(i) DO uom(i) <- defaultUom(category(i));
 
-archived 'Archived' = DATA BOOLEAN (Item) CHARWIDTH 10;
-active '{Active}' (Item i) = NOT archived(i) CHARWIDTH 10;
+archived 'Archived' = DATA BOOLEAN (Item);
+active '{Active}' (Item i) = NOT archived(i);
 
 level1 'Category 1' (Item i) = nameCategory1(category(i));
 level2 'Category 2' (Item i) = nameCategory2(category(i));
@@ -97,7 +97,7 @@ DESIGN item {
                 alignment = STRETCH;
                 MOVE PROPERTY(dataName(i));
                 MOVE PROPERTY(class(i));
-                MOVE PROPERTY(archived(i)) { valueClass = 'btn-check'; }
+                MOVE PROPERTY(archived(i));
             }
             MOVE PROPERTY(name(i)) { alignment = STRETCH; }                   
             MOVE PROPERTY(canonicalNameCategory(i));
@@ -136,6 +136,8 @@ FORM items '{Items}'
     TREE categories c = Category PARENT parent(c)
     PROPERTIES READONLY name(c)
     ORDERS name(c)
+    FILTERGROUP activeCategory
+        FILTER '{Active}' active(c) DEFAULT
 
     OBJECTS i = Item
     PROPERTIES(i) READONLYIF isReadonly() name, id, nameCategory, nameUom, reference, class READONLY
