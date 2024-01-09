@@ -190,7 +190,7 @@ DESIGN billDashboard {
                     NEW markLegalEntity {
                         horizontal = TRUE;
                         alignment = END;
-                        MOVE PROPERTY(markAsToDo(bl));
+                        MOVE PROPERTY(markAsToDo(bl)) {caption = 'К оплате'; }
                         MOVE PROPERTY(markAsDone(bl));
                     }
                 }
