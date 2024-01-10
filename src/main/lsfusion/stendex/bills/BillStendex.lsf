@@ -147,6 +147,15 @@ DESIGN billCustom {
 
 @defineObjectFilesForm(bill, billCustom, b);
 
+CLASS TypeFile{
+    paymentOrder 'Платежное поручение',
+    invoice 'Счет',
+    other 'Другое'
+}
+
+type = DATA TypeFile (BillFile) NONULL;
+nameType 'Тип' (BillFile f) = staticCaption(type(f));
+
 uploadFile 'Загрузить файл'(Bill b){
     INPUT uf = NAMEDFILE DO NEW uof = BillFile {
         bill(uof) <- b;
@@ -156,8 +165,41 @@ uploadFile 'Загрузить файл'(Bill b){
     }
 } IMAGE 'add.png';
 
+uploadInvoice 'Счет' (Bill b){
+    INPUT uf = NAMEDFILE DO NEW uof = BillFile {
+        bill(uof) <- b;
+        file(uof) <- RAWFILE(uf);
+        name(uof) <- name(uf);
+        extension(uof) <- extension(uf);
+        type(uof) <- TypeFile.invoice;
+    }
+} IMAGE 'add.png';
+
+
+uploadPaymentOrder 'Платежное поручение' (Bill b){
+    INPUT uf = NAMEDFILE DO NEW uof = BillFile {
+        bill(uof) <- b;
+        file(uof) <- RAWFILE(uf);
+        name(uof) <- name(uf);
+        extension(uof) <- extension(uf);
+        type(uof) <- TypeFile.paymentOrder;
+    }
+} IMAGE 'add.png';
+
+
+countPaymentOrders(Bill b) = GROUP SUM 1 IF type(BillFile f) = TypeFile.paymentOrder AND bill(f) = b;
+countInvoices(Bill b) = GROUP SUM 1 IF type(BillFile f) = TypeFile.invoice AND bill(f) = b;
+
+CONSTRAINT SETCHANGED (status(Bill b)) AND status(b) = BillStatus.ready AND NOT countInvoices(b)
+    MESSAGE 'Для перевода в статус "К оплате" необходимо прикрепить счет!';
+
+CONSTRAINT SETCHANGED (status(Bill b)) AND status(b) = BillStatus.done AND NOT countPaymentOrders(b)
+    MESSAGE 'Для перевода в статус "Оплачено" необходимо прикрепить платежное поручение!';
+
+
 EXTEND FORM billCustom
-    PROPERTIES (b) uploadFile TOOLBAR DRAW of
+    PROPERTIES TOOLBAR DRAW of uploadInvoice(b), uploadPaymentOrder(b)
+    PROPERTIES nameType(of) FIRST READONLY;
 ;
 
 DESIGN billCustom {
@@ -206,7 +248,7 @@ nameFilterStatus 'Статус оплаты' = name(filterStatus());
 
 FORM billDashboard 'Счета на услуги'
     OBJECTS bl = Bill
-    PROPERTIES(bl) READONLY number, date, imagedNameStatus BACKGROUND colorStatus(bl),
+    PROPERTIES(bl) READONLY number, date, imagedNameStatus BACKGROUND colorStatus(bl), nameVendor,
                             items, nameProject, note, nameRepresentative, amount, paid, toPay
     PROPERTIES(bl) 'Счет' = openFiles GRID
     PROPERTIES newLegalEntityBill() DRAW bl TOOLBAR
@@ -215,7 +257,7 @@ FORM billDashboard 'Счета на услуги'
     FILTERS legalEntity(bl)
 
     OBJECTS bi 'Оплата freelance' = Bill
-    PROPERTIES(bi) READONLY number, date, imagedNameStatus BACKGROUND colorStatus(bl),
+    PROPERTIES(bi) READONLY number, date, imagedNameStatus BACKGROUND colorStatus(bl), nameVendor, 
                             items, nameProject, note, nameRepresentative, amount, paid, toPay
     PROPERTIES(bi) 'Счет' = openFiles GRID
     PROPERTIES newIndividualBill() DRAW bi TOOLBAR
