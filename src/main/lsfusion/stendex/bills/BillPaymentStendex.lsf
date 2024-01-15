@@ -21,7 +21,8 @@ color (BillStatus s) += WHEN s = BillStatus.partiallyPaid THEN RGB(187,242,210);
 toReady (Bill b) = (b IS Bill AND NOT ready(b)) OR partiallyPaid(b) MATERIALIZED;
 
 calcReady (Bill b) = (b IS Bill AND paid(b)) OR done(b);
-WHEN CHANGED(calcReady(Bill b)) DO ready(b) <- calcReady(b);
+WHEN GOAFTER ready[Bill], done[Bill] CHANGED(calcReady(Bill b)) OR CHANGED(ready(b)) DO 
+    ready(b) <- calcReady(b);
 
 calcDone (Bill b) = paidDone(b) = amount(b);
 WHEN GOAFTER done[Bill] CHANGED(calcDone(Bill b)) OR CHANGED(done(b)) DO 
