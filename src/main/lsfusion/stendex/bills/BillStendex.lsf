@@ -30,9 +30,6 @@ CONSTRAINT SETCHANGED(vendor(Bill b)) AND vendor(b) IS Employee CHECKED BY vendo
 WHEN LOCAL SETCHANGED(type(BillLine l)) AND NOT item(l) DO
     item(l) <- defaultItem(type(l));
 
-paid 'Оплачено' = DATA NUMERIC[16,3] (Bill); // пока как DATA свойство
-toPay 'К оплате' (Bill b) = amount(b) (-) paid(b);
-
 FORM serviceCustom 'Услуга'
     OBJECTS s = Service PANEL
     PROPERTIES(s) dataName
@@ -87,10 +84,6 @@ changeAmount (Bill b) {
     }
 }
 
-WHEN SET(done(Bill b)) DO {
-    paid(b) <- amount(b);
-}
-
 FORM billCustom 'Счет'
     OBJECTS b = Bill PANEL
     PROPERTIES(b) imagedNameStatus,
@@ -99,11 +92,10 @@ FORM billCustom 'Счет'
                   nameProject,
                   nameVendor,
                   note,
-                  amount ON CHANGE changeAmount(b), paid,
+                  amount ON CHANGE changeAmount(b),
                   details
 
     PROPERTIES(b) ready, done
-    PROPERTIES(b) markAsToDo SHOWIF NOT ready(b), markAsDone SHOWIF ready(b) AND NOT done(b)
 ;
 
 DESIGN billCustom {
@@ -114,8 +106,6 @@ DESIGN billCustom {
             alignment = STRETCH;
             NEW statusActions {
                 horizontal = TRUE;
-                MOVE PROPERTY(markAsToDo(b)) { caption = 'К оплате'; };
-                MOVE PROPERTY(markAsDone(b));
             }
             NEW status {
                 flex = 1;
@@ -129,14 +119,17 @@ DESIGN billCustom {
             }
         }
         NEW header {
-            lines = 2;
-            MOVE PROPERTY(items(b)) { charWidth = 40; fontSize = 24; }
-            MOVE PROPERTY(nameCompany(b)) { charWidth = 40; fontSize = 24; }
-            MOVE PROPERTY(nameProject(b)) { charWidth = 40; fontSize = 24; }
-            MOVE PROPERTY(nameVendor(b)) { charWidth = 40; fontSize = 24; }
-            MOVE PROPERTY(note(b)) { fontSize = 24; }
-            MOVE PROPERTY(amount(b)) { fontSize = 24; }
-            MOVE PROPERTY(paid(b)) { fontSize = 24; }
+            horizontal = TRUE;
+            alignment = STRETCH;
+            NEW headerLeft {
+                lines = 2;
+                MOVE PROPERTY(items(b)) { charWidth = 40; fontSize = 24; }
+                MOVE PROPERTY(nameCompany(b)) { charWidth = 40; fontSize = 24; }
+                MOVE PROPERTY(nameProject(b)) { charWidth = 40; fontSize = 24; }
+                MOVE PROPERTY(nameVendor(b)) { charWidth = 40; fontSize = 24; }
+                MOVE PROPERTY(note(b)) { fontSize = 24; }
+                MOVE PROPERTY(amount(b)) { fontSize = 24; }
+            }
         }
         NEW details {
             tabbed = TRUE;
@@ -249,20 +242,18 @@ nameFilterStatus 'Статус оплаты' = name(filterStatus());
 FORM billDashboard 'Счета на услуги'
     OBJECTS bl = Bill
     PROPERTIES(bl) READONLY number, date, imagedNameStatus BACKGROUND colorStatus(bl), nameVendor,
-                            items, nameProject, note, nameRepresentative, amount, paid, toPay
+                            items, nameProject, note, nameRepresentative, amount
     PROPERTIES(bl) 'Счет' = openFiles GRID
     PROPERTIES newLegalEntityBill() DRAW bl TOOLBAR
     PROPERTIES(bl) NEWSESSION editBillCustom, DELETE
-    PROPERTIES(bl) markAsToDo SHOWIF NOT ready(bl), markAsDone SHOWIF ready(bl) AND NOT done(bl)
     FILTERS legalEntity(bl)
 
     OBJECTS bi 'Оплата freelance' = Bill
     PROPERTIES(bi) READONLY number, date, imagedNameStatus BACKGROUND colorStatus(bl), nameVendor, 
-                            items, nameProject, note, nameRepresentative, amount, paid, toPay
+                            items, nameProject, note, nameRepresentative, amount
     PROPERTIES(bi) 'Счет' = openFiles GRID
     PROPERTIES newIndividualBill() DRAW bi TOOLBAR
     PROPERTIES(bi) NEWSESSION editBillCustom, DELETE
-    PROPERTIES(bi) markAsToDo SHOWIF NOT ready(bi), markAsDone SHOWIF ready(bi) AND NOT done(bi)
     FILTERS individual(bi)
 
     PROPERTIES() nameFilterProject, nameFilterRepresentative, nameFilterStatus 
@@ -298,8 +289,6 @@ DESIGN billDashboard {
                         NEW markLegalEntity {
                             horizontal = TRUE;
                             alignment = END;
-                            MOVE PROPERTY(markAsToDo(bl)) {caption = 'К оплате'; }
-                            MOVE PROPERTY(markAsDone(bl));
                         }
                     }
                 }
@@ -317,8 +306,6 @@ DESIGN billDashboard {
                         NEW markIndividual {
                             horizontal = TRUE;
                             alignment = END;
-                            MOVE PROPERTY(markAsToDo(bi))  {caption = 'К оплате'; }
-                            MOVE PROPERTY(markAsDone(bi));
                         }
                     }
                 }

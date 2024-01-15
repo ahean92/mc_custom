@@ -72,6 +72,15 @@ META defineObjectFiles(object, fobj, classCaption)
             open(f);
     }
 
+    inputFile (###object o) {
+        INPUT uf = NAMEDFILE DO NEW uof = ###object##File {
+            object(uof) <- o;
+            file(uof) <- RAWFILE(uf);
+            name(uof) <- name(uf);
+            extension(uof) <- extension(uf);
+        }
+    }
+
     @defineObjectFilesForm(object, object, fobj);
 
 END

@@ -1,0 +1,148 @@
+MODULE BillPaymentStendex;
+
+REQUIRE BillStendex, BillDebt, BillPayment, OutgoingPaymentDone;
+
+NAMESPACE Invoicing;
+
+//paid 'Оплачено' = DATA NUMERIC[16,3] (Bill); // пока как DATA свойство
+//toPay 'К оплате' (Bill b) = amount(b) (-) paid(b);
+
+paidDone 'Оплачено' (Bill b) = GROUP SUM paid(b, OutgoingPayment p) IF active(p) AND done(p) MATERIALIZED;
+toPay 'К оплате' (Bill b) = GROUP SUM paid(b, OutgoingPayment p) IF active(p) AND NOT done(p) MATERIALIZED;
+
+
+partiallyPaid(Bill b) = b IS Bill AND paid(b) AND NOT toPay(b) AND NOT done(b) MATERIALIZED;
+EXTEND CLASS BillStatus {
+    partiallyPaid 'Частично оплачен'
+}
+status(Bill b) += WHEN partiallyPaid(b) THEN BillStatus.partiallyPaid;
+color (BillStatus s) += WHEN s = BillStatus.partiallyPaid THEN RGB(187,242,210);
+
+toReady (Bill b) = (b IS Bill AND NOT ready(b)) OR partiallyPaid(b) MATERIALIZED;
+
+calcReady (Bill b) = (b IS Bill AND paid(b)) OR done(b);
+WHEN CHANGED(calcReady(Bill b)) DO ready(b) <- calcReady(b);
+
+calcDone (Bill b) = paidDone(b) = amount(b);
+WHEN GOAFTER done[Bill] CHANGED(calcDone(Bill b)) OR CHANGED(done(b)) DO 
+    done(b) <- calcDone(b);
+
+FORM dialogNewPayment 'Новая оплата'
+    OBJECTS n = NUMERIC[14,2] PANEL
+    PROPERTIES(n) 'Введите сумму :' = VALUE
+;
+
+WHEN CHANGED(paid(OutgoingPayment p)) DO amount(p) <- paid(p);
+
+createPayment (Bill b, NUMERIC[14,2] n) {
+    NEWSESSION {
+        NEW p = OutgoingPayment {
+            type(p) <- paymentType(type(b));
+
+            partner(p) <- vendor(b);
+            company(p) <- company(b);
+
+            ready(p) <- TRUE;
+
+            paid(b, p) <- n;
+        }
+
+        APPLY;
+    }
+}
+
+pay 'В оплату' (Bill b) {
+    APPLY;
+    IF canceled() THEN RETURN;
+
+    createPayment(b, left(b));
+} CONFIRM;
+
+payPartially 'В оплату (частично)' (Bill b) {
+    APPLY;
+    IF canceled() THEN RETURN;
+
+    DIALOG dialogNewPayment OBJECTS n INPUT DO {
+        IF n > amount(b) OR n <= 0 THEN
+            MESSAGE 'Неправильно введена сумма';
+        ELSE 
+            createPayment(b, n);
+    }
+}
+
+doPayment 'Оплачено' (Bill b) {
+    APPLY;
+    IF canceled() THEN RETURN;
+    
+    NEWSESSION {
+        INPUT uf = NAMEDFILE DO NEW uof = BillFile {
+            bill(uof) <- b;
+            file(uof) <- RAWFILE(uf);
+            name(uof) <- name(uf);
+            extension(uof) <- extension(uf);
+            type(uof) <- TypeFile.paymentOrder;
+        }
+        done(OutgoingPayment p) <- TRUE WHERE paid(b, p) AND NOT done(p);
+        APPLY;
+    }
+}
+
+EXTEND FORM billCustom
+    PROPERTIES(b) READONLY paid, left
+    PROPERTIES(b) SHOWIF toReady(b) pay, payPartially
+    PROPERTIES(b) SHOWIF toPay(b) doPayment
+    
+    OBJECTS p = OutgoingPayment
+    PROPERTIES dateTime(p) READONLY, paid(b, p), 'Оплачено' = done(p), EDIT(p) GRID, DELETE(p) GRID
+    FILTERS paid(b, p)
+;
+
+DESIGN billCustom {
+    header {
+        statusActions {
+            MOVE PROPERTY(pay(b));
+            MOVE PROPERTY(payPartially(b));
+            MOVE PROPERTY(doPayment(b));
+        }
+        NEW payments {
+            fill = 0.5;
+            caption = 'Платежи';
+            MOVE GRID(p);
+            REMOVE BOX(p);
+            MOVE PROPERTY(paid(b)) { fontSize = 24; alignment = STRETCH; }
+            MOVE PROPERTY(left(b)) { fontSize = 24; alignment = STRETCH; }
+        }
+    }
+}
+
+EXTEND FORM billDashboard
+    PROPERTIES(bl) READONLY left, toPay, paidDone
+    PROPERTIES(bl) SHOWIF toReady(bl) pay, payPartially
+    PROPERTIES(bl) SHOWIF toPay(bl) doPayment
+    FILTERGROUP statusL
+        FILTER 'В оплату' toReady(bl)
+        FILTER 'К оплате' toPay(bl)
+        FILTER 'Оплачено' done(bl)
+    
+
+    PROPERTIES(bi) READONLY left, toPay, paidDone
+    PROPERTIES(bi) SHOWIF toReady(bi) pay, payPartially
+    PROPERTIES(bi) SHOWIF toPay(bi) doPayment
+    FILTERGROUP statusI
+        FILTER 'В оплату' toReady(bi)
+        FILTER 'К оплате' toPay(bi)
+        FILTER 'Оплачено' done(bi)
+;
+
+DESIGN billDashboard {
+    markLegalEntity {
+        MOVE PROPERTY(pay(bl));
+        MOVE PROPERTY(payPartially(bl));
+        MOVE PROPERTY(doPayment(bl));
+    }
+    markIndividual {
+        MOVE PROPERTY(pay(bi));
+        MOVE PROPERTY(payPartially(bi));
+        MOVE PROPERTY(doPayment(bi));
+    }
+}
