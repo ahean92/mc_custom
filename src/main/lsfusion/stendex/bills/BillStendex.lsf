@@ -251,7 +251,7 @@ FORM billDashboard 'Счета на услуги'
     FILTERS legalEntity(bl)
 
     OBJECTS bi 'Оплата freelance' = Bill
-    PROPERTIES(bi) READONLY number, date, imagedNameStatus BACKGROUND colorStatus(bl), nameVendor, 
+    PROPERTIES(bi) READONLY number, date, imagedNameStatus BACKGROUND colorStatus(bi), nameVendor, 
                             items, nameProject, note, nameRepresentative, amount
     PROPERTIES(bi) 'Счет' = openFiles GRID, cancel SHOWIF status(bi) = BillStatus.draft
     PROPERTIES newIndividualBill() DRAW bi TOOLBAR
