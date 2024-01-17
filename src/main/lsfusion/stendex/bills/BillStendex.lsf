@@ -198,7 +198,6 @@ EXTEND FORM billCustom
 ;
 
 DESIGN billCustom {
-    REMOVE PROPERTY (uploadFile());
     details {
         NEW detailsInformation {
             caption = 'Details';

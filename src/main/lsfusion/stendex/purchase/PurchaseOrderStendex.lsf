@@ -159,7 +159,6 @@ EXTEND FORM order
 DESIGN order{
     REMOVE statusActions;
     REMOVE status;
-    REMOVE PROPERTY (uploadFile());
     header{
         horizontal = FALSE;
         headerLeft{
@@ -179,14 +178,11 @@ DESIGN order{
         fill = 0;
     }
     details{
-        MOVE files AFTER lines;
-        MOVE search AFTER files;
+        MOVE BOX(of) AFTER lines;
+        MOVE search AFTER BOX(of);
         lines{
             caption = badged('Товары', countOrderLine(o));
         }
-    }
-    files{
-        
     }
 }
 

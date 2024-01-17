@@ -27,7 +27,6 @@ EXTEND FORM project
 countPurchaseFile (Project p) = GROUP SUM 1 IF project(order(Purchase.OrderFile f)) = p;
 
 DESIGN project{
-    REMOVE files;
     REMOVE PROPERTY (startDate(p));
     REMOVE PROPERTY (endDate(p));
     header {
@@ -53,10 +52,6 @@ DESIGN project{
                 caption = badged('По проекту', countFiles(p) );
                 MOVE BOX (of){
                     caption = '';
-                }
-                MOVE PROPERTY(uploadFile()) {
-                    panelCaptionVertical = TRUE;
-                    fill = 0.3;
                 }
             }
             NEW pof{
