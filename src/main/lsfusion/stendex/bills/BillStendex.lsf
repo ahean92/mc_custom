@@ -1,6 +1,6 @@
 MODULE BillStendex;
 
-REQUIRE BillDone, ProjectBill, ServiceP, UtilsStendex;
+REQUIRE BillDone, BillCanceled, ProjectBill, ServiceP, UtilsStendex;
 
 NAMESPACE Invoicing;
 
@@ -87,7 +87,7 @@ changeAmount (Bill b) {
 FORM billCustom 'Счет'
     OBJECTS b = Bill PANEL
     PROPERTIES(b) imagedNameStatus,
-                  'Услуга' = items ON CHANGE changeItems(b) SHOWIF NOT defaultItem(type(b)),
+                  'Услуга' = items ON CHANGE changeItems(b),
                   nameCompany,
                   nameProject,
                   nameVendor,
@@ -95,7 +95,7 @@ FORM billCustom 'Счет'
                   amount ON CHANGE changeAmount(b),
                   details
 
-    PROPERTIES(b) ready, done
+    PROPERTIES(b) ready, done, canceled, cancel SHOWIF status(b) = BillStatus.draft 
 ;
 
 DESIGN billCustom {
@@ -106,6 +106,7 @@ DESIGN billCustom {
             alignment = STRETCH;
             NEW statusActions {
                 horizontal = TRUE;
+                MOVE PROPERTY (cancel(b));
             }
             NEW status {
                 flex = 1;
@@ -115,6 +116,7 @@ DESIGN billCustom {
                     MOVE PROPERTY(imagedNameStatus(b));
                     MOVE PROPERTY(ready(b));
                     MOVE PROPERTY(done(b));
+                    MOVE PROPERTY(canceled(b));
                 }
             }
         }
@@ -192,7 +194,7 @@ CONSTRAINT LOCAL SETCHANGED (status(Bill b)) AND status(b) = BillStatus.done AND
 
 EXTEND FORM billCustom
     PROPERTIES TOOLBAR DRAW of uploadInvoice(b), uploadPaymentOrder(b) SHOWIF status(b) != BillStatus.draft
-    PROPERTIES nameType(of) FIRST READONLY;
+    PROPERTIES nameType(of) FIRST READONLY
 ;
 
 DESIGN billCustom {
@@ -243,7 +245,7 @@ FORM billDashboard 'Счета на услуги'
     OBJECTS bl = Bill
     PROPERTIES(bl) READONLY number, date, imagedNameStatus BACKGROUND colorStatus(bl), nameVendor,
                             items, nameProject, note, nameRepresentative, amount
-    PROPERTIES(bl) 'Счет' = openFiles GRID
+    PROPERTIES(bl) 'Счет' = openFiles GRID, cancel SHOWIF status(bl) = BillStatus.draft
     PROPERTIES newLegalEntityBill() DRAW bl TOOLBAR
     PROPERTIES(bl) NEWSESSION editBillCustom, DELETE
     FILTERS legalEntity(bl)
@@ -251,7 +253,7 @@ FORM billDashboard 'Счета на услуги'
     OBJECTS bi 'Оплата freelance' = Bill
     PROPERTIES(bi) READONLY number, date, imagedNameStatus BACKGROUND colorStatus(bl), nameVendor, 
                             items, nameProject, note, nameRepresentative, amount
-    PROPERTIES(bi) 'Счет' = openFiles GRID
+    PROPERTIES(bi) 'Счет' = openFiles GRID, cancel SHOWIF status(bi) = BillStatus.draft
     PROPERTIES newIndividualBill() DRAW bi TOOLBAR
     PROPERTIES(bi) NEWSESSION editBillCustom, DELETE
     FILTERS individual(bi)
@@ -289,6 +291,7 @@ DESIGN billDashboard {
                         NEW markLegalEntity {
                             horizontal = TRUE;
                             alignment = END;
+                            MOVE PROPERTY (cancel(bl));
                         }
                     }
                 }
@@ -306,6 +309,7 @@ DESIGN billDashboard {
                         NEW markIndividual {
                             horizontal = TRUE;
                             alignment = END;
+                            MOVE PROPERTY (cancel(bi));
                         }
                     }
                 }

@@ -94,7 +94,7 @@ EXTEND FORM billCustom
     PROPERTIES(b) SHOWIF toPay(b) doPayment
     
     OBJECTS p = OutgoingPayment
-    PROPERTIES dateTime(p) READONLY, paid(b, p), 'Оплачено' = done(p), EDIT(p) GRID, DELETE(p) GRID
+    PROPERTIES dateTime(p) READONLY, paid(b, p), paid 'Оплачено' = done(p), edit 'Редактировать' = EDIT(p) GRID, DELETE(p) GRID
     FILTERS paid(b, p)
 ;
 
@@ -106,9 +106,13 @@ DESIGN billCustom {
             MOVE PROPERTY(doPayment(b));
         }
         NEW payments {
-            fill = 0.5;
+            fill = 1;
+            alignment = END;
             caption = 'Платежи';
-            MOVE GRID(p);
+            MOVE GRID(p){
+                PROPERTY (paid) {charWidth = 8;}
+                PROPERTY (edit) {charWidth = 14;}
+            }
             REMOVE BOX(p);
             MOVE PROPERTY(paid(b)) { fontSize = 24; alignment = STRETCH; }
             MOVE PROPERTY(left(b)) { fontSize = 24; alignment = STRETCH; }
