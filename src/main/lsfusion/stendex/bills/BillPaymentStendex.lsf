@@ -109,7 +109,8 @@ DESIGN billCustom {
             fill = 1;
             alignment = END;
             caption = 'Платежи';
-            MOVE GRID(p){
+            MOVE GRID(p) {
+                height = 100;
                 PROPERTY (paid) {charWidth = 8;}
                 PROPERTY (edit) {charWidth = 14;}
             }
