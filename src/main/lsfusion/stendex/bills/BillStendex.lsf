@@ -84,7 +84,23 @@ changeAmount (Bill b) {
     }
 }
 
-readonly(Bill b) += WHEN ready(b) THEN TRUE;
+showAllInvoices 'Показывать все счета' = DATA BOOLEAN (UserRole);
+showAllInvoices (User u) = GROUP SUM 1 IF showAllInvoices(UserRole r) AND has(u, r);
+editAllInvoices 'Редактировать закрытые счета' =  DATA BOOLEAN (UserRole);
+editAllInvoices (User u) = GROUP SUM 1 IF editAllInvoices(UserRole r) AND has(u, r);
+
+EXTEND FORM securityPolicy
+    PROPERTIES(ur) PANEL showAllInvoices, editAllInvoices
+;
+DESIGN securityPolicy {
+    roleApplicationSettings {
+        MOVE PROPERTY(showAllInvoices(ur));
+        MOVE PROPERTY(editAllInvoices(ur));
+    }
+}
+
+
+readonly(Bill b) += WHEN ready(b) AND NOT editAllInvoices(currentUser()) THEN TRUE;
 
 FORM billCustom 'Счет'
     OBJECTS b = Bill PANEL
@@ -149,11 +165,14 @@ DESIGN billCustom {
 CLASS TypeFile{
     paymentOrder 'Платежное поручение',
     invoice 'Счет',
+    receipt 'Чек на оплату',
     other 'Другое'
 }
-
+lockChangeType = DATA BOOLEAN (BillFile);
 type = DATA TypeFile (BillFile) NONULL;
 nameType 'Тип' (BillFile f) = staticCaption(type(f));
+
+WHEN LOCAL SET(BillFile f IS BillFile) AND NOT type(f) DO type(f) <- TypeFile.other;
 
 uploadFile 'Загрузить файл'(Bill b){
     INPUT uf = NAMEDFILE DO NEW uof = BillFile {
@@ -171,6 +190,7 @@ uploadInvoice 'Счет' (Bill b){
         name(uof) <- name(uf);
         extension(uof) <- extension(uf);
         type(uof) <- TypeFile.invoice;
+        lockChangeType(uof) <- TRUE;
     }
 } IMAGE 'add.png';
 
@@ -182,6 +202,7 @@ uploadPaymentOrder 'Платежное поручение' (Bill b){
         name(uof) <- name(uf);
         extension(uof) <- extension(uf);
         type(uof) <- TypeFile.paymentOrder;
+        lockChangeType(uof) <- TRUE;
     }
 } IMAGE 'add.png';
 
@@ -198,7 +219,7 @@ CONSTRAINT LOCAL SETCHANGED (status(Bill b)) AND status(b) = BillStatus.done AND
 
 EXTEND FORM billCustom
     PROPERTIES TOOLBAR DRAW of uploadInvoice(b) READONLYIF readonly(b), uploadPaymentOrder(b) SHOWIF status(b) != BillStatus.draft
-    PROPERTIES nameType(of) FIRST READONLY
+    PROPERTIES nameType(of) FIRST READONLYIF lockChangeType(of) OR readonly(b)
 ;
 
 DESIGN billCustom {
@@ -243,17 +264,6 @@ filterRepresentative = DATA LOCAL NESTED Employee ();
 nameFilterRepresentative 'Наш представитель' = MasterData.name(filterRepresentative());
 filterStatus = DATA BillStatus ();
 nameFilterStatus 'Статус оплаты' = name(filterStatus());
-
-showAllInvoices 'Показывать все счета' = DATA BOOLEAN (UserRole);
-showAllInvoices (User u) = GROUP SUM 1 IF showAllInvoices(UserRole r) AND has(u, r);
-EXTEND FORM securityPolicy
-    PROPERTIES(ur) showAllInvoices PANEL
-;
-DESIGN securityPolicy {
-    roleApplicationSettings {
-        MOVE PROPERTY(showAllInvoices(ur));
-    }
-}
 
 FORM billDashboard 'Счета на услуги'
     OBJECTS bl = Bill

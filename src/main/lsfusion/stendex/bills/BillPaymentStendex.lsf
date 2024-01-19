@@ -87,7 +87,7 @@ EXTEND FORM billCustom
     PROPERTIES(b) SHOWIF toPay(b) doPayment
     
     OBJECTS p = OutgoingPayment
-    PROPERTIES dateTime(p) READONLY, paid(b, p), paid 'Оплачено' = done(p), edit 'Редактировать' = EDIT(p) GRID, DELETE(p) GRID
+    PROPERTIES dateTime(p) READONLY, 'Cумма платежа' = paid(b, p), paid 'Оплачено' = done(p), edit 'Редактировать' = EDIT(p) GRID, DELETE(p) GRID
     FILTERS paid(b, p)
 ;
 
