@@ -56,14 +56,7 @@ pay 'В оплату' (Bill b) {
     APPLY;
     IF canceled() THEN RETURN;
 
-    createPayment(b, left(b));
-} CONFIRM;
-
-payPartially 'В оплату (частично)' (Bill b) {
-    APPLY;
-    IF canceled() THEN RETURN;
-
-    DIALOG dialogNewPayment OBJECTS n INPUT DO {
+    DIALOG dialogNewPayment OBJECTS n = left(b) INPUT DO {
         IF n > amount(b) OR n <= 0 THEN
             MESSAGE 'Неправильно введена сумма';
         ELSE 
@@ -90,7 +83,7 @@ doPayment 'Оплачено' (Bill b) {
 
 EXTEND FORM billCustom
     PROPERTIES(b) READONLY paid, left
-    PROPERTIES(b) SHOWIF toReady(b) pay, payPartially
+    PROPERTIES(b) SHOWIF toReady(b) pay
     PROPERTIES(b) SHOWIF toPay(b) doPayment
     
     OBJECTS p = OutgoingPayment
@@ -102,7 +95,6 @@ DESIGN billCustom {
     header {
         statusActions {
             MOVE PROPERTY(pay(b));
-            MOVE PROPERTY(payPartially(b));
             MOVE PROPERTY(doPayment(b));
         }
         NEW payments {
@@ -123,7 +115,7 @@ DESIGN billCustom {
 
 EXTEND FORM billDashboard
     PROPERTIES(bl) READONLY left, toPay, paidDone
-    PROPERTIES(bl) SHOWIF toReady(bl) pay, payPartially
+    PROPERTIES(bl) SHOWIF toReady(bl) pay
     PROPERTIES(bl) SHOWIF toPay(bl) doPayment
     FILTERGROUP statusL
         FILTER 'В оплату' toReady(bl)
@@ -132,7 +124,7 @@ EXTEND FORM billDashboard
     
 
     PROPERTIES(bi) READONLY left, toPay, paidDone
-    PROPERTIES(bi) SHOWIF toReady(bi) pay, payPartially
+    PROPERTIES(bi) SHOWIF toReady(bi) pay
     PROPERTIES(bi) SHOWIF toPay(bi) doPayment
     FILTERGROUP statusI
         FILTER 'В оплату' toReady(bi)
@@ -143,12 +135,10 @@ EXTEND FORM billDashboard
 DESIGN billDashboard {
     markLegalEntity {
         MOVE PROPERTY(pay(bl));
-        MOVE PROPERTY(payPartially(bl));
         MOVE PROPERTY(doPayment(bl));
     }
     markIndividual {
         MOVE PROPERTY(pay(bi));
-        MOVE PROPERTY(payPartially(bi));
         MOVE PROPERTY(doPayment(bi));
     }
 }
