@@ -49,3 +49,7 @@
 .wrap-center {
     justify-content: start;
 }
+
+h6.caption-panel-header.collapsible {
+    font-size: larger;
+}
