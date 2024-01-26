@@ -10,6 +10,8 @@ NAMESPACE Invoicing;
 paidDone 'Оплачено' (Bill b) = GROUP SUM paid(b, OutgoingPayment p) IF active(p) AND done(p) MATERIALIZED;
 toPay 'К оплате' (Bill b) = GROUP SUM paid(b, OutgoingPayment p) IF active(p) AND NOT done(p) MATERIALIZED;
 
+countPaidAll (IncomingDebt p) = GROUP SUM 1 IF paid(p, OutgoingDebt d);
+CONSTRAINT DROPPED(Bill b IS Bill) AND PREV(countPaidAll(b)) MESSAGE 'Запрещено удалять счет, по которому есть платежи';
 
 partiallyPaid(Bill b) = b IS Bill AND paid(b) AND NOT toPay(b) AND NOT done(b) MATERIALIZED;
 EXTEND CLASS BillStatus {
@@ -33,7 +35,7 @@ FORM dialogNewPayment 'Новая оплата'
     PROPERTIES(n) 'Введите сумму :' = VALUE
 ;
 
-WHEN CHANGED(paid(OutgoingPayment p)) DO amount(p) <- paid(p);
+WHEN SETCHANGED(paid(OutgoingPayment p)) DO amount(p) <- paid(p);
 
 createPayment (Bill b, NUMERIC[14,2] n) {
     NEWSESSION {
@@ -52,11 +54,13 @@ createPayment (Bill b, NUMERIC[14,2] n) {
     }
 }
 
+prepayment 'Предоплата' = DATA NUMERIC[14,2] (Bill);
+
 pay 'В оплату' (Bill b) {
     APPLY;
     IF canceled() THEN RETURN;
 
-    DIALOG dialogNewPayment OBJECTS n = left(b) INPUT DO {
+    DIALOG dialogNewPayment OBJECTS n = (OVERRIDE prepayment(b) IF NOT paid(b), left(b)) INPUT DO {
         IF n > amount(b) OR n <= 0 THEN
             MESSAGE 'Неправильно введена сумма';
         ELSE 
@@ -85,6 +89,7 @@ EXTEND FORM billCustom
     PROPERTIES(b) READONLY paid, left
     PROPERTIES(b) SHOWIF toReady(b) pay
     PROPERTIES(b) SHOWIF toPay(b) doPayment
+    PROPERTIES(b) prepayment
     
     OBJECTS p = OutgoingPayment
     PROPERTIES dateTime(p) READONLY, 'Cумма платежа' = paid(b, p), paid 'Оплачено' = done(p), edit 'Редактировать' = EDIT(p) GRID, DELETE(p) GRID
@@ -96,6 +101,9 @@ DESIGN billCustom {
         statusActions {
             MOVE PROPERTY(pay(b));
             MOVE PROPERTY(doPayment(b));
+        }
+        headerLeft {
+            MOVE PROPERTY(prepayment(b)) { fontSize = 24; }
         }
         NEW payments {
             fill = 1;
@@ -113,11 +121,34 @@ DESIGN billCustom {
     }
 }
 
+showToReadyDefault 'По умолчанию показывать счета В оплату' = DATA BOOLEAN (UserRole);
+showToReadyDefault (User u) = GROUP SUM 1 IF showToReadyDefault(UserRole r) AND has(u, r);
+showToPayDefault 'По умолчанию показывать счета К оплате' =  DATA BOOLEAN (UserRole);
+showToPayDefault (User u) = GROUP SUM 1 IF showToPayDefault(UserRole r) AND has(u, r);
+showDoneDefault 'По умолчанию показывать счета Оплачено' = DATA BOOLEAN (UserRole);
+showDoneDefault (User u) = GROUP SUM 1 IF showDoneDefault(UserRole r) AND has(u, r);
+
+EXTEND FORM securityPolicy
+    PROPERTIES(ur) PANEL showToReadyDefault, showToPayDefault, showDoneDefault
+;
+DESIGN securityPolicy {
+    roleApplicationSettings {
+        MOVE PROPERTY(showToReadyDefault(ur));
+        MOVE PROPERTY(showToPayDefault(ur));
+        MOVE PROPERTY(showDoneDefault(ur));
+    }
+}
+
+defaultFilter 'По умолчанию' (Bill b, User u) =
+    (showToReadyDefault(u) AND toReady(b)) OR (showToPayDefault(u) AND toPay(b)) OR (showDoneDefault(u) AND done(b))
+    OR NOT (showToReadyDefault(u) OR showToPayDefault(u) OR showDoneDefault(u));
+
 EXTEND FORM billDashboard
     PROPERTIES(bl) READONLY left, toPay, paidDone
     PROPERTIES(bl) SHOWIF toReady(bl) pay
     PROPERTIES(bl) SHOWIF toPay(bl) doPayment
     FILTERGROUP statusL
+        FILTER 'По умолчанию' defaultFilter(bl, currentUser()) DEFAULT
         FILTER 'В оплату' toReady(bl)
         FILTER 'К оплате' toPay(bl)
         FILTER 'Оплачено' done(bl)
@@ -127,6 +158,7 @@ EXTEND FORM billDashboard
     PROPERTIES(bi) SHOWIF toReady(bi) pay
     PROPERTIES(bi) SHOWIF toPay(bi) doPayment
     FILTERGROUP statusI
+        FILTER 'По умолчанию' defaultFilter(bi, currentUser()) DEFAULT
         FILTER 'В оплату' toReady(bi)
         FILTER 'К оплате' toPay(bi)
         FILTER 'Оплачено' done(bi)
