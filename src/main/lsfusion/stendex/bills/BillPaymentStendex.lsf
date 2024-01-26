@@ -149,9 +149,11 @@ EXTEND FORM billDashboard
     PROPERTIES(bl) SHOWIF toPay(bl) doPayment
     FILTERGROUP statusL
         FILTER 'По умолчанию' defaultFilter(bl, currentUser()) DEFAULT
-        FILTER 'В оплату' toReady(bl)
+        FILTER 'Формирование' toReady(bl)
         FILTER 'К оплате' toPay(bl)
         FILTER 'Оплачено' done(bl)
+        FILTER 'Частично оплачен' partiallyPaid(bl)
+        FILTER 'Отменен' canceled(bi)
     
 
     PROPERTIES(bi) READONLY left, toPay, paidDone
@@ -159,9 +161,11 @@ EXTEND FORM billDashboard
     PROPERTIES(bi) SHOWIF toPay(bi) doPayment
     FILTERGROUP statusI
         FILTER 'По умолчанию' defaultFilter(bi, currentUser()) DEFAULT
-        FILTER 'В оплату' toReady(bi)
+        FILTER 'Формирование' toReady(bi)
         FILTER 'К оплате' toPay(bi)
         FILTER 'Оплачено' done(bi)
+        FILTER 'Частично оплачен' partiallyPaid(bi)
+        FILTER 'Отменен' canceled(bi)
 ;
 
 DESIGN billDashboard {

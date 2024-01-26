@@ -1,6 +1,6 @@
 MODULE PartnerStendex;
 
-REQUIRE Partner, LegalEntityRu, Employee;
+REQUIRE Partner, LegalEntityRu, Employee, DaDataLegalEntityFind;
 
 NAMESPACE MasterData;
 
@@ -11,3 +11,6 @@ EXTEND FORM partners
         FILTER 'Employees' p IS Employee
 ;
         
+DESIGN dialogPartners{
+    PROPERTY (code()) {caption = 'Поиск по ИНН/ОГРН';}
+}

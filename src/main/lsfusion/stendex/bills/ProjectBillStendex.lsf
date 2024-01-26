@@ -30,14 +30,14 @@ EXTEND FORM project
     PROPERTIES(bl) 'Счет' = openFiles GRID
     PROPERTIES newLegalEntityBill(p) DRAW bl TOOLBAR
     PROPERTIES(bl) NEWSESSION editBillCustom, DELETE
-    FILTERS legalEntity(bl)
+    FILTERS legalEntity(bl), project(bl) = p
 
     OBJECTS bi 'Оплата freelance' = Bill
     PROPERTIES(bi) READONLY number, date, items, nameProject, note, nameRepresentative, amount, left, toPay, paidDone
     PROPERTIES(bi) 'Счет' = openFiles GRID
     PROPERTIES newIndividualBill(p) DRAW bi TOOLBAR
     PROPERTIES(bi) NEWSESSION editBillCustom, DELETE
-    FILTERS individual(bi)
+    FILTERS individual(bi), project(bi) = p 
 ;
 
 DESIGN project {
