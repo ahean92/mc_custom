@@ -32,8 +32,15 @@ WHEN GOAFTER done[Bill] CHANGED(calcDone(Bill b)) OR CHANGED(done(b)) DO
 
 FORM dialogNewPayment 'Новая оплата'
     OBJECTS n = NUMERIC[14,2] PANEL
-    PROPERTIES(n) 'Введите сумму :' = VALUE
+    PROPERTIES(n) amount'Введите сумму :' = VALUE 
 ;
+DESIGN dialogNewPayment{
+    width = 300;
+    OBJECTS {
+        alignment = STRETCH;
+        MOVE PROPERTY (amount) { alignment = STRETCH;}
+    }
+}
 
 WHEN SETCHANGED(paid(OutgoingPayment p)) DO amount(p) <- paid(p);
 
