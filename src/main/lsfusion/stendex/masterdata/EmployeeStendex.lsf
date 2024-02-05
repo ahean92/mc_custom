@@ -1,0 +1,19 @@
+MODULE EmployeeStendex;
+
+REQUIRE Employee;
+
+NAMESPACE MasterData;
+
+initials 'Инициалы (И.О.)' = DATA ISTRING[5] (Employee);
+
+overName '{Name}' (Employee i) = CONCAT ' ', lastName(i), initials(i);
+
+EXTEND FORM employee
+    PROPERTIES initials(e)
+;
+
+DESIGN employee {
+    info {
+        MOVE PROPERTY(initials(e)) AFTER PROPERTY(middleName(e));
+    }
+}

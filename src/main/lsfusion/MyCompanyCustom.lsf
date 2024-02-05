@@ -34,7 +34,7 @@ REQUIRE Eval, ProcessMonitor, Backup,
         Project, Priority,
         ProjectPurchaseOrder, ProjectManufacturingOrderStendex,
         ProjectSalesOrder, ProjectDashboardStendex,
-        ProjectManufacturingOrder,
+        ProjectManufacturingOrder, EmployeeStendex,
 
         BillStendex, BillPaymentStendex, ProjectBillStendex;
 

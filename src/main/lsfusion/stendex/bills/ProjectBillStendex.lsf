@@ -25,15 +25,15 @@ newIndividualBill 'Добавить' (Project p) {
 }
 
 EXTEND FORM project
-    OBJECTS bl 'Счета на оплату' = Bill
-    PROPERTIES(bl) READONLY number, date, items, nameProject, note, nameRepresentative, amount, left, toPay, paidDone
+    OBJECTS bl 'Счета на оплату' = Bill BACKGROUND backgroundColor(bl)
+    PROPERTIES(bl) READONLY number, date, items, nameProject, note, overNameRepresentative, amount, left, toPay, paidDone
     PROPERTIES(bl) 'Счет' = openFiles GRID
     PROPERTIES newLegalEntityBill(p) DRAW bl TOOLBAR
     PROPERTIES(bl) NEWSESSION editBillCustom, DELETE
     FILTERS legalEntity(bl), project(bl) = p
 
-    OBJECTS bi 'Оплата freelance' = Bill
-    PROPERTIES(bi) READONLY number, date, items, nameProject, note, nameRepresentative, amount, left, toPay, paidDone
+    OBJECTS bi 'Оплата freelance' = Bill BACKGROUND backgroundColor(bi)
+    PROPERTIES(bi) READONLY number, date, items, nameProject, note, overNameRepresentative, amount, left, toPay, paidDone
     PROPERTIES(bi) 'Счет' = openFiles GRID
     PROPERTIES newIndividualBill(p) DRAW bi TOOLBAR
     PROPERTIES(bi) NEWSESSION editBillCustom, DELETE

@@ -1,8 +1,13 @@
 MODULE BillStendex;
 
-REQUIRE BillDone, BillCanceled, ProjectBill, ServiceP, UtilsStendex;
+REQUIRE BillDone, BillCanceled, ProjectBill, ServiceP, UtilsStendex, EmployeeStendex;
 
 NAMESPACE Invoicing;
+
+isUrgent 'Срочный' = DATA BOOLEAN (Bill);
+includeVAT 'С НДС' = DATA BOOLEAN (Bill);
+
+overNameRepresentative 'Our representative' (Bill o)= OVERRIDE MasterData.overName(representative(o)), MasterData.name(representative(o));
 
 forLegalEntity 'Для организаций' = DATA BOOLEAN (BillType);
 legalEntityType () = GROUP MIN BillType t IF forLegalEntity(t);
@@ -112,7 +117,8 @@ FORM billCustom 'Счет'
                   nameVendor,
                   note,
                   amount ON CHANGE changeAmount(b),
-                  details
+                  details,
+                  isUrgent, includeVAT
 
     PROPERTIES(b) ready, done, canceled, cancel SHOWIF status(b) = BillStatus.draft 
 ;
@@ -150,6 +156,8 @@ DESIGN billCustom {
                 MOVE PROPERTY(nameVendor(b)) { charWidth = 40; fontSize = 24; }
                 MOVE PROPERTY(note(b)) { fontSize = 24; }
                 MOVE PROPERTY(amount(b)) { fontSize = 24; }
+                MOVE PROPERTY(isUrgent(b));
+                MOVE PROPERTY(includeVAT(b));
             }
         }
         NEW details {
@@ -264,32 +272,37 @@ filterRepresentative = DATA LOCAL NESTED Employee ();
 nameFilterRepresentative 'Наш представитель' = MasterData.name(filterRepresentative());
 filterStatus = DATA BillStatus ();
 nameFilterStatus 'Статус оплаты' = name(filterStatus());
+filterUrgent 'Срочные' = DATA LOCAL BOOLEAN ();
+
+backgroundColor = ABSTRACT CASE COLOR (Bill);
+backgroundColor(Bill b) += WHEN isUrgent(b) THEN RGB(237,193,116);
 
 FORM billDashboard 'Счета на услуги'
-    OBJECTS bl = Bill
+    OBJECTS bl = Bill BACKGROUND backgroundColor(bl)
     PROPERTIES(bl) READONLY number, date, imagedNameStatus BACKGROUND colorStatus(bl), nameVendor,
-                            items, nameProject, note, nameRepresentative, amount
+                            items, nameProject, note, overNameRepresentative, amount
     PROPERTIES(bl) 'Счет' = openFiles GRID, cancel SHOWIF status(bl) = BillStatus.draft
     PROPERTIES newLegalEntityBill() DRAW bl TOOLBAR
     PROPERTIES(bl) NEWSESSION editBillCustom, DELETE
     FILTERS legalEntity(bl),
             representative(bl) = currentUser() OR showAllInvoices(currentUser()) OR NOT representative(bl)
 
-    OBJECTS bi 'Оплата freelance' = Bill
+    OBJECTS bi 'Оплата freelance' = Bill BACKGROUND backgroundColor(bi)
     PROPERTIES(bi) READONLY number, date, imagedNameStatus BACKGROUND colorStatus(bi), nameVendor, 
-                            items, nameProject, note, nameRepresentative, amount
+                            items, nameProject, note, overNameRepresentative, amount
     PROPERTIES(bi) 'Счет' = openFiles GRID, cancel SHOWIF status(bi) = BillStatus.draft
     PROPERTIES newIndividualBill() DRAW bi TOOLBAR
     PROPERTIES(bi) NEWSESSION editBillCustom, DELETE
     FILTERS individual(bi),
             representative(bi) = currentUser() OR showAllInvoices(currentUser()) OR NOT representative(bi)
 
-    PROPERTIES() nameFilterProject, nameFilterRepresentative, nameFilterStatus 
+    PROPERTIES() nameFilterProject, nameFilterRepresentative, nameFilterStatus, filterUrgent
     FILTERS project(bl) = filterProject() OR NOT filterProject(), 
         project(bi) = filterProject() OR NOT filterProject(),
         representative(bl) = filterRepresentative() OR NOT filterRepresentative(), 
         representative(bi) = filterRepresentative() OR NOT filterRepresentative(),
-        status(bl) = filterStatus() OR NOT filterStatus(), status(bi) = filterStatus() OR NOT filterStatus()
+        status(bl) = filterStatus() OR NOT filterStatus(), status(bi) = filterStatus() OR NOT filterStatus(),
+        isUrgent(bl) OR NOT filterUrgent(), isUrgent(bi) OR NOT filterUrgent()
 ;
 
 DESIGN billDashboard {
@@ -302,6 +315,7 @@ DESIGN billDashboard {
             MOVE PROPERTY (nameFilterProject());
             MOVE PROPERTY (nameFilterRepresentative());
             MOVE PROPERTY (nameFilterStatus());
+            MOVE PROPERTY (filterUrgent());
         }
         NEW pane{
             fill = 1;

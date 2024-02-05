@@ -4,13 +4,50 @@ REQUIRE Partner, LegalEntityRu, Employee, DaDataLegalEntityFind;
 
 NAMESPACE MasterData;
 
+codeName 'Кодовое название' = DATA ISTRING[50] (Partner) CHARWIDTH 15;
+
+EXTEND FORM partner
+    PROPERTIES(p) codeName
+;
+
+DESIGN partner {
+    headerDetails {
+        MOVE PROPERTY(codeName(p));
+    }
+}
+
+EXTEND FORM employee
+    PROPERTIES(e) codeName
+;
+
+DESIGN employee {
+    info {
+        MOVE PROPERTY(codeName(e)) AFTER PROPERTY(nameLegalEntity(e));
+    }
+}
+
 EXTEND FORM partners
+    PROPERTIES(p) READONLYIF isReadonly() codeName AFTER name(p)
     FILTERGROUP type
         FILTER 'Legal entities' p IS LegalEntity
         FILTER 'Individuals' p IS Individual AND NOT p IS Employee
         FILTER 'Employees' p IS Employee
 ;
-        
-DESIGN dialogPartners{
-    PROPERTY (code()) {caption = 'Поиск по ИНН/ОГРН';}
+
+codeNameFilter '' = DATA LOCAL ISTRING () CHARWIDTH 20;
+
+EXTEND FORM dialogPartners
+    PROPERTIES(p) READONLY codeName
+    
+    PROPERTIES() codeNameFilter
+    FILTERS isISubstring(codeName(p), codeNameFilter()) OR NOT codeNameFilter()
+    
+    EVENTS ON INIT { codeNameFilter() <- NULL; }
+;
+
+DESIGN dialogPartners {
+    filters {
+        PROPERTY (code()) {caption = 'Поиск по ИНН/ОГРН';}
+        MOVE PROPERTY(codeNameFilter())  { placeholder = 'Кодовое название'; }
+    }
 }
