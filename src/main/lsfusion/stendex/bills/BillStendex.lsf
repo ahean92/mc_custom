@@ -104,8 +104,10 @@ DESIGN securityPolicy {
     }
 }
 
+editingOn 'Редактировать' = DATA LOCAL BOOLEAN (Bill);
+WHEN LOCAL SET(Bill b IS Bill) DO editingOn(b) <- TRUE;
 
-readonly(Bill b) += WHEN ready(b) AND NOT editAllInvoices(currentUser()) THEN TRUE;
+readonly(Bill b) += WHEN b IS Bill AND NOT editingOn(b) THEN TRUE;
 
 FORM billCustom 'Счет'
     OBJECTS b = Bill PANEL
@@ -120,7 +122,9 @@ FORM billCustom 'Счет'
                   details,
                   isUrgent, includeVAT
 
-    PROPERTIES(b) ready, done, canceled, cancel SHOWIF status(b) = BillStatus.draft 
+    PROPERTIES(b) ready, done, canceled, cancel SHOWIF status(b) = BillStatus.draft
+
+    PROPERTIES(b) editingOn DISABLEIF ready(b) AND NOT editAllInvoices(currentUser())
 ;
 
 DESIGN billCustom {
@@ -131,7 +135,8 @@ DESIGN billCustom {
             alignment = STRETCH;
             NEW statusActions {
                 horizontal = TRUE;
-                MOVE PROPERTY (cancel(b));
+                MOVE PROPERTY(editingOn(b));
+                MOVE PROPERTY(cancel(b));
             }
             NEW status {
                 flex = 1;
