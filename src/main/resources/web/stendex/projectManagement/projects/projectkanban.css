@@ -1,0 +1,38 @@
+.project-kanban {
+    display: flex;
+    flex-direction: row;
+    height: 100%;
+}
+
+.project-kanban-status {
+    margin-left: 0.5rem;
+    margin-right: 0.5rem;
+    align-self: stretch;
+}
+
+.project-kanban-status-header {
+    display: flex;
+    flex-direction: row;
+}
+
+.project-kanban-status-name {
+    align-self: center;
+    flex: 1.0;
+    margin-bottom: 0;
+}
+
+.project-kanban-status-body {
+    height: 100%;
+}
+
+.project-kanban-card {
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+
+    cursor: pointer;
+}
+
+.project-kanban-card-tag {
+    margin-left: 0.125rem;
+    margin-right: 0.125rem;
+}

@@ -1,0 +1,87 @@
+MODULE ProjectKanbanStendex;
+
+REQUIRE Project;
+
+PRIORITY MasterData;
+
+NAMESPACE ProjectManagement;
+
+projectStatuses () = JSON FROM id = ProjectStatus s, name(s) WHERE s IS ProjectStatus;
+projectEmployees () = JSON FROM id = Employee e, name(e) WHERE e IS Employee;
+
+order = DATA LONG (CustomUser, Project);
+currentOrder (Project t) =  order(currentUser(), t);
+
+createProject() {
+    INPUT id = LONG DO {
+        NEW tt = Project {
+            FOR LONG(ProjectStatus s AS ProjectStatus) = id DO
+                status(tt) <- s;
+            order(currentUser(), tt) <- -LONG(tt);
+        }
+    }
+}
+
+interval (Project p) = CONCAT ' - ', toChar(startDate(p), 'DD Mon YY'), toChar(endDate(p), 'DD Mon YY');
+
+EXTEND FORM projects
+    OBJECTS pp = Project CUSTOM 'projectKanban'
+    OPTIONS JSON FROM employees = projectEmployees(), statuses = projectStatuses()
+    PROPERTIES(pp) 
+        nameType,
+        namePartner,
+        name,
+        interval,
+        status ON CHANGE {
+            INPUT l = LONG DO
+                FOR LONG(ProjectStatus ts AS ProjectStatus) = l DO
+                    status(pp) <- ts;
+                    ELSE
+                status(pp) <- NULL;
+        },
+        nameManager,
+        currentOrder ON CHANGE {
+            INPUT ord = INTEGER DO order(currentUser(), pp) <- ord;
+        }
+
+    ORDERS status(pp), currentOrder(pp)
+
+    FILTERS [FILTER projects.p](pp)
+
+    PROPERTIES(pp) PANEL pnameType = nameType, pnamePartner = namePartner, pname = name,
+        pstartDate = startDate, pendDate = endDate, pnameManager = nameManager, pdescription = description,
+        edit = EDIT
+;
+
+DESIGN projects {
+    tabbedPane {
+        NEW kanban {
+            caption = 'Kanban';
+            MOVE GRID(pp) {
+                width = 500;
+                fill = 1;
+                MOVE PROPERTY(pnameType) { alignment = STRETCH; }
+                MOVE PROPERTY(pnamePartner) { alignment = STRETCH; }
+                MOVE PROPERTY(pname) { alignment = STRETCH; }
+                MOVE PROPERTY(pstartDate) { alignment = STRETCH; }
+                MOVE PROPERTY(pendDate) { alignment = STRETCH; }
+                MOVE PROPERTY(pnameManager) { alignment = STRETCH; }
+                MOVE PROPERTY(pdescription) {
+                    size = (250, 120);
+                    panelCaptionVertical = TRUE;
+                    alignment = STRETCH;
+                }
+                MOVE PROPERTY(edit) { alignment = STRETCH; }
+            }
+            REMOVE BOX(pp);
+        }
+    }
+}
+
+// change interval
+onWebClientInit() + {
+    onWebClientInit('dragula.js') <- 1;
+    onWebClientInit('dragula.css') <- 1;
+    onWebClientInit('projectkanban.js') <- 2;
+    onWebClientInit('projectkanban.css') <- 2;
+}
