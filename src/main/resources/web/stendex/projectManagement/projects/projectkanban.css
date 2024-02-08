@@ -5,14 +5,24 @@
 }
 
 .project-kanban-status {
-    margin-left: 0.5rem;
-    margin-right: 0.5rem;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
     align-self: stretch;
+    min-width: 14em;
 }
 
 .project-kanban-status-header {
     display: flex;
     flex-direction: row;
+    padding: 0.25em;
+}
+
+.project-kanban-status-name {
+    font-weight: bold;
+}
+
+.project-kanban-card-partner {
+    font-weight: bold;
 }
 
 .project-kanban-status-name {

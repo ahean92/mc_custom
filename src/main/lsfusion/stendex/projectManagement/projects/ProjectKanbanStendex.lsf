@@ -1,12 +1,15 @@
 MODULE ProjectKanbanStendex;
 
-REQUIRE Project;
+REQUIRE Project, ProjectDashboardStendex;
 
 PRIORITY MasterData;
 
 NAMESPACE ProjectManagement;
 
-projectStatuses () = JSON FROM id = ProjectStatus s, name(s) WHERE s IS ProjectStatus;
+color 'Цвет' = DATA STRING (ProjectStatus);
+EXTEND FORM projectStatus PROPERTIES(o) color;
+
+projectStatuses () = JSON FROM id = ProjectStatus s, name(s), color(s) WHERE s IS ProjectStatus;
 projectEmployees () = JSON FROM id = Employee e, name(e) WHERE e IS Employee;
 
 order = DATA LONG (CustomUser, Project);
@@ -22,16 +25,20 @@ createProject() {
     }
 }
 
+budgetString (Project p) = toChar(budget(p), '999 999 999 ₽');
 interval (Project p) = CONCAT ' - ', toChar(startDate(p), 'DD Mon YY'), toChar(endDate(p), 'DD Mon YY');
 
 EXTEND FORM projects
     OBJECTS pp = Project CUSTOM 'projectKanban'
     OPTIONS JSON FROM employees = projectEmployees(), statuses = projectStatuses()
     PROPERTIES(pp) 
-        nameType,
         namePartner,
-        name,
-        interval,
+        budget = budgetString,
+        installDate = interval,
+        deinstallDate = interval,
+        runDate = interval,
+        nameExhibition = name,
+        nameManager,
         status ON CHANGE {
             INPUT l = LONG DO
                 FOR LONG(ProjectStatus ts AS ProjectStatus) = l DO
@@ -39,7 +46,6 @@ EXTEND FORM projects
                     ELSE
                 status(pp) <- NULL;
         },
-        nameManager,
         currentOrder ON CHANGE {
             INPUT ord = INTEGER DO order(currentUser(), pp) <- ord;
         }
@@ -48,7 +54,7 @@ EXTEND FORM projects
 
     FILTERS [FILTER projects.p](pp)
 
-    PROPERTIES(pp) PANEL pnameType = nameType, pnamePartner = namePartner, pname = name,
+    PROPERTIES(pp) PANEL pnamePartner = namePartner, pbudget = budget, pname = name,
         pstartDate = startDate, pendDate = endDate, pnameManager = nameManager, pdescription = description,
         edit = EDIT
 ;
@@ -60,8 +66,8 @@ DESIGN projects {
             MOVE GRID(pp) {
                 width = 500;
                 fill = 1;
-                MOVE PROPERTY(pnameType) { alignment = STRETCH; }
                 MOVE PROPERTY(pnamePartner) { alignment = STRETCH; }
+                MOVE PROPERTY(pbudget) { alignment = STRETCH; }
                 MOVE PROPERTY(pname) { alignment = STRETCH; }
                 MOVE PROPERTY(pstartDate) { alignment = STRETCH; }
                 MOVE PROPERTY(pendDate) { alignment = STRETCH; }
@@ -84,4 +90,19 @@ onWebClientInit() + {
     onWebClientInit('dragula.css') <- 1;
     onWebClientInit('projectkanban.js') <- 2;
     onWebClientInit('projectkanban.css') <- 2;
+}
+
+projectFilters = DATA LOCAL BOOLEAN ();
+switchProjectFilters() { projectFilters() <- NOT projectFilters(); }
+EXTEND FORM projects
+    PROPERTIES () switchProjectFilters
+;
+
+DESIGN projects {
+    TOOLBARRIGHT {
+        MOVE PROPERTY (switchProjectFilters()) {
+            caption = IF showPanel() THEN 'Скрыть фильтры' ELSE 'Фильтры';
+        }
+    }
+    rightPane { showIf = projectFilters(); }
 }

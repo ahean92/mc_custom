@@ -53,3 +53,8 @@
 h6.caption-panel-header.collapsible {
     font-size: larger;
 }
+
+.list-group {
+    --bs-list-group-item-padding-x: 0.5rem;
+    --bs-list-group-item-padding-y: 0.25rem;
+}

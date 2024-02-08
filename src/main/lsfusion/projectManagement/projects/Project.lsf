@@ -13,7 +13,14 @@ type 'Type' = DATA ProjectType (Project) NONULL;
 nameType 'Type' (Project s) = name(type(s));
 WHEN LOCAL SET(Project s IS Project) AND NOT CHANGED(type(s)) DO type(s) <- defaultProjectType(); 
 
-@defineNumberType(project);
+@defineNumberType(project){
+    number 'Number' = DATA STRING[31] (Project) NONULL CHARWIDTH 10 IN id;
+
+    WHEN SETCHANGED(type(Project o)) AND numerator(type(o)) AND NOT number(o) DO {
+        number(o) <- CONCAT '/', series(numerator(type(o))), curStringValue(numerator(type(o)));
+        incrementValueSession(numerator(type(o)));
+    }
+};
 
 name '{Name}' = DATA STRING (Project) CHARWIDTH 20 IN id;
 
@@ -116,9 +123,116 @@ FORM projects 'Projects'
         FILTER 'Archived' archived(p) 'F7'
 ;
 
-@defineDocObjectsForm(projects, p, '{Projects}');
+@defineDocObjectsForm(projects, p, '{Projects}'){
+    DESIGN projects {
+        OBJECTS {
+            NEW pane {
+                fill = 1;
+                horizontal = TRUE;
+                NEW tabbedPane {
+                    tabbed = TRUE;
+                    fill = 1000;
+                    MOVE BOX(p) { caption = '{Projects}'; }
+                }
+                NEW rightPane {
+                    tabbed = TRUE;
+                    width = 200;
+                    fill = 1;
+                    NEW filters {
+                        caption = 'Filters';
+                        alignment = STRETCH;
+                        MOVE FILTERGROUPS(p) {
+                            horizontal = FALSE;
+                            alignment = STRETCH;
+                        }
+                    }
+                    NEW actions {
+                        alignment = STRETCH;
+                        caption = 'Actions';
+                        NEW statuses {
+                            alignment = STRETCH;
+                            caption = 'Change status';
+                        }
+                    }
+                }
+            }
+        }
+    }
+};
 
-@defineObjectFiles(project, p, 'Project file');
+@defineObjectFiles(project, p, 'Project file'){
+
+    CLASS ProjectFile 'Project file';
+
+    project = DATA Project (ProjectFile) INDEXED NONULL DELETE;
+
+    file = DATA RAWFILE (ProjectFile);
+
+    name '{Name}' = DATA ISTRING (ProjectFile) CHARWIDTH 15;
+    extension 'Extension' = DATA ISTRING (ProjectFile) CHARWIDTH 5;
+    nameExtension (ProjectFile f) = CONCAT '.', name(f), extension(f);
+
+    description 'Description' = DATA ISTRING (ProjectFile) CHARWIDTH 30;
+
+    dateTime 'Date' = DATA DATETIME (ProjectFile);
+    dateTime(ProjectFile f) <- currentDateTime() WHEN SET(f IS ProjectFile);
+
+    user = DATA User (ProjectFile);
+    nameUser 'User' (ProjectFile f) = name(user(f));
+    user(ProjectFile f) <- currentUser() WHEN SET(f IS ProjectFile);
+
+    open 'Open' (ProjectFile f) { open(file(f), nameExtension(f)); } IMAGE 'open.png';
+
+    countFiles 'Files' (Project i) = GROUP SUM 1 IF project(ProjectFile f) = i;
+
+    firstFile (Project i) = GROUP MIN ProjectFile f IF project(f) = i;
+    openFirstFile 'Open' (Project i) { open(firstFile(i)); }
+    openFiles 'Open' (Project i) {
+        FOR project(ProjectFile f) = i DO
+            open(f);
+    }
+
+    newFile 'File' (Project o) {
+        INPUT uf = NAMEDFILE DO NEW uof = ProjectFile {
+            project(uof) <- o;
+            file(uof) <- RAWFILE(uf);
+            name(uof) <- name(uf);
+            extension(uof) <- extension(uf);
+        }
+    } IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE;
+
+    @defineObjectFilesForm(project, project, p){
+    EXTEND FORM project
+        OBJECTS of = ProjectFile
+        PROPERTIES(of) READONLYIF readonly(p) name, extension, description
+        PROPERTIES(of) READONLY nameUser, dateTime
+        PROPERTIES(of) GRID open, DELETE READONLYIF readonly(p)
+        FILTERS project(of) = p
+
+        PROPERTIES(p) newFile DRAW of TOOLBAR READONLYIF readonly(p)
+        PROPERTIES inputFile = '' CUSTOM 'inputFile' ON CHANGE {
+            INPUT f = JSON DO
+                IMPORT JSON FROM f FIELDS() STRING name, STRING extension, STRING data DO 
+                    IF NOT readonly(p) THEN NEW uof = ProjectFile {
+                        project(uof) <- p;
+                        file(uof) <- decode(data, 'base64');
+                        name(uof) <- name;
+                        extension(uof) <- extension;
+                    }
+        }
+    ;
+
+    DESIGN project {
+        details {
+            MOVE BOX(of) {
+                caption = badged('Files', countFiles(p));
+                MOVE PROPERTY(inputFile);
+            }
+        }
+    }
+};
+
+};
 
 NAVIGATOR {
     operations {
