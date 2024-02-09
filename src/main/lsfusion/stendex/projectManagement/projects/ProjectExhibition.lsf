@@ -1,0 +1,24 @@
+MODULE ProjectExhibition;
+
+REQUIRE Project, Exhibition;
+
+PRIORITY MasterData;
+
+NAMESPACE ProjectManagement;
+
+exhibition 'Выставка' = DATA Exhibition (Project) NONULL;
+nameExhibition 'Выставка' (Project p) = name(exhibition(p));
+
+EXTEND FORM project
+    PROPERTIES(p) nameExhibition
+;
+
+DESIGN project {
+    headerLeft {
+        MOVE PROPERTY(nameExhibition(p)) AFTER PROPERTY(namePartner(p));
+    }
+}
+
+EXTEND FORM projects
+    PROPERTIES(p) READONLY nameExhibition
+;

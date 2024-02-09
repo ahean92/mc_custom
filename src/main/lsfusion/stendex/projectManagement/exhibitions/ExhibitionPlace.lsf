@@ -1,0 +1,48 @@
+MODULE ExhibitionPlace;
+
+REQUIRE ProjectManagementSettings;
+
+NAMESPACE ProjectManagement;
+
+CLASS ExhibitionPlace 'Место проведения выставок';
+name '{Name}' = DATA ISTRING[50] (ExhibitionPlace) NONULL CHARWIDTH 15;
+
+id '{ID}' = DATA STRING[20] (ExhibitionPlace);
+exhibitionPlace = GROUP AGGR ExhibitionPlace p BY id(p);
+
+address 'Address' = DATA ISTRING[150] (ExhibitionPlace) CHARWIDTH 30;
+
+FORM exhibitionPlace 'Место проведения выставок'
+    OBJECTS p = ExhibitionPlace PANEL 
+    PROPERTIES(p) name, id, address
+     
+    EDIT ExhibitionPlace OBJECT p;
+;
+
+DESIGN exhibitionPlace {
+    OBJECTS {
+        NEW tabbedPane {
+            fill = 1;
+            tabbed = TRUE;
+        }
+    }
+}
+
+FORM exhibitionPlaces 'Места проведения выставок'
+    OBJECTS p = ExhibitionPlace
+    PROPERTIES(p) READONLY name, id, address
+    
+    LIST ExhibitionPlace OBJECT p;
+;
+
+EXTEND FORM options
+    OBJECTS ep = ExhibitionPlace
+    PROPERTIES(ep) READONLY name, id, address
+    PROPERTIES(ep) NEWSESSION NEW, EDIT, DELETE
+;
+
+DESIGN options {
+    tabbedPane {
+        MOVE BOX(ep);
+    }
+}

@@ -1,8 +1,29 @@
 MODULE PartnerStendex;
 
-REQUIRE Partner, LegalEntityRu, Employee, DaDataLegalEntityFind;
+REQUIRE Partner, LegalEntityRu, Employee, DaDataLegalEntityFind, PartnerPurchase, PartnerSales;
 
 NAMESPACE MasterData;
+
+isOrganizer 'Организатор' = DATA BOOLEAN (Partner);
+
+WHEN SET(isOrganizer(Partner p)) DO {
+    isVendor(p) <- NULL;
+    isCustomer(p) <- NULL;
+}
+
+EXTEND FORM partners
+    PROPERTIES(p) READONLYIF isReadonly() isOrganizer
+;
+
+EXTEND FORM partner 
+    PROPERTIES(p) isOrganizer
+;
+
+DESIGN partner {
+    headerColumn3 {
+        MOVE PROPERTY(isOrganizer(p));    
+    }
+}
 
 codeName 'Кодовое название' = DATA ISTRING[50] (Partner) CHARWIDTH 15;
 

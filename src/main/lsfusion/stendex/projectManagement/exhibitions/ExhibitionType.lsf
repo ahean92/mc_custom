@@ -1,0 +1,52 @@
+MODULE ExhibitionType;
+
+REQUIRE ProjectManagementSettings;
+
+NAMESPACE ProjectManagement;
+
+CLASS ExhibitionType 'Тип выставок';
+name '{Name}' = DATA ISTRING[50] (ExhibitionType) NONULL CHARWIDTH 15;
+
+id '{ID}' = DATA STRING[20] (ExhibitionType);
+exhibitionType = GROUP AGGR ExhibitionType t BY id(t);
+
+FORM exhibitionType 'Тип выставок'
+    OBJECTS o = ExhibitionType PANEL 
+    PROPERTIES(o) name, id
+     
+    EDIT ExhibitionType OBJECT o;
+;
+
+DESIGN exhibitionType {
+    OBJECTS {
+        NEW tabbedPane {
+            fill = 1;
+            tabbed = TRUE;
+        }
+    }
+}
+
+FORM exhibitionTypes 'Типы выставок'
+    OBJECTS o = ExhibitionType
+    PROPERTIES(o) READONLY name, id
+    
+    LIST ExhibitionType OBJECT o;
+;
+
+EXTEND FORM options
+    OBJECTS et = ExhibitionType
+    PROPERTIES(et) READONLY name, id
+    PROPERTIES(et) NEWSESSION NEW, EDIT, DELETE
+;
+
+DESIGN options {
+    tabbedPane {
+        MOVE BOX(et);
+    }
+}
+
+// default type
+countExhibitionTypes 'Number of types' () = GROUP SUM 1 IF r IS ExhibitionType; 
+firstExhibitionType = GROUP LAST ExhibitionType r ORDER DESC r WHERE r IS ExhibitionType;
+
+defaultExhibitionType = firstExhibitionType() IF countExhibitionTypes() = 1;

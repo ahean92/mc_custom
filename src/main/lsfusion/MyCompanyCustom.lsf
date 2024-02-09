@@ -35,7 +35,7 @@ REQUIRE Eval, ProcessMonitor, Backup,
         ProjectPurchaseOrder, ProjectManufacturingOrderStendex,
         ProjectSalesOrder, ProjectDashboardStendex,
         ProjectManufacturingOrder, EmployeeStendex,
-        ProjectKanbanStendex,
+        ProjectKanbanStendex, ProjectExhibition,
 
         BillStendex, BillPaymentStendex, ProjectBillStendex;
 

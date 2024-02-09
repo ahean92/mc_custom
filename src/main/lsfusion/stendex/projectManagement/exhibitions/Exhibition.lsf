@@ -1,0 +1,92 @@
+MODULE Exhibition;
+
+REQUIRE PartnerStendex, ExhibitionType, ExhibitionPlace, Doc;
+
+PRIORITY MasterData;
+
+NAMESPACE ProjectManagement;
+
+CLASS Exhibition 'Выставка';
+
+readonly = ABSTRACT CASE BOOLEAN (Exhibition);
+
+type 'Type' = DATA ExhibitionType (Exhibition) NONULL;
+nameType 'Type' (Exhibition e) = name(type(e)) IN id;
+WHEN LOCAL SET(Exhibition e IS Exhibition) AND NOT CHANGED(type(e)) DO type(e) <- defaultExhibitionType();
+
+name '{Name}' = DATA STRING (Exhibition) CHARWIDTH 20 IN id;
+year 'Год проведения' = DATA INTEGER (Exhibition) IN id;
+
+place 'Место проведения' = DATA ExhibitionPlace (Exhibition) NONULL;
+namePlace 'Место проведения' (Exhibition e) = name(place(e)) IN id;
+
+organizer 'Организатор' = DATA Partner (Exhibition) NONULL;
+nameOrganizer 'Организатор' (Exhibition e) = name(organizer(e)) IN id;
+
+CONSTRAINT organizer(Exhibition e) AND NOT isOrganizer(organizer(e))
+                CHECKED BY organizer[Exhibition]
+                MESSAGE 'Контрагент для выставки должен быть организатором';
+
+installationStartDate 'Дата начала монтажа' = DATA DATETIME (Exhibition);
+installationEndDate 'Дата окончания монтажа' = DATA DATETIME (Exhibition);
+startDate 'Дата начала проведения' = DATA DATETIME (Exhibition);
+endDate 'Дата окончания проведения' = DATA DATETIME (Exhibition);
+demolitionStartDate 'Дата начала демонтажа' = DATA DATETIME (Exhibition);
+demolitionEndDate 'Дата окончания демонтажа' = DATA DATETIME (Exhibition);
+
+FORM exhibition 'Выставка'
+    OBJECTS e = Exhibition PANEL
+    
+    PROPERTIES(e) nameType, name, year, namePlace, nameOrganizer,
+                  installationStartDate, installationEndDate, startDate,
+                  endDate, demolitionStartDate, demolitionEndDate
+    
+    EDIT Exhibition OBJECT e
+;
+
+DESIGN exhibition {
+    caption = badged('Выставка', (CONCAT ' / ', name(e), year(e)));
+    OBJECTS {
+        NEW header {
+            alignment = STRETCH;
+            horizontal = TRUE;
+            NEW headerLeft {
+                MOVE PROPERTY(nameType(e));
+                MOVE PROPERTY(name(e));
+                MOVE PROPERTY(year(e));
+                MOVE PROPERTY(namePlace(e));
+                MOVE PROPERTY(nameOrganizer(e));
+            }
+            NEW headerRight {
+                MOVE PROPERTY(installationStartDate(e));
+                MOVE PROPERTY(installationEndDate(e));
+                MOVE PROPERTY(startDate(e));
+                MOVE PROPERTY(endDate(e));
+                MOVE PROPERTY(demolitionStartDate(e));
+                MOVE PROPERTY(demolitionEndDate(e));
+            }    
+        }
+    }  
+}
+
+FORM dialogExhibitions 'Выставки'
+    OBJECTS e = Exhibition
+    PROPERTIES(e) READONLY name, year, startDate, endDate, nameOrganizer, nameType, namePlace
+
+    LIST Exhibition OBJECT e
+;
+
+FORM exhibitions 'Выставки'
+    OBJECTS e = Exhibition
+
+    PROPERTIES(e) READONLY name, year, startDate, endDate, nameOrganizer, nameType, namePlace
+    PROPERTIES(e) NEWSESSION NEW, EDIT, DELETE
+;
+
+@defineDocObjectsForm(exhibitions, e, 'Выставки');
+
+NAVIGATOR {
+    operations {
+        NEW exhibitions;
+    }
+}
