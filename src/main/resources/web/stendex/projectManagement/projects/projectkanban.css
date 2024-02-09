@@ -11,27 +11,22 @@
 
 .project-kanban-status-header {
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     padding: 0.25em;
+    text-align: center;
+}
+
+.project-kanban-status-name {
+    font-weight: bold;
+    align-self: stretch;
+    min-height: 2.5rem;
+    flex: 1.0;
+    margin-bottom: 0;
 }
 
 .project-kanban-status-body {
     padding-left: 0.5rem;
     padding-right: 0.5rem;
-}
-
-.project-kanban-status-name {
-    font-weight: bold;
-}
-
-.project-kanban-card-partner {
-    font-weight: bold;
-}
-
-.project-kanban-status-name {
-    align-self: center;
-    flex: 1.0;
-    margin-bottom: 0;
 }
 
 .project-kanban-status-body {

@@ -13,6 +13,9 @@ EXTEND FORM projects
 DESIGN projects{
     REMOVE PROPERTY (startDate(p));
     REMOVE PROPERTY (endDate(p));
+    
+    REMOVE PROPERTY(formOk());
+    REMOVE PROPERTY(formClose());
 }
 
 EXTEND FORM project

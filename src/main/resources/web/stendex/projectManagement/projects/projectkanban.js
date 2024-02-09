@@ -18,7 +18,11 @@ function projectKanban() {
         update: function (element, controller, list, options) {
             if (element.drake)
                 element.drake.destroy();
-            element.drake = dragula();
+            element.drake = dragula({
+                moves: function (el, handle) {
+                    return el.project.readonly !== true;
+                }
+            });
 
             while (element.kanban.lastElementChild) {
                 element.kanban.removeChild(element.kanban.lastElementChild);
@@ -35,14 +39,21 @@ function projectKanban() {
                 let statusHeader = document.createElement("div");
                 statusHeader.classList.add("project-kanban-status-header");
                 statusDiv.appendChild(statusHeader);
-                if (status.color) {
-                    statusHeader.style.background = status.color;
-                }
 
                 let statusName = document.createElement("div");
                 statusName.classList.add("project-kanban-status-name");
                 statusName.innerHTML = status.name;
+                if (status.color) {
+                    statusName.style.background = status.color;
+                }
                 statusHeader.appendChild(statusName);
+
+                if (status.budget) {
+                    let statusBudget = document.createElement("div");
+                    statusBudget.classList.add("project-kanban-status-budget");
+                    statusBudget.innerHTML = status.budget;
+                    statusHeader.appendChild(statusBudget);
+                }
 
                 let statusBody = document.createElement("div");
                 statusBody.classList.add("project-kanban-status-body");
@@ -71,46 +82,21 @@ function projectKanban() {
                         projectContent.classList.add("list-group-flush");
                         projectCard.appendChild(projectContent);
 
-                        if (project.namePartner) {
-                            let projectType = document.createElement("li");
-                            projectType.classList.add("project-kanban-card-partner");
-                            projectType.classList.add("list-group-item");
-                            projectType.innerHTML = project.namePartner;
-                            projectContent.appendChild(projectType);
-                        }
+                        let projectHeader = document.createElement("li");
+                        projectHeader.classList.add("project-kanban-card-header");
+                        projectHeader.classList.add("list-group-item");
+                        projectHeader.innerHTML = "<div><b>" + (project.namePartner ? project.namePartner : "") + "</b></div>" + (project.budget ? project.budget : "");
+                        projectContent.appendChild(projectHeader);
 
-                        if (project.budget) {
-                            let projectType = document.createElement("li");
-                            projectType.classList.add("project-kanban-card-budget");
-                            projectType.classList.add("list-group-item");
-                            projectType.innerHTML = project.budget;
-                            projectContent.appendChild(projectType);
-                        }
+                        let projectDates = document.createElement("li");
+                        projectDates.classList.add("project-kanban-card-dates");
+                        projectDates.classList.add("list-group-item");
+                        projectDates.classList.add("small");
+                        projectDates.innerHTML = (project.installDate ? ("<div class=\"text-secondary\">Дата монтажа</div>" + "<div>" + project.installDate + "</div>") : "") +
+                                                 (project.deinstallDate ? ("<div class=\"text-secondary\">Дата демонтажа</div>" + "<div>" + project.deinstallDate + "</div>") : "") +
+                                                 (project.runDate ? ("<div class=\"text-secondary\">Дата проведения</div>" + "<div>" + project.runDate + "</div>") : "");
+                        projectContent.appendChild(projectDates);
 
-                        if (project.installDate) {
-                            let projectType = document.createElement("li");
-                            projectType.classList.add("project-kanban-card-install");
-                            projectType.classList.add("list-group-item");
-                            projectType.classList.add("small");
-                            projectType.innerHTML = "<div class=\"text-secondary\">Дата монтажа</div>" + project.installDate;
-                            projectContent.appendChild(projectType);
-                        }
-                        if (project.deinstallDate) {
-                            let projectType = document.createElement("li");
-                            projectType.classList.add("project-kanban-card-deinstall");
-                            projectType.classList.add("list-group-item");
-                            projectType.classList.add("small");
-                            projectType.innerHTML = "<div class=\"text-secondary\">Дата демонтажа</div>" + project.deinstallDate;
-                            projectContent.appendChild(projectType);
-                        }
-                        if (project.runDate) {
-                            let projectType = document.createElement("li");
-                            projectType.classList.add("project-kanban-card-run");
-                            projectType.classList.add("list-group-item");
-                            projectType.classList.add("small");
-                            projectType.innerHTML = "<div class=\"text-secondary\">Дата проведения</div>" + project.runDate;
-                            projectContent.appendChild(projectType);
-                        }
                         if (project.nameExhibition) {
                             let projectType = document.createElement("li");
                             projectType.classList.add("project-kanban-card-exhibition");

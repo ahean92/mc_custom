@@ -2,6 +2,10 @@
     padding: 0.125rem 0.25rem;
 }
 
+.form-check {
+    padding-left: 0.125rem;
+}
+
 .form-select {
     padding: 0.125rem 2.25rem 0.125rem 0.25rem;
 }

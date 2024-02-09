@@ -9,7 +9,9 @@ NAMESPACE ProjectManagement;
 color 'Цвет' = DATA STRING (ProjectStatus);
 EXTEND FORM projectStatus PROPERTIES(o) color;
 
-projectStatuses () = JSON FROM id = ProjectStatus s, name(s), color(s) WHERE s IS ProjectStatus;
+budget (ProjectStatus s) = GROUP SUM budget(Project p) IF status(p) = s AND [FILTER projects.p](p);
+
+projectStatuses () = JSON FROM id = ProjectStatus s, name(s), color(s), budget = toChar(budget(s), '999 999 999 ₽') WHERE s IS ProjectStatus AND NOT closed(s);
 projectEmployees () = JSON FROM id = Employee e, name(e) WHERE e IS Employee;
 
 order = DATA LONG (CustomUser, Project);
@@ -28,10 +30,22 @@ createProject() {
 budgetString (Project p) = toChar(budget(p), '999 999 999 ₽');
 interval (Project p) = CONCAT ' - ', toChar(startDate(p), 'DD Mon YY'), toChar(endDate(p), 'DD Mon YY');
 
+editAllProjects 'Редактировать все проекты' =  DATA BOOLEAN (UserRole);
+editAllProjects (User u) = GROUP SUM 1 IF editAllProjects(UserRole r) AND has(u, r);
+
+EXTEND FORM securityPolicy PROPERTIES(ur) PANEL editAllProjects;
+DESIGN securityPolicy {
+    roleApplicationSettings { MOVE PROPERTY(editAllProjects(ur)); }
+}
+
+readonlyCurrentUser(Project p) = NOT manager(p) = currentUser() AND NOT editAllProjects(currentUser()); 
+
 EXTEND FORM projects
     OBJECTS pp = Project CUSTOM 'projectKanban'
     OPTIONS JSON FROM employees = projectEmployees(), statuses = projectStatuses()
-    PROPERTIES(pp) 
+    
+    PROPERTIES(pp)
+        readonly = readonlyCurrentUser,
         namePartner,
         budget = budgetString,
         installDate = interval,
@@ -54,7 +68,7 @@ EXTEND FORM projects
 
     FILTERS [FILTER projects.p](pp)
 
-    PROPERTIES(pp) PANEL pnamePartner = namePartner, pbudget = budget, pname = name,
+    PROPERTIES(pp) READONLYIF readonlyCurrentUser(p) PANEL pnamePartner = namePartner, pbudget = budget, pname = name,
         pstartDate = startDate, pendDate = endDate, pnameManager = nameManager, pdescription = description,
         edit = EDIT
 ;
@@ -64,7 +78,7 @@ DESIGN projects {
         NEW kanban {
             caption = 'Kanban';
             MOVE GRID(pp) {
-                width = 500;
+                size = (500, 300);
                 fill = 1;
                 MOVE PROPERTY(pnamePartner) { alignment = STRETCH; }
                 MOVE PROPERTY(pbudget) { alignment = STRETCH; }
