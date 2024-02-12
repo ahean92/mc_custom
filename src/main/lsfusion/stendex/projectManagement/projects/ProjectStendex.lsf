@@ -1,0 +1,210 @@
+MODULE ProjectStendex;
+
+REQUIRE Project;
+
+NAMESPACE ProjectManagement;
+
+CLASS FileType 'Тип файла';
+name '{Name}' = DATA ISTRING[50] (FileType) NONULL CHARWIDTH 15 IN id;
+
+id '{ID}' = DATA STRING[20] (FileType);
+fileType = GROUP AGGR FileType t BY id(t);
+
+isUnique 'Уникальный' = DATA BOOLEAN (FileType);
+
+//tabs
+renders 'Рендеры' = DATA BOOLEAN (FileType);
+accreditation 'Аккредитация' = DATA BOOLEAN (FileType);
+specification 'ТЗ' = DATA BOOLEAN (FileType);
+sources 'Исходники заказчика' = DATA BOOLEAN (FileType);
+twoD '2D' = DATA BOOLEAN (FileType);
+documents 'Документы' = DATA BOOLEAN (FileType);
+blueprints 'Чертежи' = DATA BOOLEAN (FileType);
+
+
+FORM fileType 'Тип файла'
+    OBJECTS t = FileType PANEL
+    PROPERTIES(t) name, id, isUnique
+    PROPERTIES(t) renders, accreditation, specification, sources, twoD, documents, blueprints
+
+    EDIT FileType OBJECT t;
+;
+
+DESIGN fileType {
+    OBJECTS {
+        PANEL(t) {
+            NEW tabs {
+                caption = 'Вкладки';
+                MOVE PROPERTY(renders(t));
+                MOVE PROPERTY(accreditation(t));
+                MOVE PROPERTY(specification(t));
+                MOVE PROPERTY(sources(t));
+                MOVE PROPERTY(twoD(t));
+                MOVE PROPERTY(documents(t));
+                MOVE PROPERTY(blueprints(t));
+            }
+        }
+        NEW tabbedPane {
+            fill = 1;
+            tabbed = TRUE;
+        }
+    }
+}
+
+FORM fileTypes 'Типы файла'
+    OBJECTS t = FileType
+    PROPERTIES(t) READONLY name, id
+
+    LIST FileType OBJECT t;
+;
+
+EXTEND FORM options
+    OBJECTS ft = FileType
+    PROPERTIES(ft) READONLY name, id, isUnique
+    PROPERTIES(ft) NEWSESSION NEW, EDIT, DELETE
+;
+
+DESIGN options {
+    tabbedPane {
+        MOVE BOX(ft);
+    }
+}
+
+type 'Type' = DATA FileType (ProjectFile) NONULL;
+nameType 'Type' (ProjectFile f) = name(type(f));
+
+CONSTRAINT SET([GROUP SUM 1 BY project(ProjectFile f), type(f)](Project p, FileType t) > 1) AND isUnique(t)
+    MESSAGE 'Запрещено добавление больше одного файла данного типа в проект';
+
+newFile 'File' (Project o, FileType t) {
+    INPUT uf = NAMEDFILE DO NEW uof = ProjectFile {
+        project(uof) <- o;
+        file(uof) <- RAWFILE(uf);
+        name(uof) <- name(uf);
+        extension(uof) <- extension(uf);
+        type(uof) <- t;
+    }
+} IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE;
+
+EXTEND FORM project
+    OBJECTS rf = ProjectFile
+    PROPERTIES(rf) READONLYIF readonly(p) name, extension, description, nameType
+    PROPERTIES(rf) READONLY nameUser, dateTime
+    PROPERTIES(rf) GRID open, DELETE READONLYIF readonly(p)
+    FILTERS renders(type(rf)) AND project(rf) == p
+
+    OBJECTS t_rf = FileType
+    PROPERTIES(p,t_rf) newFile COLUMNS (t_rf) HEADER name(t_rf) DRAW rf TOOLBAR READONLYIF readonly(p)
+    FILTERS renders(t_rf)
+    
+    OBJECTS af = ProjectFile
+    PROPERTIES(af) READONLYIF readonly(p) name, extension, description, nameType
+    PROPERTIES(af) READONLY nameUser, dateTime
+    PROPERTIES(af) GRID open, DELETE READONLYIF readonly(p)
+    FILTERS accreditation(type(af)) AND project(af) == p
+
+    OBJECTS t_af = FileType
+    PROPERTIES(p,t_af) newFile COLUMNS (t_af) HEADER name(t_af) DRAW af TOOLBAR READONLYIF readonly(p)
+    FILTERS accreditation(t_af)
+    
+    OBJECTS spf = ProjectFile
+    PROPERTIES(spf) READONLYIF readonly(p) name, extension, description, nameType
+    PROPERTIES(spf) READONLY nameUser, dateTime
+    PROPERTIES(spf) GRID open, DELETE READONLYIF readonly(p)
+    FILTERS specification(type(spf)) AND project(spf) == p
+    
+    OBJECTS t_spf = FileType
+    PROPERTIES(p,t_spf) newFile COLUMNS (t_spf) HEADER name(t_spf) DRAW spf TOOLBAR READONLYIF readonly(p)
+    FILTERS specification(t_spf)
+    
+    OBJECTS sf = ProjectFile
+    PROPERTIES(sf) READONLYIF readonly(p) name, extension, description, nameType
+    PROPERTIES(sf) READONLY nameUser, dateTime
+    PROPERTIES(sf) GRID open, DELETE READONLYIF readonly(p)
+    FILTERS sources(type(sf)) AND project(sf) == p
+    
+    OBJECTS t_sf = FileType
+    PROPERTIES(p,t_sf) newFile COLUMNS (t_sf) HEADER name(t_sf) DRAW sf TOOLBAR READONLYIF readonly(p)
+    FILTERS sources(t_sf)
+    
+    OBJECTS tdf = ProjectFile
+    PROPERTIES(tdf) READONLYIF readonly(p) name, extension, description, nameType
+    PROPERTIES(tdf) READONLY nameUser, dateTime
+    PROPERTIES(tdf) GRID open, DELETE READONLYIF readonly(p)
+    FILTERS twoD(type(tdf)) AND project(tdf) == p
+    
+    OBJECTS t_tdf = FileType
+    PROPERTIES(p,t_tdf) newFile COLUMNS (t_tdf) HEADER name(t_tdf) DRAW tdf TOOLBAR READONLYIF readonly(p)
+    FILTERS twoD(t_tdf)
+    
+    OBJECTS df = ProjectFile
+    PROPERTIES(df) READONLYIF readonly(p) name, extension, description, nameType
+    PROPERTIES(df) READONLY nameUser, dateTime
+    PROPERTIES(df) GRID open, DELETE READONLYIF readonly(p)
+    FILTERS documents(type(df)) AND project(df) == p
+    
+    OBJECTS t_df = FileType
+    PROPERTIES(p,t_df) newFile COLUMNS (t_df) HEADER name(t_df) DRAW df TOOLBAR READONLYIF readonly(p)
+    FILTERS documents(t_df)
+    
+    OBJECTS bf = ProjectFile
+    PROPERTIES(bf) READONLYIF readonly(p) name, extension, description, nameType
+    PROPERTIES(bf) READONLY nameUser, dateTime
+    PROPERTIES(bf) GRID open, DELETE READONLYIF readonly(p)
+    FILTERS blueprints(type(bf)) AND project(bf) == p
+    
+    OBJECTS t_bf = FileType
+    PROPERTIES(p,t_bf) newFile COLUMNS (t_bf) HEADER name(t_bf) DRAW bf TOOLBAR READONLYIF readonly(p)
+    FILTERS blueprints(t_bf)
+;
+
+DESIGN project {
+    details {
+        NEW projectFiles {
+            caption = badged('Документы по проекту', countFiles(p));
+            tabbed = TRUE;
+            NEW renders {
+                caption = 'Рендеры';
+                MOVE BOX (rf){
+                    caption = '';
+                }
+            }
+            NEW accreditation {
+                caption = 'Аккредитация';
+                MOVE BOX(af){
+                    caption = '';
+                }
+            }
+            NEW specification {
+                caption = 'ТЗ';
+                MOVE BOX(spf){
+                    caption = '';
+                }
+            }
+            NEW sources {
+                caption = 'Исходники заказчика';
+                MOVE BOX(sf){
+                    caption = '';
+                }
+            }
+            NEW twoD {
+                caption = '2D';
+                MOVE BOX(tdf){
+                    caption = '';
+                }
+            }
+            NEW documents {
+                caption = 'Документы';
+                MOVE BOX(df){
+                    caption = '';
+                }
+            }
+            NEW blueprints {
+                caption = 'Чертежи';
+                MOVE BOX(bf){
+                    caption = '';
+                }
+            }
+        }
+    }
+}

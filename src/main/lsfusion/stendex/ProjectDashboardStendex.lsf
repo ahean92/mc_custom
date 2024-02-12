@@ -51,6 +51,7 @@ DESIGN project{
     }
     details {
         NEW filesTotal{
+            showIf = NULL;//скрываем тк добавлена новая вкладка по типам
             caption = badged('Файлы', countFiles(p) (+) countPurchaseFile(p));
             tabbed = TRUE;
             NEW fp{
