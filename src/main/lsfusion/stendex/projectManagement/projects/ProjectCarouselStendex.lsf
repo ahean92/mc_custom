@@ -1,0 +1,25 @@
+MODULE ProjectCarouselStendex;
+
+REQUIRE ProjectDashboardStendex, Carousel;
+
+NAMESPACE ProjectManagement;
+
+EXTEND FORM project
+    OBJECTS cf = ProjectFile CUSTOM 'carousel' HEADER JSON FROM id = 'carousel', fitContain = TRUE, theme = 'dark'
+    PROPERTIES caption = (OVERRIDE description(cf), name(cf)), file = IMAGEFILE(file(cf))
+    FILTERS project(cf) = p,
+            extension(cf) = 'jpg' OR extension(cf) = 'jpeg' OR extension(cf) = 'png' OR extension(cf) = 'bmp';
+;
+
+DESIGN project {
+    header {
+        MOVE BOX(cf) {
+            fill = 2;
+            caption = '';
+            MOVE GRID(cf) {
+                size = (100, 100);
+            }
+            REMOVE TOOLBARBOX(cf);
+        }
+    }
+}

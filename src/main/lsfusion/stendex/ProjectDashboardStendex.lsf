@@ -38,9 +38,11 @@ DESIGN project{
             border = FALSE;
         }
         headerLeft{
+            fill = 1;
             MOVE PROPERTY (budget(p));
         }
         headerRight{
+            fill = 1;
             MOVE PROPERTY (length(p));
             MOVE PROPERTY (width(p));
             MOVE PROPERTY (square(p));
