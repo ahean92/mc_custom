@@ -1,0 +1,79 @@
+MODULE ExhibitionCalendar;
+
+REQUIRE Exhibition, UtilsStendex;
+
+FORM exhibitionCalendar 'Календарь выставок'
+    OBJECTS year = INTEGER NULL PANEL
+    
+    OBJECTS e = Exhibition NULL PANEL
+    PROPERTIES(e) installationStartDate, installationEndDate, startDate,
+                  endDate, demolitionStartDate, demolitionEndDate,
+                  namePlace, nameOrganizer
+;
+
+setExhibition(INTEGER y, ExhibitionType t) {
+    CANCEL;//для сброса, если предыдущий не начинали заполнять
+    IF y IS INTEGER AND t IS ExhibitionType AND NOT (GROUP MAX Exhibition e IF year(e) == y AND type(e) == t) THEN {
+        NEW e = Exhibition {
+            year(e) <- y;
+            type(e) <- t;
+        }
+    }
+    SEEK exhibitionCalendar.e = (GROUP MAX Exhibition e IF year(e) == y AND type(e) == t);
+}
+
+setYear(INTEGER y) {
+    SEEK exhibitionCalendar.year = y;
+}
+
+header(INTEGER year, INTEGER btn) = IF year == btn THEN ('<b>' + btn + '</b>') ELSE STRING(btn);
+
+EXTEND FORM exhibitionCalendar
+    OBJECTS type = ExhibitionType NULL PANEL
+    PROPERTIES(type) name SELECTOR
+    
+    OBJECTS btn = INTEGER
+    PROPERTIES(btn) setYear COLUMNS (btn) HEADER header(year,btn) 
+    FILTERS iterate(btn, extractYear(currentDate()) - 2, extractYear(currentDate()) + 3)
+    
+    EVENTS ON CHANGE type setExhibition(year,type)
+    EVENTS ON CHANGE year setExhibition(year,type)
+;
+
+DESIGN exhibitionCalendar {
+    caption = badged('Выставка', CONCAT ' ', nameType(e), year(e));
+    OBJECTS {
+        MOVE BOX(type) {
+            caption = '';
+            PROPERTY(name(type)) {
+                caption = '';
+                placeholder = 'Тип';
+                fill = 1;
+            };
+        }
+        MOVE BOX(year) {
+            caption = '';
+        }
+        MOVE BOX(btn) {
+            caption = '';
+        }
+        MOVE BOX(e) {
+            NEW e {
+                MOVE PROPERTY(installationStartDate(e)) { panelCaptionVertical = TRUE; panelCaptionAlignment = START; fill = 1;}
+                MOVE PROPERTY(installationEndDate(e)) { panelCaptionVertical = TRUE; panelCaptionAlignment = START; fill = 1;}
+                MOVE PROPERTY(startDate(e)) { panelCaptionVertical = TRUE; panelCaptionAlignment = START; fill = 1;}
+                MOVE PROPERTY(endDate(e)) { panelCaptionVertical = TRUE; panelCaptionAlignment = START; fill = 1;}
+                MOVE PROPERTY(demolitionStartDate(e)) { panelCaptionVertical = TRUE; panelCaptionAlignment = START; fill = 1;}
+                MOVE PROPERTY(demolitionEndDate(e)) { panelCaptionVertical = TRUE; panelCaptionAlignment = START; fill = 1;}
+                MOVE PROPERTY(namePlace(e)) { panelCaptionVertical = TRUE; panelCaptionAlignment = START; fill = 1;}
+                MOVE PROPERTY(nameOrganizer(e)) { panelCaptionVertical = TRUE; panelCaptionAlignment = START; fill = 1;}
+            }
+        }
+    }
+}
+
+NAVIGATOR {
+    dashboard {
+        NEW exhibitionCalendar;
+    }
+}
