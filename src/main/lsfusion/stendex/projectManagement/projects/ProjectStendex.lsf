@@ -4,6 +4,64 @@ REQUIRE Project;
 
 NAMESPACE ProjectManagement;
 
+CLASS StandType 'Тип стенда';
+name '{Name}' = DATA ISTRING[50] (StandType) NONULL CHARWIDTH 15 IN id;
+
+id '{ID}' = DATA STRING[20] (StandType);
+standType = GROUP AGGR StandType t BY id(t);
+
+FORM standType 'Тип стенда'
+    OBJECTS t = StandType PANEL
+    PROPERTIES(t) name, id
+
+    EDIT StandType OBJECT t;
+;
+
+FORM standTypes 'Типы стенда'
+    OBJECTS t = StandType
+    PROPERTIES(t) READONLY name, id
+
+    LIST StandType OBJECT t;
+;
+
+EXTEND FORM options
+    OBJECTS st = StandType
+    PROPERTIES(st) READONLY name, id
+    PROPERTIES(st) NEWSESSION NEW, EDIT, DELETE
+;
+
+DESIGN options {
+    tabbedPane {
+        MOVE BOX(st);
+    }
+}
+
+standType 'Тип стенда' = DATA StandType (Project);
+nameStandType 'Тип стенда' (Project p) = name(standType(p));
+
+upstairs 'Второй этаж' = DATA BOOLEAN (Project);
+
+designer 'Дизайнер' = DATA Individual (Project);
+nameDesigner 'Дизайнер' (Project p) = name(designer(p));
+
+EXTEND FORM project
+    PROPERTIES(p) nameStandType, upstairs, nameDesigner
+;
+
+DESIGN project {
+    headerLeft {
+        MOVE PROPERTY(nameStandType(p));
+        MOVE PROPERTY(nameDesigner(p));
+    }
+    headerRight {
+        MOVE PROPERTY(upstairs(p));
+    }
+}
+
+EXTEND FORM projects
+    PROPERTIES(p) READONLY nameStandType, upstairs, nameDesigner
+;
+
 CLASS FileType 'Тип файла';
 name '{Name}' = DATA ISTRING[50] (FileType) NONULL CHARWIDTH 15 IN id;
 

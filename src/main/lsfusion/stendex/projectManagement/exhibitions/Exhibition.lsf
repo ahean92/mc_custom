@@ -69,12 +69,28 @@ DESIGN exhibition {
     }  
 }
 
+nameFilter '' = DATA LOCAL STRING () CHARWIDTH 20;
+
 FORM dialogExhibitions 'Выставки'
     OBJECTS e = Exhibition
     PROPERTIES(e) READONLY name, year, startDate, endDate, nameOrganizer, nameType, namePlace
 
     LIST Exhibition OBJECT e
+
+    PROPERTIES() nameFilter
+    FILTERS isISubstring(name(e), nameFilter()) OR NOT nameFilter()
+
+    EVENTS ON INIT { nameFilter() <- NULL; }
 ;
+
+DESIGN dialogExhibitions {
+    OBJECTS {
+        NEW filters FIRST {
+            alignment = STRETCH;
+            MOVE PROPERTY(nameFilter()) { placeholder = 'Name'; }
+        }
+    }
+}
 
 FORM exhibitions 'Выставки'
     OBJECTS e = Exhibition
