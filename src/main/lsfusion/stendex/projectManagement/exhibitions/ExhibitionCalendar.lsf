@@ -73,7 +73,7 @@ DESIGN exhibitionCalendar {
 }
 
 NAVIGATOR {
-    dashboard {
+    masterData {
         NEW exhibitionCalendar;
     }
 }

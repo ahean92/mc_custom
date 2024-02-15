@@ -14,8 +14,9 @@ type 'Type' = DATA ExhibitionType (Exhibition) NONULL;
 nameType 'Type' (Exhibition e) = name(type(e)) IN id;
 WHEN LOCAL SET(Exhibition e IS Exhibition) AND NOT CHANGED(type(e)) DO type(e) <- defaultExhibitionType();
 
-name '{Name}' = DATA STRING (Exhibition) CHARWIDTH 20 IN id;
+dataName '{Name}' = DATA STRING (Exhibition) CHARWIDTH 20 IN id;
 year 'Год проведения' = DATA INTEGER (Exhibition) IN id;
+name '{Name}' (Exhibition e) = OVERRIDE dataName(e), nameType(e) + '-' + year(e);
 
 place 'Место проведения' = DATA ExhibitionPlace (Exhibition) NONULL;
 namePlace 'Место проведения' (Exhibition e) = name(place(e)) IN id;

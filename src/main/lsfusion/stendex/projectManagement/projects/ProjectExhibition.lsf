@@ -9,16 +9,47 @@ NAMESPACE ProjectManagement;
 exhibition 'Выставка' = DATA Exhibition (Project) NONULL;
 nameExhibition 'Выставка' (Project p) = name(exhibition(p));
 
+
+installationStartDate 'Дата начала монтажа' (Project p) = installationStartDate(exhibition(p)) IN id;
+installationEndDate 'Дата окончания монтажа' (Project p) = installationEndDate(exhibition(p)) IN id;
+startDateExhibition 'Дата начала проведения' (Project p) = startDate(exhibition(p)) IN id;
+endDateExhibition 'Дата окончания проведения' (Project p) = endDate(exhibition(p)) IN id;
+demolitionStartDate 'Дата начала демонтажа' (Project p) = demolitionStartDate(exhibition(p)) IN id;
+demolitionEndDate 'Дата окончания демонтажа' (Project p) = demolitionEndDate(exhibition(p)) IN id;
+
 EXTEND FORM project
-    PROPERTIES(p) nameExhibition
+    PROPERTIES(p) READONLY installationStartDate, installationEndDate, startDateExhibition, endDateExhibition,
+        demolitionStartDate, demolitionEndDate
+    PROPERTIES (p) READONLYIF readonly(p) nameExhibition
 ;
 
 DESIGN project {
-    headerLeft {
-        MOVE PROPERTY(nameExhibition(p)) AFTER PROPERTY(namePartner(p));
+    header{
+        headerLeft {
+            MOVE PROPERTY(nameExhibition(p)) AFTER PROPERTY(namePartner(p));
+        }
+        NEW headerEnd{
+            alignment = END;
+            NEW installation{
+                caption = 'Монтаж';
+                MOVE PROPERTY (installationStartDate(p));
+                MOVE PROPERTY (installationEndDate(p));
+            }
+            NEW exhibition{
+                caption = 'Проведение';
+                MOVE PROPERTY (startDateExhibition(p));
+                MOVE PROPERTY (endDateExhibition(p));
+            }
+            NEW demolition{
+                caption = 'Демонтаж';
+                MOVE PROPERTY (demolitionStartDate(p));
+                MOVE PROPERTY (demolitionEndDate(p));
+            }
+        }
     }
 }
 
 EXTEND FORM projects
-    PROPERTIES(p) READONLY nameExhibition
+    PROPERTIES(p) READONLY nameExhibition, installationStartDate, installationEndDate, startDateExhibition, endDateExhibition,
+        demolitionStartDate, demolitionEndDate
 ;
