@@ -1,6 +1,6 @@
 MODULE BillStendex;
 
-REQUIRE BillDone, BillCanceled, ProjectBill, ServiceP, UtilsStendex, EmployeeStendex;
+REQUIRE BillDone, BillCanceled, ProjectBill, ServiceP, UtilsStendex, EmployeeStendex, PartnerStendex;
 
 NAMESPACE Invoicing;
 
@@ -104,6 +104,8 @@ DESIGN securityPolicy {
     }
 }
 
+overNameVendor 'Vendor' (Bill b) = overName(vendor(b));
+
 editingOn 'Редактировать' = DATA LOCAL BOOLEAN (Bill);
 WHEN LOCAL SET(Bill b IS Bill) DO editingOn(b) <- TRUE;
 
@@ -116,7 +118,7 @@ FORM billCustom 'Счет'
                   'Услуга' = items ON CHANGE changeItems(b),
                   nameCompany,
                   nameProject,
-                  nameVendor,
+                  overNameVendor,
                   note,
                   amount ON CHANGE changeAmount(b),
                   details,
@@ -158,7 +160,7 @@ DESIGN billCustom {
                 MOVE PROPERTY(items(b)) { charWidth = 40; fontSize = 24; }
                 MOVE PROPERTY(nameCompany(b)) { charWidth = 40; fontSize = 24; }
                 MOVE PROPERTY(nameProject(b)) { charWidth = 40; fontSize = 24; }
-                MOVE PROPERTY(nameVendor(b)) { charWidth = 40; fontSize = 24; }
+                MOVE PROPERTY(overNameVendor(b)) { charWidth = 40; fontSize = 24; }
                 MOVE PROPERTY(note(b)) { fontSize = 24; }
                 MOVE PROPERTY(amount(b)) { fontSize = 24; }
                 MOVE PROPERTY(isUrgent(b));
@@ -284,7 +286,7 @@ backgroundColor(Bill b) += WHEN isUrgent(b) THEN RGB(237,193,116);
 
 FORM billDashboard 'Счета на услуги'
     OBJECTS bl = Bill BACKGROUND backgroundColor(bl)
-    PROPERTIES(bl) READONLY number, date, imagedNameStatus BACKGROUND colorStatus(bl), nameVendor,
+    PROPERTIES(bl) READONLY number, date, imagedNameStatus BACKGROUND colorStatus(bl), overNameVendor,
                             items, nameProject, note, overNameRepresentative, amount
     PROPERTIES(bl) 'Счет' = openFiles GRID, cancel SHOWIF status(bl) = BillStatus.draft
     PROPERTIES newLegalEntityBill() DRAW bl TOOLBAR
@@ -293,7 +295,7 @@ FORM billDashboard 'Счета на услуги'
             representative(bl) = currentUser() OR showAllInvoices(currentUser()) OR NOT representative(bl)
 
     OBJECTS bi 'Оплата freelance' = Bill BACKGROUND backgroundColor(bi)
-    PROPERTIES(bi) READONLY number, date, imagedNameStatus BACKGROUND colorStatus(bi), nameVendor, 
+    PROPERTIES(bi) READONLY number, date, imagedNameStatus BACKGROUND colorStatus(bi), overNameVendor, 
                             items, nameProject, note, overNameRepresentative, amount
     PROPERTIES(bi) 'Счет' = openFiles GRID, cancel SHOWIF status(bi) = BillStatus.draft
     PROPERTIES newIndividualBill() DRAW bi TOOLBAR
