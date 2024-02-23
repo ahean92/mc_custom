@@ -74,6 +74,6 @@ createOrder 'Create Manufacturing Order' (Project p) {
 } IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE;
 
 EXTEND FORM project
-    PROPERTIES(p) createManufacturingOrder 'Add' = createOrder DRAW mo TOOLBAR
-    PROPERTIES(mo) NEWSESSION EDIT, DELETE
+    PROPERTIES(p) READONLYIF readonly(p) createManufacturingOrder 'Add' = createOrder DRAW mo TOOLBAR
+    PROPERTIES(mo) READONLYIF readonly(p) NEWSESSION EDIT, DELETE
 ;

@@ -72,6 +72,6 @@ createBill 'Create Bill' (Project p) {
 }
 
 EXTEND FORM project
-    PROPERTIES(p) 'Add' = createBill DRAW b TOOLBAR
-    PROPERTIES(b) NEWSESSION EDIT, DELETE
+    PROPERTIES(p) READONLYIF readonly(p) 'Add' = createBill DRAW b TOOLBAR
+    PROPERTIES(b) READONLYIF readonly(p) NEWSESSION EDIT, DELETE
 ;

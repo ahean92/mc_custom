@@ -124,7 +124,7 @@ FORM billCustom 'Счет'
 
     PROPERTIES(b) ready, done, canceled, cancel SHOWIF status(b) = BillStatus.draft
 
-    PROPERTIES(b) editingOn DISABLEIF ready(b) AND NOT editAllInvoices(currentUser())
+PROPERTIES(b) editingOn DISABLEIF ready(b) AND NOT editAllInvoices(currentUser())
 ;
 
 DESIGN billCustom {

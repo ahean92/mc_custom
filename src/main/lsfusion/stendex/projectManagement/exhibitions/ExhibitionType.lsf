@@ -4,13 +4,13 @@ REQUIRE ProjectManagementSettings;
 
 NAMESPACE ProjectManagement;
 
-CLASS ExhibitionType 'Тип выставок';
+CLASS ExhibitionType 'Название выставок';
 name '{Name}' = DATA ISTRING[50] (ExhibitionType) NONULL CHARWIDTH 15;
 
 id '{ID}' = DATA STRING[20] (ExhibitionType);
 exhibitionType = GROUP AGGR ExhibitionType t BY id(t);
 
-FORM exhibitionType 'Тип выставок'
+FORM exhibitionType 'Названия выставок'
     OBJECTS o = ExhibitionType PANEL 
     PROPERTIES(o) name, id
      
@@ -26,7 +26,7 @@ DESIGN exhibitionType {
     }
 }
 
-FORM exhibitionTypes 'Типы выставок'
+FORM exhibitionTypes 'Названия выставок'
     OBJECTS o = ExhibitionType
     PROPERTIES(o) READONLY name, id
     

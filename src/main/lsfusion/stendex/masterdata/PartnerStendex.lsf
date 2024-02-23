@@ -72,3 +72,41 @@ DESIGN dialogPartners {
         MOVE PROPERTY(codeNameFilter())  { placeholder = 'Кодовое название'; }
     }
 }
+
+//
+
+//
+
+CLASS Order 'Заявка';
+number = DATA STRING (Order) IN id;
+date = DATA DATE (Order) IN id;
+
+CLASS View 'Вид';
+name = DATA STRING (View) IN id;
+order = DATA Order (View);
+
+FORM orders_test
+    OBJECTS o = Order
+    PROPERTIES (o) number, date, NEW, DELETE
+
+    OBJECTS v = View
+    PROPERTIES (v) name, NEW, DELETE
+    FILTERS order(v) = o
+;
+
+in (Order o, View v) =  IF order(v) = o THEN (CONCAT ' ', number(o),  name(v)) ELSE number(o);
+
+countView (Order o) = GROUP SUM 1 IF order(View v) = o;
+
+unique(STRING s) = GROUP SUM 1 IF in(Order oo, View vv) = s AND oo IS Order AND vv IS View;
+
+FORM test
+    OBJECTS sg = (s = STRING, o = Order, v= View)
+    PROPERTIES VALUE(s), date(o), countView(o)
+    FILTERS unique(s), in(o,v) = s
+;
+
+NAVIGATOR{
+    NEW orders_test;
+    NEW test;
+}

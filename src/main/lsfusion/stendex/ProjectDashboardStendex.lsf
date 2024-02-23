@@ -2,13 +2,25 @@ MODULE ProjectDashboardStendex;
 
 REQUIRE PurchaseOrderStendex, ProjectPurchaseOrderStendex;
 
-length 'Длина, м' = DATA NUMERIC[8,2] (Project);
-width 'Ширина, м' = DATA NUMERIC[8,2] (Project);
-square 'Площадь, м²' (Project p) = round2(length(p) * width(p));
+editingOn 'Редактировать' = DATA LOCAL NESTED BOOLEAN (Project);
+WHEN LOCAL SET(Project p IS Project) DO editingOn(p) <- TRUE;
+
+readonly(Project p) += WHEN p IS Project AND NOT editingOn(p) THEN TRUE;
+
+editAllProjects 'Редактировать все проекты' =  DATA BOOLEAN (UserRole);
+editAllProjects (User u) = GROUP SUM 1 IF editAllProjects(UserRole r) AND has(u, r);
+
+EXTEND FORM securityPolicy PROPERTIES(ur) PANEL editAllProjects;
+DESIGN securityPolicy {
+    roleApplicationSettings { MOVE PROPERTY(editAllProjects(ur)); }
+}
+
+readonlyCurrentUser(Project p) = NOT manager(p) = currentUser() AND NOT editAllProjects(currentUser());
+
 budget 'Бюджет' = DATA NUMERIC[15,2] (Project);
 
 EXTEND FORM projects
-    PROPERTIES (p) READONLY budget, square
+    PROPERTIES (p) READONLY budget
 ;
 DESIGN projects{
     REMOVE PROPERTY (startDate(p));
@@ -19,13 +31,15 @@ DESIGN projects{
 }
 
 EXTEND FORM project
-    PROPERTIES (p) length, width, square, budget
+    PROPERTIES (p) READONLYIF readonly(p) budget
     OBJECTS pf = Purchase.OrderFile
     PROPERTIES READONLY 'Заказ' = number(order(pf))
-    PROPERTIES(pf) name, extension, description
+    PROPERTIES(pf) READONLYIF readonly(p) name, extension, description
     PROPERTIES(pf) READONLY nameUser, dateTime
     PROPERTIES(pf) GRID open, DELETE
     FILTERS project(order(pf)) = p
+
+    PROPERTIES(p) editingOn DISABLEIF readonlyCurrentUser(p)
 ;
 countPurchaseFile (Project p) = GROUP SUM 1 IF project(order(Purchase.OrderFile f)) = p;
 
@@ -40,12 +54,6 @@ DESIGN project{
         headerLeft{
             fill = 1;
             MOVE PROPERTY (budget(p));
-        }
-        headerRight{
-            fill = 1;
-            MOVE PROPERTY (length(p));
-            MOVE PROPERTY (width(p));
-            MOVE PROPERTY (square(p));
         }
         PROPERTY (namePartner(p)) { caption = 'Клиент'; }
     }

@@ -1,8 +1,8 @@
-MODULE ExhibitionCalendar;
+MODULE ExhibitionSettings;
 
 REQUIRE Exhibition, UtilsStendex;
 
-FORM exhibitionCalendar 'Календарь выставок'
+FORM exhibitionSettings 'Настройки выставок'
     OBJECTS year = INTEGER NULL PANEL
     
     OBJECTS e = Exhibition NULL PANEL
@@ -19,16 +19,16 @@ setExhibition(INTEGER y, ExhibitionType t) {
             type(e) <- t;
         }
     }
-    SEEK exhibitionCalendar.e = (GROUP MAX Exhibition e IF year(e) == y AND type(e) == t);
+    SEEK exhibitionSettings.e = (GROUP MAX Exhibition e IF year(e) == y AND type(e) == t);
 }
 
 setYear(INTEGER y) {
-    SEEK exhibitionCalendar.year = y;
+    SEEK exhibitionSettings.year = y;
 }
 
 header(INTEGER year, INTEGER btn) = IF year == btn THEN ('<b>' + btn + '</b>') ELSE STRING(btn);
 
-EXTEND FORM exhibitionCalendar
+EXTEND FORM exhibitionSettings
     OBJECTS type = ExhibitionType NULL PANEL
     PROPERTIES(type) name SELECTOR
     
@@ -40,7 +40,7 @@ EXTEND FORM exhibitionCalendar
     EVENTS ON CHANGE year setExhibition(year,type)
 ;
 
-DESIGN exhibitionCalendar {
+DESIGN exhibitionSettings {
     caption = badged('Выставка', CONCAT ' ', nameType(e), year(e));
     OBJECTS {
         MOVE BOX(type) {
@@ -73,7 +73,7 @@ DESIGN exhibitionCalendar {
 }
 
 NAVIGATOR {
-    masterData {
-        NEW exhibitionCalendar;
+    ProjectManagement.operations {
+        NEW exhibitionSettings;
     }
 }

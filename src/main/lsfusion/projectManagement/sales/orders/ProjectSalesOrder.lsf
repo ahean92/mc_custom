@@ -71,6 +71,6 @@ createOrder 'Create Sales Order' (Project p) {
 } IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE;
 
 EXTEND FORM project
-    PROPERTIES(p) createSalesOrder 'Add' = createOrder DRAW so TOOLBAR
-    PROPERTIES(so) NEWSESSION EDIT, DELETE
+    PROPERTIES(p) READONLYIF readonly(p) createSalesOrder 'Add' = createOrder DRAW so TOOLBAR
+    PROPERTIES(so) READONLYIF readonly(p) NEWSESSION EDIT, DELETE
 ;

@@ -46,7 +46,7 @@ description 'Description' = DATA RICHTEXT (Project);
 FORM project 'Project'
     OBJECTS p = Project PANEL
     
-    PROPERTIES(p) nameType, number, name, nameCompany, namePartner, startDate, endDate, 
+    PROPERTIES(p) READONLYIF readonly(p) nameType, number, name, nameCompany, namePartner, startDate, endDate, 
                   nameStatus, nameManager, description
     
     EDIT Project OBJECT p

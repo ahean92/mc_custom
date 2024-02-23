@@ -29,7 +29,7 @@ DESIGN project {
             MOVE PROPERTY(nameExhibition(p)) AFTER PROPERTY(namePartner(p));
         }
         NEW headerEnd{
-            alignment = END;
+            alignment = START;
             NEW installation{
                 caption = 'Монтаж';
                 MOVE PROPERTY (installationStartDate(p));

@@ -39,13 +39,22 @@ DESIGN options {
 standType 'Тип стенда' = DATA StandType (Project);
 nameStandType 'Тип стенда' (Project p) = name(standType(p));
 
+
+length 'Длина, м' = DATA NUMERIC[8,2] (Project);
+width 'Ширина, м' = DATA NUMERIC[8,2] (Project);
+square 'Площадь, м²' (Project p) = round2(length(p) * width(p));
 upstairs 'Второй этаж' = DATA BOOLEAN (Project);
+lengthUpstairs 'Длина(второй этаж), м' = DATA NUMERIC[8,2] (Project);
+widthUpstairs 'Ширина(второй этаж), м' = DATA NUMERIC[8,2] (Project);
+squareUpstairs 'Площадь(второй этаж), м²' (Project p) = round2(lengthUpstairs(p) * widthUpstairs(p));
+
 
 designer 'Дизайнер' = DATA Individual (Project);
 nameDesigner 'Дизайнер' (Project p) = name(designer(p));
 
 EXTEND FORM project
-    PROPERTIES(p) nameStandType, upstairs, nameDesigner
+    PROPERTIES(p) READONLYIF readonly(p) nameStandType, upstairs, nameDesigner, length, width, square
+    PROPERTIES (p) READONLYIF readonly(p) SHOWIF upstairs(p) lengthUpstairs, widthUpstairs, squareUpstairs
 ;
 
 DESIGN project {
@@ -54,36 +63,31 @@ DESIGN project {
         MOVE PROPERTY(nameDesigner(p));
     }
     headerRight {
+        MOVE PROPERTY (length(p));
+        MOVE PROPERTY (width(p));
+        MOVE PROPERTY (square(p));
         MOVE PROPERTY(upstairs(p));
+        MOVE PROPERTY(lengthUpstairs(p));
+        MOVE PROPERTY(widthUpstairs(p));
+        MOVE PROPERTY(squareUpstairs(p));
     }
 }
 
 EXTEND FORM projects
-    PROPERTIES(p) READONLY nameStandType, upstairs, nameDesigner
+    PROPERTIES(p) READONLY nameStandType, upstairs, nameDesigner, square, squareUpstairs
 ;
+@defineStaticObject(fileFolder, 'Каталог файлов');
 
 CLASS FileType 'Тип файла';
 name '{Name}' = DATA ISTRING[50] (FileType) NONULL CHARWIDTH 15 IN id;
-
 id '{ID}' = DATA STRING[20] (FileType);
 fileType = GROUP AGGR FileType t BY id(t);
 
 isUnique 'Уникальный' = DATA BOOLEAN (FileType);
 
-//tabs
-renders 'Рендеры' = DATA BOOLEAN (FileType);
-accreditation 'Аккредитация' = DATA BOOLEAN (FileType);
-specification 'ТЗ' = DATA BOOLEAN (FileType);
-sources 'Исходники заказчика' = DATA BOOLEAN (FileType);
-twoD '2D' = DATA BOOLEAN (FileType);
-documents 'Документы' = DATA BOOLEAN (FileType);
-blueprints 'Чертежи' = DATA BOOLEAN (FileType);
-
-
 FORM fileType 'Тип файла'
     OBJECTS t = FileType PANEL
     PROPERTIES(t) name, id, isUnique
-    PROPERTIES(t) renders, accreditation, specification, sources, twoD, documents, blueprints
 
     EDIT FileType OBJECT t;
 ;
@@ -93,13 +97,6 @@ DESIGN fileType {
         PANEL(t) {
             NEW tabs {
                 caption = 'Вкладки';
-                MOVE PROPERTY(renders(t));
-                MOVE PROPERTY(accreditation(t));
-                MOVE PROPERTY(specification(t));
-                MOVE PROPERTY(sources(t));
-                MOVE PROPERTY(twoD(t));
-                MOVE PROPERTY(documents(t));
-                MOVE PROPERTY(blueprints(t));
             }
         }
         NEW tabbedPane {
@@ -131,7 +128,10 @@ DESIGN options {
 type 'Type' = DATA FileType (ProjectFile) NONULL;
 nameType 'Type' (ProjectFile f) = name(type(f));
 
-CONSTRAINT SET([GROUP SUM 1 BY project(ProjectFile f), type(f)](Project p, FileType t) > 1) AND isUnique(t)
+fileFolder = DATA FileFolder (ProjectFile);
+nameFolder (ProjectFile f) = name(fileFolder(f));
+
+CONSTRAINT LOCAL SET([GROUP SUM 1 BY project(ProjectFile f), type(f), fileFolder(f)](Project p, FileType t, FileFolder f) > 1) AND isUnique(t)
     MESSAGE 'Запрещено добавление больше одного файла данного типа в проект';
 
 newFile 'File' (Project o, FileType t) {
@@ -143,126 +143,75 @@ newFile 'File' (Project o, FileType t) {
         type(uof) <- t;
     }
 } IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE;
-
-EXTEND FORM project
-    OBJECTS rf = ProjectFile
-    PROPERTIES(rf) READONLYIF readonly(p) name, extension, description, nameType
-    PROPERTIES(rf) READONLY nameUser, dateTime
-    PROPERTIES(rf) GRID open, DELETE READONLYIF readonly(p)
-    FILTERS renders(type(rf)) AND project(rf) == p
-
-    OBJECTS t_rf = FileType
-    PROPERTIES(p,t_rf) newFile COLUMNS (t_rf) HEADER name(t_rf) DRAW rf TOOLBAR READONLYIF readonly(p)
-    FILTERS renders(t_rf)
-    
-    OBJECTS af = ProjectFile
-    PROPERTIES(af) READONLYIF readonly(p) name, extension, description, nameType
-    PROPERTIES(af) READONLY nameUser, dateTime
-    PROPERTIES(af) GRID open, DELETE READONLYIF readonly(p)
-    FILTERS accreditation(type(af)) AND project(af) == p
-
-    OBJECTS t_af = FileType
-    PROPERTIES(p,t_af) newFile COLUMNS (t_af) HEADER name(t_af) DRAW af TOOLBAR READONLYIF readonly(p)
-    FILTERS accreditation(t_af)
-    
-    OBJECTS spf = ProjectFile
-    PROPERTIES(spf) READONLYIF readonly(p) name, extension, description, nameType
-    PROPERTIES(spf) READONLY nameUser, dateTime
-    PROPERTIES(spf) GRID open, DELETE READONLYIF readonly(p)
-    FILTERS specification(type(spf)) AND project(spf) == p
-    
-    OBJECTS t_spf = FileType
-    PROPERTIES(p,t_spf) newFile COLUMNS (t_spf) HEADER name(t_spf) DRAW spf TOOLBAR READONLYIF readonly(p)
-    FILTERS specification(t_spf)
-    
-    OBJECTS sf = ProjectFile
-    PROPERTIES(sf) READONLYIF readonly(p) name, extension, description, nameType
-    PROPERTIES(sf) READONLY nameUser, dateTime
-    PROPERTIES(sf) GRID open, DELETE READONLYIF readonly(p)
-    FILTERS sources(type(sf)) AND project(sf) == p
-    
-    OBJECTS t_sf = FileType
-    PROPERTIES(p,t_sf) newFile COLUMNS (t_sf) HEADER name(t_sf) DRAW sf TOOLBAR READONLYIF readonly(p)
-    FILTERS sources(t_sf)
-    
-    OBJECTS tdf = ProjectFile
-    PROPERTIES(tdf) READONLYIF readonly(p) name, extension, description, nameType
-    PROPERTIES(tdf) READONLY nameUser, dateTime
-    PROPERTIES(tdf) GRID open, DELETE READONLYIF readonly(p)
-    FILTERS twoD(type(tdf)) AND project(tdf) == p
-    
-    OBJECTS t_tdf = FileType
-    PROPERTIES(p,t_tdf) newFile COLUMNS (t_tdf) HEADER name(t_tdf) DRAW tdf TOOLBAR READONLYIF readonly(p)
-    FILTERS twoD(t_tdf)
-    
-    OBJECTS df = ProjectFile
-    PROPERTIES(df) READONLYIF readonly(p) name, extension, description, nameType
-    PROPERTIES(df) READONLY nameUser, dateTime
-    PROPERTIES(df) GRID open, DELETE READONLYIF readonly(p)
-    FILTERS documents(type(df)) AND project(df) == p
-    
-    OBJECTS t_df = FileType
-    PROPERTIES(p,t_df) newFile COLUMNS (t_df) HEADER name(t_df) DRAW df TOOLBAR READONLYIF readonly(p)
-    FILTERS documents(t_df)
-    
-    OBJECTS bf = ProjectFile
-    PROPERTIES(bf) READONLYIF readonly(p) name, extension, description, nameType
-    PROPERTIES(bf) READONLY nameUser, dateTime
-    PROPERTIES(bf) GRID open, DELETE READONLYIF readonly(p)
-    FILTERS blueprints(type(bf)) AND project(bf) == p
-    
-    OBJECTS t_bf = FileType
-    PROPERTIES(p,t_bf) newFile COLUMNS (t_bf) HEADER name(t_bf) DRAW bf TOOLBAR READONLYIF readonly(p)
-    FILTERS blueprints(t_bf)
-;
+newFile 'File' (Project o, FileType t, FileFolder f) {
+    INPUT uf = NAMEDFILE DO NEW uof = ProjectFile {
+        project(uof) <- o;
+        file(uof) <- RAWFILE(uf);
+        name(uof) <- name(uf);
+        extension(uof) <- extension(uf);
+        type(uof) <- t;
+        fileFolder(uof) <- f;
+    }
+} IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE;
 
 DESIGN project {
     details {
         NEW projectFiles {
             caption = badged('Документы по проекту', countFiles(p));
             tabbed = TRUE;
-            NEW renders {
-                caption = 'Рендеры';
-                MOVE BOX (rf){
-                    caption = '';
-                }
-            }
-            NEW accreditation {
-                caption = 'Аккредитация';
-                MOVE BOX(af){
-                    caption = '';
-                }
-            }
-            NEW specification {
-                caption = 'ТЗ';
-                MOVE BOX(spf){
-                    caption = '';
-                }
-            }
-            NEW sources {
-                caption = 'Исходники заказчика';
-                MOVE BOX(sf){
-                    caption = '';
-                }
-            }
-            NEW twoD {
-                caption = '2D';
-                MOVE BOX(tdf){
-                    caption = '';
-                }
-            }
-            NEW documents {
-                caption = 'Документы';
-                MOVE BOX(df){
-                    caption = '';
-                }
-            }
-            NEW blueprints {
-                caption = 'Чертежи';
-                MOVE BOX(bf){
+        }
+    }
+}
+
+META addFileProjectByFolder(folder, capt, obj)
+
+    EXTEND CLASS FileFolder{
+        folder capt
+    }
+    newFile###folder 'File' (Project o, FileType t) {
+        newFile(o, t, FileFolder.folder);
+    }IMAGE 'add.png';
+    
+    folder capt = DATA BOOLEAN (FileType);
+    
+    EXTEND FORM fileType
+        PROPERTIES (t) folder
+    ;
+    DESIGN fileType{
+        tabs{
+            MOVE PROPERTY (folder(t));
+        }
+    }
+    
+    EXTEND FORM project
+        OBJECTS obj = ProjectFile
+        PROPERTIES(obj) READONLYIF readonly(p) name, extension, description, nameType
+        PROPERTIES(obj) READONLY nameUser, dateTime
+        PROPERTIES(obj) GRID open, DELETE READONLYIF readonly(p)
+        FILTERS folder(type(obj)) AND project(obj) == p AND fileFolder(obj) = FileFolder.folder
+
+        OBJECTS t_##obj = FileType
+        PROPERTIES(p, t_##obj) READONLYIF readonly(p) newFile###folder COLUMNS (t_##obj) HEADER name(t_##obj) DRAW obj TOOLBAR 
+        FILTERS folder(t_##obj)
+    ;
+
+    DESIGN project{
+        projectFiles{
+            NEW folder{
+                caption = ##capt;
+                MOVE BOX(obj){
                     caption = '';
                 }
             }
         }
     }
-}
+END 
+
+@addFileProjectByFolder(renders, 'Рендеры', renders);
+@addFileProjectByFolder(accreditation, 'Аккредитация', accreditation);
+
+@addFileProjectByFolder(specification, 'ТЗ', specification);
+@addFileProjectByFolder(sources, 'Исходники заказчика', sources);
+@addFileProjectByFolder(twoD, '2D', twoD);
+@addFileProjectByFolder(documents, 'Документы', documents);
+@addFileProjectByFolder(blueprints, 'Чертежи', blueprints);

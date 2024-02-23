@@ -32,15 +32,6 @@ dateInstallation (Project p) = toChar(installationStartDate(p), 'dd.mm.YY');
 dateExcibition (Project p) = toChar(startDateExhibition(p), 'dd.mm.YY');
 dateDemolition (Project p) = toChar(demolitionStartDate(p), 'dd.mm.YY');
 
-editAllProjects 'Редактировать все проекты' =  DATA BOOLEAN (UserRole);
-editAllProjects (User u) = GROUP SUM 1 IF editAllProjects(UserRole r) AND has(u, r);
-
-EXTEND FORM securityPolicy PROPERTIES(ur) PANEL editAllProjects;
-DESIGN securityPolicy {
-    roleApplicationSettings { MOVE PROPERTY(editAllProjects(ur)); }
-}
-
-readonlyCurrentUser(Project p) = NOT manager(p) = currentUser() AND NOT editAllProjects(currentUser()); 
 
 EXTEND FORM projects
     OBJECTS pp = Project CUSTOM 'projectKanban'
@@ -65,7 +56,8 @@ EXTEND FORM projects
         currentOrder ON CHANGE {
             INPUT ord = INTEGER DO order(currentUser(), pp) <- ord;
         }
-
+   
+    PROPERTIES(pp) READONLYIF readonlyCurrentUser(p) PANEL edit = EDIT
     ORDERS status(pp), currentOrder(pp)
 
     FILTERS [FILTER projects.p](pp)
@@ -77,6 +69,7 @@ DESIGN projects {
         NEW kanban {
             caption = 'Kanban';
             MOVE GRID(pp) {
+                MOVE PROPERTY(edit) { alignment = STRETCH; }
             }
             REMOVE BOX(pp);
         }
