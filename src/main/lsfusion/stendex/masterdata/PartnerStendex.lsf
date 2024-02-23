@@ -26,6 +26,7 @@ DESIGN partner {
 }
 
 codeName 'Кодовое название' = DATA ISTRING[50] (Partner) CHARWIDTH 15;
+overName '{Name}' (Partner p) = OVERRIDE codeName(p), name(p) CHARWIDTH 15;
 
 EXTEND FORM partner
     PROPERTIES(p) codeName
