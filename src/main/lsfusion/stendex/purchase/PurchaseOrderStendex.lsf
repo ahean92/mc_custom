@@ -221,3 +221,27 @@ WHEN SETCHANGED (isPP(OrderFile f)) AND amountPayed(order(f)) >= untaxedAmount(o
 changedLines (Order o) = [GROUP SUM 1 IF SETCHANGED (item(OrderLine l)) OR SETCHANGED (quantity(l)) OR SETCHANGED (price(l)) BY order(l)](o);
 
 CONSTRAINT LOCAL CHANGED(changedLines(Order o)) AND invoice(o) MESSAGE 'Нельзя изменять документ после прикрепления счета';
+
+showLines 'Показать состав' = DATA LOCAL NESTED BOOLEAN ();
+
+EXTEND FORM orders
+    PROPERTIES showLines() TOOLBAR DRAW o
+    
+    OBJECTS l = OrderLine
+    PROPERTIES(l) READONLY SHOWIF showLines() nameItem, quantity, untaxedAmount
+    FILTERS order(l) = o
+;
+
+DESIGN orders {
+    tabbedPane {
+        NEW orders {
+            caption = 'Purchase orders';
+            MOVE BOX(o) {
+                TOOLBARBOX(o) {
+                    MOVE PROPERTY(showLines()) BEFORE TOOLBARRIGHT(o);
+                }
+            }
+            MOVE BOX(l);
+        }
+    }
+}
