@@ -62,3 +62,11 @@ h6.caption-panel-header.collapsible {
     --bs-list-group-item-padding-x: 0.5rem;
     --bs-list-group-item-padding-y: 0.25rem;
 }
+
+.carousel-inner {
+    width: 90%;
+    left: 5%;
+}
+.carousel-control-next, .carousel-control-prev {
+    width: 5%;
+}
