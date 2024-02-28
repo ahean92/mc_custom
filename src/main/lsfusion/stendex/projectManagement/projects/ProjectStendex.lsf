@@ -175,6 +175,7 @@ FORM inputProjectFiles 'Добавление файлов'
 
 DESIGN inputProjectFiles {
     size = (800, 600);
+    caption = 'Добавление файлов: ${name(t)} в категорию ${name(ff)}';  
     BOX(of) {
         caption = '';
         MOVE PROPERTY(inputFile);
