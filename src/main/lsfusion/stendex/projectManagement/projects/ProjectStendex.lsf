@@ -134,16 +134,7 @@ nameFolder (ProjectFile f) = name(fileFolder(f));
 CONSTRAINT LOCAL SET([GROUP SUM 1 BY project(ProjectFile f), type(f), fileFolder(f)](Project p, FileType t, FileFolder f) > 1) AND isUnique(t)
     MESSAGE 'Запрещено добавление больше одного файла данного типа в проект';
 
-newFile 'File' (Project o, FileType t) {
-    INPUT uf = NAMEDFILE DO NEW uof = ProjectFile {
-        project(uof) <- o;
-        file(uof) <- RAWFILE(uf);
-        name(uof) <- name(uf);
-        extension(uof) <- extension(uf);
-        type(uof) <- t;
-    }
-} IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE;
-newFile 'File' (Project o, FileType t, FileFolder f) {
+addFile 'Добавить' (Project o, FileType t, FileFolder f) {
     INPUT uf = NAMEDFILE DO NEW uof = ProjectFile {
         project(uof) <- o;
         file(uof) <- RAWFILE(uf);
@@ -151,6 +142,48 @@ newFile 'File' (Project o, FileType t, FileFolder f) {
         extension(uof) <- extension(uf);
         type(uof) <- t;
         fileFolder(uof) <- f;
+    }
+} IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE;
+    
+FORM inputProjectFiles 'Добавление файлов'
+    OBJECTS p = Project PANEL
+    
+    OBJECTS ff = FileFolder PANEL
+    OBJECTS t = FileType PANEL 
+
+    OBJECTS of = ProjectFile
+    PROPERTIES(of) READONLYIF readonly(p) name, extension, description
+    PROPERTIES(of) READONLY nameUser, dateTime
+    PROPERTIES(of) GRID open, DELETE READONLYIF readonly(p)
+    FILTERS project(of) = p,
+            fileFolder(of) = ff
+
+    PROPERTIES(p, t, ff) addFile DRAW of TOOLBAR READONLYIF readonly(p)
+    PROPERTIES inputFile = '' CUSTOM 'inputFile' ON CHANGE {
+        INPUT f = JSON DO
+            IMPORT JSON FROM f FIELDS() STRING name, STRING extension, STRING data DO
+                IF NOT readonly(p) THEN NEW uof = ProjectFile {
+                    project(uof) <- p;
+                    file(uof) <- decode(data, 'base64');
+                    name(uof) <- name;
+                    extension(uof) <- extension;
+                    type(uof) <- t;
+                    fileFolder(uof) <- ff;
+                }
+    }
+;
+
+DESIGN inputProjectFiles {
+    size = (800, 600);
+    BOX(of) {
+        caption = '';
+        MOVE PROPERTY(inputFile);
+    }
+}
+
+newFile 'File' (Project o, FileType t, FileFolder f) {
+    NESTEDSESSION {
+        DIALOG inputProjectFiles OBJECTS p = o, t = t, ff = f FLOAT;
     }
 } IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE;
 
