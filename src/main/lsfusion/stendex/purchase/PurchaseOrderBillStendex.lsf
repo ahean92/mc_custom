@@ -81,7 +81,7 @@ EXTEND FORM Purchase.order
 
     PROPERTIES(bb) READONLY number, date, items, nameProject, note, overNameRepresentative, amount, left, toPay, paidDone
     PROPERTIES(bb) READONLYIF readonly(o) 'Счет' = openFiles GRID
-    PROPERTIES READONLYIF (readonly(o) OR lastBill(o)) newBill(o) DRAW bb TOOLBAR
+    PROPERTIES READONLYIF readonly(o) newBill(o) DRAW bb TOOLBAR SHOWIF (status(o) == OrderStatus.review AND NOT lastBill(o))
     PROPERTIES(bb) READONLYIF readonly(o) NEWSESSION editBillCustom, DELETE
     FILTERS order(bb) = o
 ;

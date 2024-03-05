@@ -211,12 +211,12 @@ CONSTRAINT SETCHANGED (vendor(Order o)) AND vendor(o) IS Employee CHECKED BY ven
     MESSAGE 'Сотрудник не может быть поставщиком';
 
 WHEN SETCHANGED (invoice(Order o)) AND status(o) = OrderStatus.draft DO changeStatus(o, OrderStatus.review);
-WHEN SETCHANGED (isPP(OrderFile f)) AND amountPayed(order(f)) < untaxedAmount(order(f)) AND status(order(f)) = OrderStatus.inPayment 
-    DO changeStatus(order(f), OrderStatus.partiallyPaid);
-
-WHEN SETCHANGED (isPP(OrderFile f)) AND amountPayed(order(f)) >= untaxedAmount(order(f)) 
-    AND (status(order(f)) = OrderStatus.inPayment OR status(order(f)) = OrderStatus.partiallyPaid)
-    DO changeStatus(order(f), OrderStatus.awaitingDelivery);
+//WHEN SETCHANGED (isPP(OrderFile f)) AND amountPayed(order(f)) < untaxedAmount(order(f)) AND status(order(f)) = OrderStatus.inPayment 
+//    DO changeStatus(order(f), OrderStatus.partiallyPaid);
+//
+//WHEN SETCHANGED (isPP(OrderFile f)) AND amountPayed(order(f)) >= untaxedAmount(order(f)) 
+//    AND (status(order(f)) = OrderStatus.inPayment OR status(order(f)) = OrderStatus.partiallyPaid)
+//    DO changeStatus(order(f), OrderStatus.awaitingDelivery);
 
 changedLines (Order o) = [GROUP SUM 1 IF SETCHANGED (item(OrderLine l)) OR SETCHANGED (quantity(l)) OR SETCHANGED (price(l)) BY order(l)](o);
 
