@@ -1,0 +1,187 @@
+MODULE PurchaseOrderBillStendex;
+
+REQUIRE PurchaseOrderBill, BillPaymentStendex, PurchaseOrderStendex;
+
+NAMESPACE Purchase;
+
+order = DATA Purchase.Order (Bill) INDEXED;
+numberOrder 'Purchase order' (Bill b) = number(order(b));
+
+lastBill (Purchase.Order o) = GROUP LAST Bill b ORDER b BY order(b);
+
+fill (Bill b, Order o) + {
+    order(b) <- o;
+    
+    FOR order(OrderFile f) == o AND type(f) = TypeFile.invoice NEW bf = BillFile DO {
+        bill(bf) <- b;
+        file(bf) <- file(f);
+        name(bf) <- name(f);
+        extension(bf) <- extension(f);
+        type(bf) <- Invoicing.TypeFile.invoice;
+        lockChangeType(bf) <- TRUE;
+    }
+}
+
+newBill 'Добавить' (Order o) {
+    NEWSESSION {
+        NEW nb = Bill {
+            ready(nb) <- TRUE;
+            type(nb) <- billType(type(o));
+
+            company(nb) <- company(o);
+
+            vendor(nb) <- vendor(o);
+            vendorReference(nb) <- vendorReference(o);
+            note(nb) <- note(o);
+
+            currency(nb) <- currency(o);
+
+            paymentTerms(nb) <- paymentTerms(o);
+
+            FOR order(OrderLine ol) = o AND toBillOrdered(ol) > 0
+                NEW bl = BillLine DO {
+                bill(bl) <- nb;
+                item(bl) <- item(ol);
+                description(bl) <- description(ol);
+                quantity(bl) <- toBillOrdered(ol);
+                price(bl) <- price(ol);
+                orderLine(bl) <- ol;
+
+                fill(bl, ol);
+            }
+
+            fill(nb, o);
+
+            executeLocalEvents();
+            FOR bill(BillLine bl) = nb DO {
+                in(bl, Tax t) <- in(orderLine(bl), t);
+            }
+            SHOW billCustom OBJECTS b = nb DOCKED;
+        }
+    }
+}
+
+EXTEND FORM bill
+    PROPERTIES(b) numberOrder READONLYIF readonly(b)
+;
+
+DESIGN bill {
+    headerRight {
+        MOVE PROPERTY(numberOrder(b));
+    }
+}
+
+
+EXTEND FORM bills
+    PROPERTIES(b) READONLY numberOrder
+;
+
+EXTEND FORM Purchase.order
+    OBJECTS bb = Bill BACKGROUND backgroundColor(bb)
+
+    PROPERTIES(bb) READONLY number, date, items, nameProject, note, overNameRepresentative, amount, left, toPay, paidDone
+    PROPERTIES(bb) READONLYIF readonly(o) 'Счет' = openFiles GRID
+    PROPERTIES READONLYIF (readonly(o) OR lastBill(o)) newBill(o) DRAW bb TOOLBAR
+    PROPERTIES(bb) READONLYIF readonly(o) NEWSESSION editBillCustom, DELETE
+    FILTERS order(bb) = o
+;
+
+DESIGN Purchase.order {
+    details  {
+        MOVE BOX(bi) {
+            caption = badged('Bills', countBills(o));
+        }
+        MOVE BOX(bb) {
+            caption = badged('Счета', countBills(o));
+        }
+    }
+}
+
+WHEN (SETCHANGED(lastBill(Purchase.Order o)) OR SETCHANGED(status(lastBill(o)))) AND status(lastBill(o)) == BillStatus.ready
+    DO changeStatus(o, OrderStatus.inPayment);
+
+WHEN (SETCHANGED(lastBill(Purchase.Order o)) OR SETCHANGED(status(lastBill(o)))) AND status(lastBill(o)) == BillStatus.partiallyPaid
+    DO changeStatus(o, OrderStatus.partiallyPaid);
+
+WHEN (SETCHANGED(lastBill(Purchase.Order o)) OR SETCHANGED(status(lastBill(o)))) AND status(lastBill(o)) == BillStatus.done
+    DO changeStatus(o, OrderStatus.awaitingDelivery);
+
+
+FORM billOrderDashboard 'Счета на товары'
+    OBJECTS b = Bill BACKGROUND backgroundColor(b)
+    PROPERTIES(b) READONLY number, date, imagedNameStatus BACKGROUND colorStatus(b), overNameVendor,
+        items, nameProject, note, overNameRepresentative, amount
+    PROPERTIES(b) 'Счет' = openFiles GRID, cancel SHOWIF status(b) = BillStatus.draft
+    PROPERTIES(b) NEWSESSION editBillCustom, DELETE
+    FILTERS order(b),
+        representative(b) = currentUser() OR showAllInvoices(currentUser()) OR NOT representative(b)
+    
+
+    PROPERTIES() nameFilterProject, nameFilterRepresentative, nameFilterStatus, filterUrgent
+    FILTERS project(b) = filterProject() OR NOT filterProject(),
+        representative(b) = filterRepresentative() OR NOT filterRepresentative(),
+        status(b) = filterStatus() OR NOT filterStatus(),
+        isUrgent(b) OR NOT filterUrgent()
+;
+
+DESIGN billOrderDashboard {
+    OBJECTS {
+        NEW filters {
+            caption = '';
+            border = FALSE;
+            alignment = CENTER;
+            horizontal = TRUE;
+            MOVE PROPERTY (nameFilterProject());
+            MOVE PROPERTY (nameFilterRepresentative());
+            MOVE PROPERTY (nameFilterStatus());
+            MOVE PROPERTY (filterUrgent());
+        }
+        NEW pane{
+            fill = 1;
+            NEW billOrder {
+                caption = 'Счета на товары';
+                fill = 1;
+                NEW headerOrder {
+                    horizontal = TRUE;
+                    alignment = STRETCH;
+                    MOVE TOOLBAR(b);
+                    NEW actionsOrder {
+                        fill = 1;
+                        NEW markOrder {
+                            horizontal = TRUE;
+                            alignment = END;
+                            MOVE PROPERTY (cancel(b));
+                        }
+                    }
+                }
+                MOVE BOX(b) { caption = ''; };
+            }
+        }
+    }
+}
+
+NAVIGATOR {
+    dashboard {
+        NEW billOrderDashboard;
+    }
+}
+
+EXTEND FORM billOrderDashboard
+    PROPERTIES(b) READONLY left, toPay, paidDone
+    PROPERTIES(b) SHOWIF toReady(b) pay
+    PROPERTIES(b) SHOWIF toPay(b) doPayment
+    FILTERGROUP status
+        FILTER 'По умолчанию' defaultFilter(b, currentUser()) DEFAULT
+        FILTER 'Формирование' toReady(b)
+        FILTER 'К оплате' toPay(b)
+        FILTER 'Оплачено' done(b)
+        FILTER 'Частично оплачен' partiallyPaid(b)
+        FILTER 'Отменен' canceled(b)
+;
+
+DESIGN billOrderDashboard {
+    markOrder {
+        MOVE PROPERTY(pay(b));
+        MOVE PROPERTY(doPayment(b));
+    }
+}

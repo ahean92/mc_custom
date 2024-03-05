@@ -38,7 +38,7 @@ REQUIRE Eval, ProcessMonitor, Backup,
         ProjectKanbanStendex, ProjectExhibition, ProjectStendex,
         ProjectCarouselStendex, ExhibitionSettings,
 
-        BillStendex, BillPaymentStendex, ProjectBillStendex;
+        BillStendex, BillPaymentStendex, ProjectBillStendex, PurchaseOrderBillStendex;
 
 
 onWebClientLoad() +{
