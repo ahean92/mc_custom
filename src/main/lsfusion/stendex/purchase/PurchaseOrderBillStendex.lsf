@@ -35,7 +35,8 @@ newBill 'Добавить' (Order o) {
             note(nb) <- note(o);
 
             currency(nb) <- currency(o);
-
+            note(nb) <- CONCAT ' ', 'Счет по заказу', number(o), 'от  ' + date(o), 'поставщик' + nameVendor(o);
+            
             paymentTerms(nb) <- paymentTerms(o);
 
             FOR order(OrderLine ol) = o AND toBillOrdered(ol) > 0
@@ -78,11 +79,21 @@ EXTEND FORM bills
 
 autoUploaded = DATA BOOLEAN (OrderFile);
 
-lockManualAdded (TypeFile t) = t == TypeFile.invoice OR t == TypeFile.paymentOrder;
+lockManualAdded (TypeFile t) = t == TypeFile.invoice OR t == TypeFile.paymentOrder OR t = TypeFile.consignment;
 
 CONSTRAINT LOCAL SETCHANGED (type(OrderFile f)) AND lockManualAdded(type(f)) AND NOT autoUploaded(f) CHECKED BY type[OrderFile]
     MESSAGE 'Запрещено вручную прикреалять файлы этого типа!';
 
+uploadConsigment 'Накладная'(Order o){
+    INPUT uf = NAMEDFILE DO NEW uof = OrderFile {
+        order(uof) <- o;
+        file(uof) <- RAWFILE(uf);
+        name(uof) <- name(uf);
+        extension(uof) <- extension(uf);
+        autoUploaded(uof) <- TRUE;
+        type(uof) <- TypeFile.consignment;
+    }
+} IMAGE 'add.png';
 
 uploadInvoice 'Счет' (Purchase.Order o){
     INPUT uf = NAMEDFILE DO NEW uof = OrderFile {
@@ -133,6 +144,8 @@ uploadInvoice 'Счет' (Purchase.Order o){
 
 EXTEND FORM Purchase.order
     PROPERTIES (o) uploadInvoice TOOLBAR DRAW of SHOWIF inProject(o)
+    PROPERTIES (o) uploadConsigment TOOLBAR DRAW of 
+        SHOWIF inProject(o) AND (status(o) = OrderStatus.awaitingDelivery OR status(o) = OrderStatus.delivered);
 ;
 
 DESIGN Purchase.order {
