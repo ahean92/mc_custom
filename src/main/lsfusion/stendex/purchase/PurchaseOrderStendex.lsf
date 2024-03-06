@@ -57,7 +57,7 @@ amount 'Сумма' = DATA NUMERIC[16,2](OrderFile);
 overDescription (OrderFile f) = CONCAT ' /', description(f), 'Сумма: ' + amount(f);
 
 amountPayed 'Оплачено' (Order o) = GROUP SUM amount(OrderFile f) IF isPP(f) BY order(f);
-CONSTRAINT SET (OrderFile f IS OrderFile) AND isPP(f) AND NOT amount(f) MESSAGE 'При загрузке платежного поручения необходимо ввести сумму';
+//CONSTRAINT SET (OrderFile f IS OrderFile) AND isPP(f) AND NOT amount(f) MESSAGE 'При загрузке платежного поручения необходимо ввести сумму';
 
 payedPartial (Order o) = amountPayed(o) AND untaxedAmount(o) AND amountPayed(o) < untaxedAmount(o);
 payed (Order o) = amountPayed(o) AND untaxedAmount(o) AND amountPayed(o) >= untaxedAmount(o);
@@ -68,16 +68,11 @@ fileInvoice (Purchase.Order o) = file(invoice(o));
 consignment 'Накладная' (Order o) = GROUP LAST OrderFile f ORDER dateTime(f) WHERE type(f) = TypeFile.consignment AND order(f) = o;
 openConsignment 'Накладная' (Order f) { open(file(consignment(f)), nameExtension(invoice(f))); } IMAGE 'open.png';
 fileConsignment (Purchase.Order o) = file(consignment(o));
+readonly = ABSTRACT CASE BOOLEAN (OrderFile);
 
 EXTEND FORM order
-    PROPERTIES (of) nameType FIRST, amount READONLYIF NOT isPP(of)
-    PROPERTIES (o) amountPayed
+    PROPERTIES (of) nameType FIRST READONLYIF readonly(of)
 ;
-DESIGN order{
-    total{
-        MOVE PROPERTY (amountPayed(o));
-    }
-}
 EXTEND FORM orders
     FILTERGROUP statusCustom
         FILTER 'Draft' status(o) = OrderStatus.draft
@@ -210,7 +205,6 @@ DESIGN orders{
 CONSTRAINT SETCHANGED (vendor(Order o)) AND vendor(o) IS Employee CHECKED BY vendor[Order] 
     MESSAGE 'Сотрудник не может быть поставщиком';
 
-WHEN SETCHANGED (invoice(Order o)) AND status(o) = OrderStatus.draft DO changeStatus(o, OrderStatus.review);
 //WHEN SETCHANGED (isPP(OrderFile f)) AND amountPayed(order(f)) < untaxedAmount(order(f)) AND status(order(f)) = OrderStatus.inPayment 
 //    DO changeStatus(order(f), OrderStatus.partiallyPaid);
 //

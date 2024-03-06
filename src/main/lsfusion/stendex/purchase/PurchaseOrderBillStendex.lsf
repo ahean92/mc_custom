@@ -1,6 +1,6 @@
 MODULE PurchaseOrderBillStendex;
 
-REQUIRE PurchaseOrderBill, BillPaymentStendex, PurchaseOrderStendex;
+REQUIRE PurchaseOrderBill, BillPaymentStendex, PurchaseOrderStendex, ProjectDashboardStendex;
 
 NAMESPACE Purchase;
 
@@ -76,14 +76,63 @@ EXTEND FORM bills
     PROPERTIES(b) READONLY numberOrder
 ;
 
-EXTEND FORM Purchase.order
-    OBJECTS bb = Bill BACKGROUND backgroundColor(bb)
+autoUploaded = DATA BOOLEAN (OrderFile);
 
-    PROPERTIES(bb) READONLY number, date, items, nameProject, note, overNameRepresentative, amount, left, toPay, paidDone
-    PROPERTIES(bb) READONLYIF readonly(o) 'Счет' = openFiles GRID
-    PROPERTIES READONLYIF readonly(o) newBill(o) DRAW bb TOOLBAR SHOWIF (status(o) == OrderStatus.review AND NOT lastBill(o))
-    PROPERTIES(bb) READONLYIF readonly(o) NEWSESSION editBillCustom, DELETE
-    FILTERS order(bb) = o
+lockManualAdded (TypeFile t) = t == TypeFile.invoice OR t == TypeFile.paymentOrder;
+
+CONSTRAINT LOCAL SETCHANGED (type(OrderFile f)) AND lockManualAdded(type(f)) AND NOT autoUploaded(f) CHECKED BY type[OrderFile]
+    MESSAGE 'Запрещено вручную прикреалять файлы этого типа!';
+
+
+uploadInvoice 'Счет' (Purchase.Order o){
+    INPUT uf = NAMEDFILE DO NEW uof = OrderFile {
+        order(uof) <- o;
+        file(uof) <- RAWFILE(uf);
+        name(uof) <- name(uf);
+        extension(uof) <- extension(uf);
+        autoUploaded(uof) <- TRUE;
+        type(uof) <- TypeFile.invoice;
+        IF NOT lastBill(o) THEN NEW nb = Bill{
+            ready(nb) <- TRUE;
+            type(nb) <- billType(type(o));
+
+            company(nb) <- company(o);
+
+            vendor(nb) <- vendor(o);
+            vendorReference(nb) <- vendorReference(o);
+            note(nb) <- note(o);
+            project(nb) <- project(o);
+            currency(nb) <- currency(o);
+
+            paymentTerms(nb) <- paymentTerms(o);
+
+            FOR order(OrderLine ol) = o AND toBillOrdered(ol) > 0
+                NEW bl = BillLine DO {
+                bill(bl) <- nb;
+                item(bl) <- item(ol);
+                description(bl) <- description(ol);
+                quantity(bl) <- toBillOrdered(ol);
+                price(bl) <- price(ol);
+                orderLine(bl) <- ol;
+
+                fill(bl, ol);
+            }
+
+            fill(nb, o);
+
+            executeLocalEvents();
+            FOR bill(BillLine bl) = nb DO {
+                in(bl, Tax t) <- in(orderLine(bl), t);
+            }
+            changeStatus(o, OrderStatus.review);
+        }
+    }
+} IMAGE 'add.png';
+
+
+
+EXTEND FORM Purchase.order
+    PROPERTIES (o) uploadInvoice TOOLBAR DRAW of
 ;
 
 DESIGN Purchase.order {
@@ -91,11 +140,61 @@ DESIGN Purchase.order {
         MOVE BOX(bi) {
             caption = badged('Bills', countBills(o));
         }
-        MOVE BOX(bb) {
-            caption = badged('Счета', countBills(o));
+    }
+}
+pay 'В оплату' (Purchase.Order o){
+    pay(lastBill(o));
+}
+doPayment 'Оплачено' (Purchase.Order o){
+    doPayment(lastBill(o));
+}
+
+left 'Осталось' (Purchase.Order o) = left(lastBill(o));
+toPay 'К оплате' (Purchase.Order o) = toPay(lastBill(o));
+paidDone 'Оплачено' (Purchase.Order o) = paidDone(lastBill(o));
+
+EXTEND FORM Purchase.orders
+    PROPERTIES(o) SHOWIF toReady(lastBill(o)) pay
+    PROPERTIES(o) SHOWIF toPay(lastBill(o)) doPayment
+    PROPERTIES (o) left, toPay, paidDone
+;
+
+DESIGN orders{
+    BOX(o){
+        NEW payAction FIRST {
+            horizontal = TRUE;
+            MOVE PROPERTY (pay(o));
+            MOVE PROPERTY (doPayment(o));
         }
     }
 }
+EXTEND FORM order
+    PROPERTIES paidDone(o)
+;
+DESIGN order{
+    total{
+        MOVE PROPERTY (paidDone(o));
+    }
+}
+
+META dashboardActionPayment(st)
+    EXTEND FORM projectDashboard
+        PROPERTIES (st) SHOWIF toReady(lastBill(st)) pay
+        PROPERTIES(st) SHOWIF toPay(lastBill(st)) doPayment
+        PROPERTIES (st) left, toPay, paidDone
+    ;
+    DESIGN projectDashboard{
+        action##st{
+            MOVE PROPERTY (pay(st));
+            MOVE PROPERTY (doPayment(st));
+        }
+    }
+END;
+
+@dashboardActionPayment(review);
+@dashboardActionPayment(inPayment);
+@dashboardActionPayment(partiallyPaid);
+
 
 WHEN (SETCHANGED(lastBill(Purchase.Order o)) OR SETCHANGED(status(lastBill(o)))) AND status(lastBill(o)) == BillStatus.ready
     DO changeStatus(o, OrderStatus.inPayment);
@@ -116,10 +215,9 @@ FORM billOrderDashboard 'Счета на товары'
     FILTERS order(b),
         representative(b) = currentUser() OR showAllInvoices(currentUser()) OR NOT representative(b)
     
-
-    PROPERTIES() nameFilterProject, nameFilterRepresentative, nameFilterStatus, filterUrgent
-    FILTERS project(b) = filterProject() OR NOT filterProject(),
-        representative(b) = filterRepresentative() OR NOT filterRepresentative(),
+    PROPERTIES() Invoicing.nameFilterProject, Invoicing.nameFilterRepresentative, nameFilterStatus, filterUrgent
+    FILTERS project(b) = Invoicing.filterProject() OR NOT Invoicing.filterProject(),
+        representative(b) = Invoicing.filterRepresentative() OR NOT Invoicing.filterRepresentative(),
         status(b) = filterStatus() OR NOT filterStatus(),
         isUrgent(b) OR NOT filterUrgent()
 ;
@@ -185,3 +283,14 @@ DESIGN billOrderDashboard {
         MOVE PROPERTY(doPayment(b));
     }
 }
+
+readonly(OrderFile f) += WHEN autoUploaded(f) THEN TRUE;
+
+WHEN SETCHANGED (BillFile f IS BillFile) AND type(f) = Invoicing.TypeFile.paymentOrder AND order(bill(f)) DO NEW of = OrderFile{
+    autoUploaded(of) <- TRUE;
+    type(of) <- Purchase.TypeFile.paymentOrder;
+    order(of) <- order(bill(f));
+    file(of) <- RAWFILE(file(f));
+    name(of) <- name(f);
+    extension(of) <- extension(f);
+}  

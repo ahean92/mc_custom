@@ -166,6 +166,7 @@ META dashboardStatus(st, capt)
                 NEW action##st{
                     caption = '';
                     alignment = END;
+                    horizontal = TRUE;
                     MOVE PROPERTY (changeStatus(st, st##Status ));
                 }
                 MOVE BOX(st) {
