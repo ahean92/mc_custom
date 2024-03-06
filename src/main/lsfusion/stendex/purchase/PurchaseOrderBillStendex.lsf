@@ -101,7 +101,7 @@ uploadInvoice 'Счет' (Purchase.Order o){
             vendor(nb) <- vendor(o);
             vendorReference(nb) <- vendorReference(o);
             note(nb) <- note(o);
-            project(nb) <- project(o);
+            project(nb) <- GROUP MIN Project p IF inOrder(p, o);
             currency(nb) <- currency(o);
 
             paymentTerms(nb) <- paymentTerms(o);
@@ -132,7 +132,7 @@ uploadInvoice 'Счет' (Purchase.Order o){
 
 
 EXTEND FORM Purchase.order
-    PROPERTIES (o) uploadInvoice TOOLBAR DRAW of
+    PROPERTIES (o) uploadInvoice TOOLBAR DRAW of SHOWIF inProject(o)
 ;
 
 DESIGN Purchase.order {

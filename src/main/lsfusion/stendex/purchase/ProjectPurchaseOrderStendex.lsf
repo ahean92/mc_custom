@@ -4,13 +4,20 @@ REQUIRE PurchaseManufacturingOrderStendex;
 
 NAMESPACE Purchase;
 
-inOrder(Project p, Order o) = GROUP SUM 1 IF project(ConsumedLine l) = p AND order(orderLine(l)) = o;
+consumedLine (OrderLine l) = GROUP MAX ConsumedLine cl BY orderLine(cl);
+dataProject = DATA Project(OrderLine);
+project (OrderLine l) = OVERRIDE dataProject(l), project(consumedLine(l)) NONULL;
+nameProject 'Проект' (OrderLine l)= name(project(l));
+
+inOrder(Project p, Order o) = GROUP SUM 1 IF project(OrderLine l) = p;
 inOrder(Project p) = GROUP SUM 1 IF inOrder(p, Order o);
+inProject (Order o) = GROUP SUM 1 IF inOrder(Project p, o);
 
 nameProjects 'Проекты' (Order o) = GROUP CONCAT name(Project p) IF inOrder(p, o), '/' ORDER p;
 
 EXTEND FORM order
     PROPERTIES (o) nameProjects
+    PROPERTIES (l) nameProject READONLYIF consumedLine(l)
 ;
 
 DESIGN order{
