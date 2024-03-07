@@ -35,7 +35,6 @@ newBill 'Добавить' (Order o) {
             note(nb) <- note(o);
 
             currency(nb) <- currency(o);
-            note(nb) <- CONCAT ' ', 'Счет по заказу', number(o), 'от  ' + date(o), 'поставщик' + nameVendor(o);
             
             paymentTerms(nb) <- paymentTerms(o);
 
@@ -111,7 +110,7 @@ uploadInvoice 'Счет' (Purchase.Order o){
 
             vendor(nb) <- vendor(o);
             vendorReference(nb) <- vendorReference(o);
-            note(nb) <- note(o);
+            note(nb) <- CONCAT ' ', 'Счет по заказу', number(o), 'от  ' + date(o), 'поставщик' + nameVendor(o);
             project(nb) <- GROUP MIN Project p IF inOrder(p, o);
             currency(nb) <- currency(o);
 
