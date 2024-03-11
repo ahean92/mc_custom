@@ -169,6 +169,9 @@ EXTEND FORM Purchase.orders
     PROPERTIES(o) SHOWIF toReady(lastBill(o)) pay
     PROPERTIES(o) SHOWIF toPay(lastBill(o)) doPayment
     PROPERTIES (o) left, toPay, paidDone
+
+    PROPERTIES(l) READONLY SHOWIF (showLines() AND confirmed(o)) billed BACKGROUND NOT billed(l) = quantity(l)
+    PROPERTIES(l) READONLY SHOWIF (showLines() AND confirmed(o)) paid BACKGROUND NOT paid(l) = quantity(l)
 ;
 
 DESIGN orders{
@@ -188,6 +191,11 @@ DESIGN order{
         MOVE PROPERTY (paidDone(o));
     }
 }
+
+EXTEND FORM projectDashboard
+    PROPERTIES(deliveredLine) READONLY SHOWIF (showLines() AND confirmed(delivered)) billed BACKGROUND NOT billed(deliveredLine) = quantity(deliveredLine)
+    PROPERTIES(deliveredLine) READONLY SHOWIF (showLines() AND confirmed(delivered)) paid BACKGROUND NOT paid(deliveredLine) = quantity(deliveredLine)
+;
 
 META dashboardActionPayment(st)
     EXTEND FORM projectDashboard

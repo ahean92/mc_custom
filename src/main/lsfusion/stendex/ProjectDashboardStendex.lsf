@@ -155,6 +155,12 @@ META dashboardStatus(st, capt)
         OBJECTS st##Status = Purchase.OrderStatus
         PROPERTIES (st, st##Status ) NEWSESSION changeStatus COLUMNS (st##Status) HEADER captionButton(st##Status) BACKGROUND dataColor(st##Status) SHOWIF countOrderLine(st)
         FILTERS showStatus(st, st##Status)
+
+        PROPERTIES show###st##Lines = showLines() TOOLBAR DRAW st
+        
+        OBJECTS st##Line = Purchase.OrderLine
+        PROPERTIES(st##Line) READONLY SHOWIF showLines() index, nameItem, description, nameUom, idBarCodeItem, idItem, referenceItem, quantity, price, untaxedAmount, taxes
+        FILTERS order(st##Line) = st
     ;
 
     filtered###st(Purchase.Order o) = FILTER projectDashboard.st;
@@ -172,7 +178,11 @@ META dashboardStatus(st, capt)
                 MOVE BOX(st) {
                     caption = ''; 
                     PROPERTY (fileInvoice(st)) { charWidth = 7; caption = 'Счет'; }
+                    TOOLBARBOX(st) {
+                        MOVE PROPERTY(show###st##Lines) BEFORE TOOLBARRIGHT(st);
+                    }
                 }
+                MOVE BOX(st##Line);
             }
         }
     }

@@ -222,7 +222,7 @@ EXTEND FORM orders
     PROPERTIES showLines() TOOLBAR DRAW o
     
     OBJECTS l = OrderLine
-    PROPERTIES(l) READONLY SHOWIF showLines() nameItem, quantity, untaxedAmount
+    PROPERTIES(l) READONLY SHOWIF showLines() index, nameItem, description, nameUom, idBarCodeItem, idItem, referenceItem, quantity, price, untaxedAmount, taxes
     FILTERS order(l) = o
 ;
 
