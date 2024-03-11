@@ -9,7 +9,7 @@ NAMESPACE ProjectManagement;
 exhibition 'Выставка' = DATA Exhibition (Project) NONULL;
 nameExhibition 'Выставка' (Project p) = name(exhibition(p));
 
-WHEN LOCAL SETCHANGED (exhibition(Project p)) OR SETCHANGED (partner(p)) DO name(p) <- CONCAT '-', namePartner(p), nameExhibition(p);
+WHEN LOCAL SETCHANGED (exhibition(Project p)) OR SETCHANGED (partner(p)) DO name(p) <- CONCAT '-', overName(partner(p)), nameExhibition(p);
 
 installationStartDate 'Дата начала монтажа' (Project p) = installationStartDate(exhibition(p)) IN id;
 installationEndDate 'Дата окончания монтажа' (Project p) = installationEndDate(exhibition(p)) IN id;
