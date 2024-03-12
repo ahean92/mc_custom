@@ -135,20 +135,59 @@ showStatusRule(Order o, OrderStatus s) += WHEN status(o) = OrderStatus.delivered
 showStatus (Order o, OrderStatus s) = showStatusRule(o, s) AND (GROUP SUM 1 IF allowStatusSet(s, UserRole r) AND in(currentUser(), r));
 
 color(Order o, OrderStatus s) = IF o IS Order THEN color(s);
-uploadFile 'Загрузить файл'(Order o){
+uploadOtherFile 'Файл' (Order o){
     INPUT uf = NAMEDFILE DO NEW uof = OrderFile {
         order(uof) <- o;
         file(uof) <- RAWFILE(uf);
         name(uof) <- name(uf);
         extension(uof) <- extension(uf);
+        type(uof) <- TypeFile.other;
     }
-} IMAGE 'add.png';
+} IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE;
+
+FORM inputOrderOtherFiles 'Добавление файлов'
+    OBJECTS o = Order PANEL
+
+    OBJECTS of = OrderFile
+    PROPERTIES(of) READONLYIF readonly(o) name, extension, description
+    PROPERTIES(of) READONLY nameUser, dateTime
+    PROPERTIES(of) GRID open, DELETE READONLYIF readonly(o)
+    FILTERS order(of) = o,
+            type(of) = TypeFile.other
+
+    PROPERTIES(o) uploadOtherFile DRAW of TOOLBAR READONLYIF readonly(o)
+    PROPERTIES inputFile = '' CUSTOM 'inputFile' ON CHANGE {
+        INPUT f = JSON DO
+            IMPORT JSON FROM f FIELDS() STRING name, STRING extension, STRING data DO
+                IF NOT readonly(o) THEN NEW uof = OrderFile {
+                    order(uof) <- o;
+                    file(uof) <- decode(data, 'base64');
+                    name(uof) <- name;
+                    extension(uof) <- extension;
+                    type(uof) <- TypeFile.other;
+                }
+    }
+;
+
+DESIGN inputOrderOtherFiles {
+    size = (800, 600);
+    BOX(of) {
+        caption = '';
+        MOVE PROPERTY(inputFile);
+    }
+}
+
+newOtherFile 'Файл' (Order o) {
+    NESTEDSESSION {
+        DIALOG inputOrderOtherFiles OBJECTS o = o FLOAT;
+    }
+} IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE;
 
 EXTEND FORM order
     OBJECTS s = OrderStatus
     PROPERTIES (o, s) changeStatus COLUMNS (s) HEADER captionButton(s) BACKGROUND dataColor(s) SHOWIF countOrderLine(o)
     FILTERS showStatus(o, s)
-    PROPERTIES uploadFile(o) TOOLBAR DRAW of
+    PROPERTIES newOtherFile(o) TOOLBAR DRAW of
 ;
 
 DESIGN order{

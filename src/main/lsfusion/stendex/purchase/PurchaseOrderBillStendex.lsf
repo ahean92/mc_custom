@@ -83,7 +83,7 @@ lockManualAdded (TypeFile t) = t == TypeFile.invoice OR t == TypeFile.paymentOrd
 CONSTRAINT LOCAL SETCHANGED (type(OrderFile f)) AND lockManualAdded(type(f)) AND NOT autoUploaded(f) CHECKED BY type[OrderFile]
     MESSAGE 'Запрещено вручную прикреалять файлы этого типа!';
 
-uploadConsigment 'Накладная'(Order o){
+uploadConsigment 'Накладная' (Order o){
     INPUT uf = NAMEDFILE DO NEW uof = OrderFile {
         order(uof) <- o;
         file(uof) <- RAWFILE(uf);
@@ -92,7 +92,46 @@ uploadConsigment 'Накладная'(Order o){
         autoUploaded(uof) <- TRUE;
         type(uof) <- TypeFile.consignment;
     }
-} IMAGE 'add.png';
+} IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE;
+
+FORM inputOrderConsigments 'Добавление накладных'
+    OBJECTS o = Order PANEL
+
+    OBJECTS of = OrderFile
+    PROPERTIES(of) READONLYIF readonly(o) name, extension, description
+    PROPERTIES(of) READONLY nameUser, dateTime
+    PROPERTIES(of) GRID open, DELETE READONLYIF readonly(o)
+    FILTERS order(of) = o,
+            type(of) = TypeFile.consignment
+
+    PROPERTIES(o) uploadConsigment DRAW of TOOLBAR READONLYIF readonly(o)
+    PROPERTIES inputFile = '' CUSTOM 'inputFile' ON CHANGE {
+        INPUT f = JSON DO
+            IMPORT JSON FROM f FIELDS() STRING name, STRING extension, STRING data DO
+                IF NOT readonly(o) THEN NEW uof = OrderFile {
+                    order(uof) <- o;
+                    file(uof) <- decode(data, 'base64');
+                    name(uof) <- name;
+                    extension(uof) <- extension;
+                    autoUploaded(uof) <- TRUE;
+                    type(uof) <- TypeFile.consignment;
+                }
+    }
+;
+
+DESIGN inputOrderConsigments {
+    size = (800, 600);
+    BOX(of) {
+        caption = '';
+        MOVE PROPERTY(inputFile);
+    }
+}
+
+newConsigment 'Накладная' (Order o) {
+    NESTEDSESSION {
+        DIALOG inputOrderConsigments OBJECTS o = o FLOAT;
+    }
+} IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE;
 
 uploadInvoice 'Счет' (Purchase.Order o){
     INPUT uf = NAMEDFILE DO NEW uof = OrderFile {
@@ -137,13 +176,84 @@ uploadInvoice 'Счет' (Purchase.Order o){
             changeStatus(o, OrderStatus.review);
         }
     }
-} IMAGE 'add.png';
+} IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE;
 
+FORM inputOrderInvoices 'Добавление счетов'
+    OBJECTS o = Order PANEL
 
+    OBJECTS of = OrderFile
+    PROPERTIES(of) READONLYIF readonly(o) name, extension, description
+    PROPERTIES(of) READONLY nameUser, dateTime
+    PROPERTIES(of) GRID open, DELETE READONLYIF readonly(o)
+    FILTERS order(of) = o,
+            type(of) = TypeFile.invoice
+
+    PROPERTIES(o) uploadInvoice DRAW of TOOLBAR READONLYIF readonly(o)
+    PROPERTIES inputFile = '' CUSTOM 'inputFile' ON CHANGE {
+        INPUT f = JSON DO
+            IMPORT JSON FROM f FIELDS() STRING name, STRING extension, STRING data DO
+                IF NOT readonly(o) THEN NEW uof = OrderFile {
+                    order(uof) <- o;
+                    file(uof) <- decode(data, 'base64');
+                    name(uof) <- name;
+                    extension(uof) <- extension;
+                    autoUploaded(uof) <- TRUE;
+                    type(uof) <- TypeFile.invoice;
+                    IF NOT lastBill(o) THEN NEW nb = Bill{
+                        ready(nb) <- TRUE;
+                        type(nb) <- billType(type(o));
+
+                        company(nb) <- company(o);
+
+                        vendor(nb) <- vendor(o);
+                        vendorReference(nb) <- vendorReference(o);
+                        note(nb) <- CONCAT ' ', 'Счет по заказу', number(o), 'от  ' + date(o), 'поставщик' + nameVendor(o);
+                        project(nb) <- GROUP MIN Project p IF inOrder(p, o);
+                        currency(nb) <- currency(o);
+
+                        paymentTerms(nb) <- paymentTerms(o);
+
+                        FOR order(OrderLine ol) = o AND toBillOrdered(ol) > 0
+                            NEW bl = BillLine DO {
+                            bill(bl) <- nb;
+                            item(bl) <- item(ol);
+                            description(bl) <- description(ol);
+                            quantity(bl) <- toBillOrdered(ol);
+                            price(bl) <- price(ol);
+                            orderLine(bl) <- ol;
+
+                            fill(bl, ol);
+                        }
+
+                        fill(nb, o);
+
+                        executeLocalEvents();
+                        FOR bill(BillLine bl) = nb DO {
+                            in(bl, Tax t) <- in(orderLine(bl), t);
+                        }
+                        changeStatus(o, OrderStatus.review);
+                    }
+                }
+    }
+;
+
+DESIGN inputOrderInvoices {
+    size = (800, 600);
+    BOX(of) {
+        caption = '';
+        MOVE PROPERTY(inputFile);
+    }
+}
+
+newInvoice 'Счет' (Order o) {
+    NESTEDSESSION {
+        DIALOG inputOrderInvoices OBJECTS o = o FLOAT;
+    }
+} IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE;
 
 EXTEND FORM Purchase.order
-    PROPERTIES (o) uploadInvoice TOOLBAR DRAW of SHOWIF inProject(o)
-    PROPERTIES (o) uploadConsigment TOOLBAR DRAW of 
+    PROPERTIES (o) newInvoice TOOLBAR DRAW of SHOWIF inProject(o)
+    PROPERTIES (o) newConsigment TOOLBAR DRAW of 
         SHOWIF inProject(o) AND (status(o) = OrderStatus.awaitingDelivery OR status(o) = OrderStatus.delivered);
 ;
 
