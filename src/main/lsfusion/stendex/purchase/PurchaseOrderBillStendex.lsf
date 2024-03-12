@@ -335,6 +335,19 @@ WHEN (SETCHANGED(lastBill(Purchase.Order o)) OR SETCHANGED(status(lastBill(o))))
 WHEN (SETCHANGED(lastBill(Purchase.Order o)) OR SETCHANGED(status(lastBill(o)))) AND status(lastBill(o)) == BillStatus.done
     DO changeStatus(o, OrderStatus.awaitingDelivery);
 
+CONSTRAINT LOCAL CHANGED(changedLines(Order o)) AND ready(lastBill(o)) MESSAGE 'Нельзя изменять документ со счетом в оплате';
+
+WHEN SETCHANGED(item(Purchase.OrderLine l)) AND lastBill(order(l)) DO {
+    item(BillLine bl) <- item(l) WHERE orderLine(bl) == l;
+}
+WHEN SETCHANGED(quantity(Purchase.OrderLine l)) AND lastBill(order(l)) DO {
+    quantity(BillLine bl) <- quantity(l) WHERE orderLine(bl) == l;
+    untaxedAmount(BillLine bl) <- NUMERIC[14,2](quantity(bl) * price(bl)) WHERE orderLine(bl) == l;
+}
+WHEN SETCHANGED(price(Purchase.OrderLine l)) AND lastBill(order(l)) DO {
+    price(BillLine bl) <- price(l) WHERE orderLine(bl) == l;
+    untaxedAmount(BillLine bl) <- NUMERIC[14,2](quantity(bl) * price(bl)) WHERE orderLine(bl) == l;
+}
 
 FORM billOrderDashboard 'Счета на товары'
     OBJECTS b = Bill BACKGROUND backgroundColor(b)

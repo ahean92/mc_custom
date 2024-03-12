@@ -253,7 +253,7 @@ CONSTRAINT SETCHANGED (vendor(Order o)) AND vendor(o) IS Employee CHECKED BY ven
 
 changedLines (Order o) = [GROUP SUM 1 IF SETCHANGED (item(OrderLine l)) OR SETCHANGED (quantity(l)) OR SETCHANGED (price(l)) BY order(l)](o);
 
-CONSTRAINT LOCAL CHANGED(changedLines(Order o)) AND invoice(o) MESSAGE 'Нельзя изменять документ после прикрепления счета';
+//CONSTRAINT LOCAL CHANGED(changedLines(Order o)) AND invoice(o) MESSAGE 'Нельзя изменять документ после прикрепления счета';
 
 showLines 'Показать состав' = DATA LOCAL NESTED BOOLEAN ();
 
