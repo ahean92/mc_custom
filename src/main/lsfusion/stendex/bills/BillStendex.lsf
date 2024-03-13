@@ -18,8 +18,10 @@ individualType () = GROUP MIN BillType t IF forIndividual(t);
 defaultItem = DATA Item (BillType);
 nameDefaultItem 'Услуга по умолчанию' (BillType t) = name(defaultItem(t));
 
+billService 'Счет на услуги' = DATA BOOLEAN (BillType);
+
 EXTEND FORM billType
-    PROPERTIES(o) forLegalEntity, forIndividual, nameDefaultItem
+    PROPERTIES(o) forLegalEntity, forIndividual, nameDefaultItem, billService
 ;
 
 legalEntity (Bill b) = forLegalEntity(type(b));
@@ -296,7 +298,7 @@ FORM billDashboard 'Счета на услуги'
     PROPERTIES(bl) 'Счет' = openFiles GRID, cancel SHOWIF status(bl) = BillStatus.draft
     PROPERTIES newLegalEntityBill() DRAW bl TOOLBAR
     PROPERTIES(bl) NEWSESSION editBillCustom, DELETE
-    FILTERS legalEntity(bl),
+    FILTERS legalEntity(bl), billService(type(bl)),
             representative(bl) = currentUser() OR showAllInvoices(currentUser()) OR NOT representative(bl)
 
     OBJECTS bi 'Оплата freelance' = Bill BACKGROUND backgroundColor(bi)
@@ -305,7 +307,7 @@ FORM billDashboard 'Счета на услуги'
     PROPERTIES(bi) 'Счет' = openFiles GRID, cancel SHOWIF status(bi) = BillStatus.draft
     PROPERTIES newIndividualBill() DRAW bi TOOLBAR
     PROPERTIES(bi) NEWSESSION editBillCustom, DELETE
-    FILTERS individual(bi),
+    FILTERS individual(bi), billService(type(bi)),
             representative(bi) = currentUser() OR showAllInvoices(currentUser()) OR NOT representative(bi)
 
     PROPERTIES() nameFilterProject, nameFilterRepresentative, nameFilterStatus, filterUrgent
