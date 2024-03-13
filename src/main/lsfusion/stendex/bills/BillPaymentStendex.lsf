@@ -139,7 +139,7 @@ EXTEND FORM securityPolicy
     PROPERTIES(ur) PANEL showToReadyDefault, showToPayDefault, showDoneDefault
 ;
 DESIGN securityPolicy {
-    roleApplicationSettings {
+    bill {
         MOVE PROPERTY(showToReadyDefault(ur));
         MOVE PROPERTY(showToPayDefault(ur));
         MOVE PROPERTY(showDoneDefault(ur));

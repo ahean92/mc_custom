@@ -11,8 +11,16 @@ editAllProjects 'Редактировать все проекты' =  DATA BOOLE
 editAllProjects (User u) = GROUP SUM 1 IF editAllProjects(UserRole r) AND has(u, r);
 
 EXTEND FORM securityPolicy PROPERTIES(ur) PANEL editAllProjects;
+
 DESIGN securityPolicy {
-    roleApplicationSettings { MOVE PROPERTY(editAllProjects(ur)); }
+    roleApplicationSettings {
+        tabbed = TRUE;
+        NEW project {
+            caption = 'Project';
+            lines = 3;
+            MOVE PROPERTY(editAllProjects(ur));
+        }
+    }
 }
 
 readonlyCurrentUser(Project p) = NOT manager(p) = currentUser() AND NOT editAllProjects(currentUser());

@@ -99,8 +99,13 @@ EXTEND FORM securityPolicy
 ;
 DESIGN securityPolicy {
     roleApplicationSettings {
-        MOVE PROPERTY(showAllInvoices(ur));
-        MOVE PROPERTY(editAllInvoices(ur));
+        tabbed = TRUE;
+        NEW bill {
+            caption = 'Bill';
+            lines = 3;
+            MOVE PROPERTY(showAllInvoices(ur));
+            MOVE PROPERTY(editAllInvoices(ur));
+        }
     }
 }
 

@@ -13,6 +13,29 @@ useCustomStatus() += TRUE;
 
 dataStatus = DATA OrderStatus (Order);
 status(Order o) += WHEN useCustomStatus() AND dataStatus(o) THEN dataStatus(o);
+dateTime = DATA DATETIME(Order, OrderStatus);
+
+WHEN SETCHANGED(status(Order o)) DO {
+    dateTime(o,status(o)) <- currentDateTime();
+}
+
+allowPrevStatusSet 'Разрешить возвращать статус заказа' = DATA BOOLEAN (UserRole);
+allowPrevStatusSet (User u) = GROUP SUM 1 IF allowPrevStatusSet(UserRole r) AND has(u, r);
+
+EXTEND FORM securityPolicy
+    PROPERTIES(ur) PANEL allowPrevStatusSet
+;
+DESIGN securityPolicy {
+    roleApplicationSettings {
+        tabbed = TRUE;
+        NEW order {
+            caption = 'Purchase order';
+            lines = 3;
+            MOVE PROPERTY(allowPrevStatusSet(ur));
+        }
+    }
+}
+
 allowStatusSet 'Разрешить' = DATA BOOLEAN (OrderStatus, UserRole);
 
 
@@ -120,6 +143,13 @@ color(OrderStatus o) += WHEN o = OrderStatus.closed THEN RGB(102, 255, 102);
 WHEN SETCHANGED (dataStatus(Order o) = OrderStatus.delivered)  DO confirmed(o) <- TRUE;
 
 changeStatus (Order o, OrderStatus s) +{
+    IF s = OrderStatus.draft THEN  NEWSESSION {
+        dataStatus(o) <- s;
+        APPLY;
+    }
+}
+
+changeStatus (Order o, OrderStatus s) +{
     IF s = OrderStatus.canceled THEN  NEWSESSION {
         dataStatus(o) <- s;
         APPLY;
@@ -133,6 +163,13 @@ showStatusRule(Order o, OrderStatus s) += WHEN status(o) = OrderStatus.inPayment
 showStatusRule(Order o, OrderStatus s) += WHEN status(o) = OrderStatus.awaitingDelivery AND (s = OrderStatus.delivered OR s = OrderStatus.canceled) THEN TRUE;
 showStatusRule(Order o, OrderStatus s) += WHEN status(o) = OrderStatus.delivered AND ((s = OrderStatus.closed AND consignment(o)) OR s = OrderStatus.canceled) THEN TRUE;
 showStatus (Order o, OrderStatus s) = showStatusRule(o, s) AND (GROUP SUM 1 IF allowStatusSet(s, UserRole r) AND in(currentUser(), r));
+
+changeToPrevStatus (Order o, OrderStatus s) {
+    dateTime(o,status(o)) <- NULL;
+    changeStatus(o,s);
+}
+prevStatus (Order o) = GROUP LAST OrderStatus s IF dateTime(o,s) < dateTime(o,status(o)) ORDER dateTime(o,s), s;
+showPrevStatus (Order o, OrderStatus s) = prevStatus(o) == s AND allowPrevStatusSet(currentUser());
 
 color(Order o, OrderStatus s) = IF o IS Order THEN color(s);
 uploadOtherFile 'Файл' (Order o){
@@ -184,6 +221,10 @@ newOtherFile 'Файл' (Order o) {
 } IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE;
 
 EXTEND FORM order
+    OBJECTS ps = OrderStatus
+    PROPERTIES (o, ps) changeToPrevStatus COLUMNS (ps) HEADER captionButton(ps) BACKGROUND dataColor(ps) SHOWIF countOrderLine(o)
+    FILTERS showPrevStatus(o, ps)
+    
     OBJECTS s = OrderStatus
     PROPERTIES (o, s) changeStatus COLUMNS (s) HEADER captionButton(s) BACKGROUND dataColor(s) SHOWIF countOrderLine(o)
     FILTERS showStatus(o, s)
@@ -202,6 +243,7 @@ DESIGN order{
             NEW statusButton{
                 horizontal = TRUE;
                 caption = 'Действия';
+                MOVE PROPERTY (changeToPrevStatus(o, ps));
                 MOVE PROPERTY (changeStatus(o, s));
             }
         }
