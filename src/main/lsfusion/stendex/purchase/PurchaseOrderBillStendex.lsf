@@ -231,7 +231,7 @@ FORM inputOrderInvoices 'Добавление счетов'
                         FOR bill(BillLine bl) = nb DO {
                             in(bl, Tax t) <- in(orderLine(bl), t);
                         }
-                        changeStatus(o, OrderStatus.review);
+                        dataStatus(o) <- OrderStatus.review;
                     }
                 }
     }
