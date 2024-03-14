@@ -280,6 +280,7 @@ EXTEND FORM Purchase.orders
     PROPERTIES(o) SHOWIF toPay(lastBill(o)) doPayment
     PROPERTIES (o) left, toPay, paidDone
 
+    PROPERTIES(l) READONLY SHOWIF showLines() nameProject
     PROPERTIES(l) READONLY SHOWIF (showLines() AND confirmed(o)) billed BACKGROUND NOT billed(l) = quantity(l)
     PROPERTIES(l) READONLY SHOWIF (showLines() AND confirmed(o)) paid BACKGROUND NOT paid(l) = quantity(l)
 ;

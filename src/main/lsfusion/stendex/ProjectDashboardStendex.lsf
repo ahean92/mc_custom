@@ -167,7 +167,7 @@ META dashboardStatus(st, capt)
         PROPERTIES show###st##Lines = showLines() TOOLBAR DRAW st
         
         OBJECTS st##Line = Purchase.OrderLine
-        PROPERTIES(st##Line) READONLY SHOWIF showLines() index, nameItem, description, nameUom, idBarCodeItem, idItem, referenceItem, quantity, price, untaxedAmount, amount, taxes
+        PROPERTIES(st##Line) READONLY SHOWIF showLines() index, nameItem, description, nameUom, idBarCodeItem, idItem, referenceItem, quantity, price, untaxedAmount, amount, taxes, nameProject
         FILTERS order(st##Line) = st
     ;
 
