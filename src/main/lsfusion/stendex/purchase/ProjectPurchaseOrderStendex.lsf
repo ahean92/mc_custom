@@ -9,6 +9,7 @@ dataProject = DATA Project(OrderLine);
 project (OrderLine l) = OVERRIDE dataProject(l), project(consumedLine(l)) NONULL;
 nameProject 'Проект' (OrderLine l)= name(project(l));
 
+inOrderLine(Project p) = GROUP SUM 1 IF project(OrderLine l) = p;
 inOrder(Project p, Order o) = GROUP SUM 1 IF project(OrderLine l) = p AND order(l) = o;
 inOrder(Project p) =  GROUP SUM 1 IF inOrder(p, Order o);
 inProject (Order o) = GROUP SUM 1 IF inOrder(Project p, o);
@@ -43,14 +44,24 @@ DESIGN orders {
     }
 }
 
-
+amountOrderLine 'Total amount' (Project p) = GROUP SUM amount(OrderLine l) IF project(l) = p;
 
 EXTEND FORM project
-    FILTERS inOrder(p, po)
+    OBJECTS pol = OrderLine
+    PROPERTIES(pol) READONLY number, dateTime,
+        imagedNameStatus BACKGROUND colorStatus(order(pol)),
+        nameItem, description, nameUom, idBarCodeItem, idItem,
+        referenceItem, quantity, price, untaxedAmount, taxes
+    FILTERS project(pol) == p
+    PROPERTIES(p) READONLY amountOrderLine DRAW pol TOOLBAR
+    PROPERTIES(pol) NEWSESSION EDIT
 ;
 
 DESIGN project{
-    BOX (po){
-        caption = badged('Purchase orders', inOrder(p));
+    details  {
+        MOVE BOX(pol) AFTER BOX(po) {
+            caption = badged('Purchase orders', inOrderLine(p));
+        }
+        REMOVE BOX(po);
     }
 }
