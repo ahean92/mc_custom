@@ -6,9 +6,12 @@ NAMESPACE Manufacturing;
 
 link 'Ссылка' = DATA LINK (ConsumedLine) CHARWIDTH 25;
 
+orderBeforeDate 'Заказать до' = DATA DATE (ManufacturingOrder);
+orderBeforeDate 'Заказать до' (ConsumedLine l) = orderBeforeDate(manufacturingOrder(l));
+
 FORM materialRequests 'Заявки'
     OBJECTS o = ManufacturingOrder
-    PROPERTIES (o) READONLY 'Дата' = scheduledDate, number, nameType, nameConsumedItem, nameStatus, nameResponsible
+    PROPERTIES (o) READONLY 'Дата' = scheduledDate, number, nameType, nameConsumedItem, nameStatus, nameResponsible, orderBeforeDate
     PROPERTIES (o) NEWSESSION NEW, EDIT, DELETE
 
     LIST ManufacturingOrder OBJECT o
@@ -19,7 +22,7 @@ FORM materialRequests 'Заявки'
 
 FORM materialRequest 'Заявка'
     OBJECTS o = ManufacturingOrder PANEL
-    PROPERTIES (o) scheduledDateTime, number
+    PROPERTIES (o) scheduledDateTime, number, orderBeforeDate
     PROPERTIES (o) READONLY nameType, nameStatus,  nameResponsible
 
     OBJECTS cl = ConsumedLine
@@ -47,6 +50,7 @@ DESIGN materialRequest{
                 MOVE PROPERTY (number(o));
                 MOVE PROPERTY (scheduledDateTime(o));
                 MOVE PROPERTY (nameResponsible(o));
+                MOVE PROPERTY (orderBeforeDate(o));
             }
         }
         NEW details{

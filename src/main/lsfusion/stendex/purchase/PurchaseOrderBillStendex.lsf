@@ -437,4 +437,35 @@ WHEN SETCHANGED (BillFile f IS BillFile) AND type(f) = Invoicing.TypeFile.paymen
     file(of) <- RAWFILE(file(f));
     name(of) <- name(f);
     extension(of) <- extension(f);
-}  
+}
+
+leftDaysToPay (Order o) = daysBetweenDates(payBeforeDate(o),currentDate()) IF NOT done(lastBill(o));
+urgency 'Срочность' (Order o) = CASE
+    WHEN leftDaysToPay(o) < 0 THEN 'просрочен'
+    WHEN leftDaysToPay(o) == 0 OR leftDaysToPay(o) == 1 THEN 'срочный'
+    WHEN leftDaysToPay(o) > 1 AND leftDaysToPay(o) <= 3 THEN 'средний'
+    WHEN leftDaysToPay(o) > 3 AND leftDaysToPay(o) <= 7 THEN 'нормальный';
+
+EXTEND FORM order
+    PROPERTIES(o) urgency
+;
+DESIGN order {
+    billInformation {
+        MOVE PROPERTY(urgency(o));
+    }
+}
+
+EXTEND FORM orders
+    PROPERTIES(o) READONLY urgency
+;
+
+EXTEND FORM projectDashboard
+    PROPERTIES (draft) READONLY BACKGROUND colorStatus(draft) urgency AFTER payBeforeDate(draft)
+    PROPERTIES (review) READONLY BACKGROUND colorStatus(review) urgency AFTER payBeforeDate(review)
+    PROPERTIES (inPayment) READONLY BACKGROUND colorStatus(inPayment) urgency AFTER payBeforeDate(inPayment)
+    PROPERTIES (partiallyPaid) READONLY BACKGROUND colorStatus(partiallyPaid) urgency AFTER payBeforeDate(partiallyPaid)
+    PROPERTIES (awaitingDelivery) READONLY BACKGROUND colorStatus(awaitingDelivery) urgency AFTER payBeforeDate(awaitingDelivery)
+    PROPERTIES (delivered) READONLY BACKGROUND colorStatus(delivered) urgency AFTER payBeforeDate(delivered)
+    PROPERTIES (canceled) READONLY BACKGROUND colorStatus(canceled) urgency AFTER payBeforeDate(canceled)
+    PROPERTIES (closed) READONLY BACKGROUND colorStatus(closed) urgency AFTER payBeforeDate(closed)
+;

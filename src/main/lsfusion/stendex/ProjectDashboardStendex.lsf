@@ -153,7 +153,7 @@ DESIGN projectDashboard{
 META dashboardStatus(st, capt)
     EXTEND FORM projectDashboard
         OBJECTS st = Purchase.Order
-        PROPERTIES (st) READONLY BACKGROUND colorStatus(st) nameCompany, nameProjects, number, date, nameRepresentative, scheduledDateTime, nameVendor, note, untaxedAmount, amount
+        PROPERTIES (st) READONLY BACKGROUND colorStatus(st) nameCompany, nameProjects, number, date, nameRepresentative, scheduledDateTime, nameVendor, note, payBeforeDate, untaxedAmount, amount
         PROPERTIES (st) NEWSESSION EDIT
         PROPERTIES fileInvoice(st) AFTER nameVendor(st) ON CHANGE { openInvoice(st); }
         FILTERS status(st) = Purchase.OrderStatus.st

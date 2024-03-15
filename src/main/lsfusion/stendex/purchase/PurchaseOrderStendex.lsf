@@ -320,3 +320,22 @@ DESIGN orders {
         }
     }
 }
+
+payBeforeDate 'Оплатить до' = DATA DATE (Order);
+
+EXTEND FORM order
+    PROPERTIES(o) payBeforeDate
+;
+DESIGN order {
+    otherInformation {
+        NEW billInformation {
+            caption = 'Оплата';
+            alignment = STRETCH;
+            MOVE PROPERTY(payBeforeDate(o));
+        }
+    }
+}
+
+EXTEND FORM orders
+    PROPERTIES(o) READONLYIF isReadonly() payBeforeDate
+;
