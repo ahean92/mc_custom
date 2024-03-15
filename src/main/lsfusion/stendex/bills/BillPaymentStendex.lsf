@@ -75,18 +75,45 @@ pay 'В оплату' (Bill b) {
     }
 }
 
+FORM inputBillPaymentOrderFiles 'Добавление платежных поручений'
+    OBJECTS b = Bill PANEL
+
+    OBJECTS of = BillFile
+    PROPERTIES(of) READONLYIF readonly(b) name, extension, description
+    PROPERTIES(of) READONLY nameUser, dateTime
+    PROPERTIES(of) GRID open, DELETE
+    FILTERS bill(of) = b,
+        type(of) = TypeFile.paymentOrder
+
+    PROPERTIES(b) uploadPaymentOrder DRAW of TOOLBAR
+    PROPERTIES inputFile = '' CUSTOM 'inputFile' ON CHANGE {
+        INPUT f = JSON DO
+            IMPORT JSON FROM f FIELDS() STRING name, STRING extension, STRING data DO
+                NEW uof = BillFile {
+                    bill(uof) <- b;
+                    file(uof) <- decode(data, 'base64');
+                    name(uof) <- name;
+                    extension(uof) <- extension;
+                    type(uof) <- TypeFile.paymentOrder;
+                    lockChangeType(uof) <- TRUE;
+                }
+    }
+;
+
+DESIGN inputBillPaymentOrderFiles {
+    size = (800, 600);
+    BOX(of) {
+        caption = '';
+        MOVE PROPERTY(inputFile);
+    }
+}
+
 doPayment 'Оплачено' (Bill b) {
     APPLY;
     IF canceled() THEN RETURN;
     
     NEWSESSION {
-        INPUT uf = NAMEDFILE DO NEW uof = BillFile {
-            bill(uof) <- b;
-            file(uof) <- RAWFILE(uf);
-            name(uof) <- name(uf);
-            extension(uof) <- extension(uf);
-            type(uof) <- TypeFile.paymentOrder;
-        }
+        DIALOG inputBillPaymentOrderFiles OBJECTS b = b FLOAT;
         done(OutgoingPayment p) <- TRUE WHERE paid(b, p) AND NOT done(p);
         APPLY;
     }
