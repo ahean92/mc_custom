@@ -287,10 +287,19 @@ EXTEND FORM Purchase.orders
 
 DESIGN orders{
     BOX(o){
-        NEW payAction FIRST {
+        NEW header FIRST {
             horizontal = TRUE;
-            MOVE PROPERTY (pay(o));
-            MOVE PROPERTY (doPayment(o));
+            alignment = STRETCH;
+            MOVE TOOLBAR(o);
+            NEW orderActions {
+                fill = 1;
+                NEW payAction {
+                    horizontal = TRUE;
+                    alignment = END;
+                    MOVE PROPERTY (pay(o));
+                    MOVE PROPERTY (doPayment(o));
+                }
+            }
         }
     }
 }
