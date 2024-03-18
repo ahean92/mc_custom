@@ -40,10 +40,12 @@ EXTEND FORM project
     FILTERS individual(bi), project(bi) = p, billService(type(bi))
 ;
 
+countBillsStendex 'Bills' (Project p) = GROUP SUM 1 IF project(Bill b) = p AND billService(type(b));
+
 DESIGN project {
     details {
         NEW bills {
-            caption = badged('Счета', countBills(p));
+            caption = badged('Счета', countBillsStendex(p));
             MOVE BOX(bl);
             MOVE BOX(bi);
         }
