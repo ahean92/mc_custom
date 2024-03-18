@@ -52,7 +52,7 @@ EXTEND FORM project
         imagedNameStatus BACKGROUND colorStatus(order(pol)),
         nameItem, description, nameUom, idBarCodeItem, idItem,
         referenceItem, quantity, price, untaxedAmount, taxes
-    FILTERS project(pol) == p
+    FILTERS project(pol) == p, status(order(pol)) != OrderStatus.canceled
     PROPERTIES(p) READONLY amountOrderLine DRAW pol TOOLBAR
     PROPERTIES(pol) NEWSESSION EDIT
 ;
