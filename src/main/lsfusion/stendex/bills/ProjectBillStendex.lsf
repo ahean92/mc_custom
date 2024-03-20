@@ -1,14 +1,24 @@
 MODULE ProjectBillStendex;
 
-REQUIRE Project, BillPaymentStendex;
+REQUIRE Project, BillPaymentStendex, ProjectStendex;
 
 NAMESPACE Project;
+
+EXTEND FORM changeBillProjects
+    PROPERTIES(p) READONLY overNameManager
+;
+EXTEND FORM bill
+    PROPERTIES(p) READONLY overNameManager BEFORE amount(b,p)
+;
+EXTEND FORM billCustom
+    PROPERTIES(pr) READONLY overNameManager BEFORE amount(b,pr)
+;
 
 newLegalEntityBill 'Добавить' (Project p) {
     NEWSESSION {
         NEW b = Bill {
             type(b) <- legalEntityType();
-            project(b) <- p;
+            in(b,p) <- TRUE;
             SHOW billCustom OBJECTS b = b;
         }
     }
@@ -18,32 +28,46 @@ newIndividualBill 'Добавить' (Project p) {
     NEWSESSION {
         NEW b = Bill {
             type(b) <- individualType();
-            project(b) <- p;
+            in(b,p) <- TRUE;
             SHOW billCustom OBJECTS b = b;
         }
     }
 }
 
 EXTEND FORM project
+    OBJECTS bb = Bill
+    PROPERTIES(bb) READONLY number, dateTime,
+        imagedNameStatus BACKGROUND colorStatus(bb), nameType,
+        dueDateTime, namePaymentTerms
+    PROPERTIES(bb,p) READONLY amount
+    FILTERS in(bb,p)
+    
     OBJECTS bl 'Счета на оплату' = Bill BACKGROUND backgroundColor(bl)
-    PROPERTIES(bl) READONLY number, date, items, nameProject, note, overNameRepresentative, amount, left, toPay, paidDone
+    PROPERTIES(bl) READONLY number, date, items, nameProjects, note, overNameRepresentative, amount, left, toPay, paidDone
+    PROPERTIES(bl,p) READONLY amount
     PROPERTIES(bl) 'Счет' = openFiles GRID
     PROPERTIES READONLYIF readonly(p) newLegalEntityBill(p) DRAW bl TOOLBAR
     PROPERTIES(bl) READONLYIF readonly(p) NEWSESSION editBillCustom, DELETE
-    FILTERS legalEntity(bl), project(bl) = p, billService(type(bl))
+    FILTERS legalEntity(bl), in(bl,p), billService(type(bl))
 
     OBJECTS bi 'Оплата freelance' = Bill BACKGROUND backgroundColor(bi)
-    PROPERTIES(bi) READONLY number, date, items, nameProject, note, overNameRepresentative, amount, left, toPay, paidDone
+    PROPERTIES(bi) READONLY number, date, items, nameProjects, note, overNameRepresentative, amount, left, toPay, paidDone
+    PROPERTIES(bi,p) READONLY amount
     PROPERTIES(bi) 'Счет' = openFiles GRID
     PROPERTIES READONLYIF readonly(p) newIndividualBill(p) DRAW bi TOOLBAR
     PROPERTIES(bi) READONLYIF readonly(p) NEWSESSION editBillCustom, DELETE
-    FILTERS individual(bi), project(bi) = p, billService(type(bi))
+    FILTERS individual(bi), in(bi,p), billService(type(bi))
 ;
 
-countBillsStendex 'Bills' (Project p) = GROUP SUM 1 IF project(Bill b) = p AND billService(type(b));
+countBillsProject 'Bills' (Project p) = GROUP SUM 1 IF in(Bill b, p);
+countBillsStendex 'Bills' (Project p) = GROUP SUM 1 IF in(Bill b, p) AND billService(type(b));
 
 DESIGN project {
     details {
+        REMOVE BOX(b);
+        MOVE BOX(bb) {
+            caption = badged('Bills', countBillsProject(p));
+        }
         NEW bills {
             caption = badged('Счета', countBillsStendex(p));
             MOVE BOX(bl);

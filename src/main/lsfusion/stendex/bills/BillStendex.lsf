@@ -4,6 +4,68 @@ REQUIRE BillDone, BillCanceled, ProjectBill, ServiceP, UtilsStendex, EmployeeSte
 
 NAMESPACE Invoicing;
 
+in 'On' = DATA BOOLEAN (Bill, Project);
+countProjects (Bill b) =  GROUP SUM 1 IF in(b, Project p);
+amount 'Сумма по проекту' = DATA NUMERIC[14,2] (Bill, Project);
+amountProjects 'Сумма по проекту' (Bill b) = GROUP SUM amount(b, Project p) IF in(b,p);
+
+nameProjects 'Проекты' (Bill b) = GROUP CONCAT name(Project p) IF in(b, p), '/' ORDER p;
+
+FORM changeBillProjects 'Выбрать проекты'
+    OBJECTS b = Bill PANEL
+    OBJECTS p = Project
+    PROPERTIES(b,p) in
+    PROPERTIES(p) READONLY number, startDate, endDate, namePartner, nameType, name, nameCompany
+
+    FILTERGROUP active
+        FILTER 'Opened' NOT archived(p) AND NOT closed(p) DEFAULT
+        FILTER 'Closed' archived(p) OR closed(p)
+;
+
+changeBillProjects 'Выбрать проекты' (Bill b) {
+    DIALOG changeBillProjects OBJECTS b = b;
+}
+
+overFillAmountProjects ABSTRACT LIST (Bill);
+fillAmountProjects 'Расписать по проектам' (Bill b) {
+    amount(b, Project p) <- NULL;
+    overFillAmountProjects(b);
+}
+
+EXTEND FORM bill
+    PROPERTIES (b) READONLY nameProjects
+    
+    OBJECTS p = Project
+    PROPERTIES(p) READONLY number, startDate, endDate, namePartner, nameType, name, nameCompany
+    PROPERTIES(b,p) READONLYIF readonly(b) amount
+    PROPERTIES(b) READONLYIF readonly(b) TOOLBAR DRAW p changeBillProjects, fillAmountProjects
+    FILTERS in(b,p)
+;
+
+DESIGN bill {
+    headerRight {
+        MOVE PROPERTY(nameProjects(b)) AFTER PROPERTY(nameProject(b));
+        REMOVE PROPERTY(nameProject(b));
+    }
+    details {
+        NEW projects {
+            caption = badged('Projects', countProjects(b));
+            MOVE BOX(p) { caption = ''; }
+        }
+    }
+}
+
+EXTEND FORM bills
+    PROPERTIES(b) READONLY nameProjects AFTER nameProject(b)
+;
+
+DESIGN bills {
+    PROPERTY(nameProject(b)) { showIf = NULL; }
+}
+
+CONSTRAINT (CHANGED(amount(Bill b)) OR CHANGED(amountProjects(b))) AND NOT amount(b) == amountProjects(b)
+    MESSAGE 'Не совпадает сумма по проектам и итоговая сумма счета';
+
 isUrgent 'Срочный' = DATA BOOLEAN (Bill);
 includeVAT 'С НДС' = DATA BOOLEAN (Bill);
 
@@ -134,7 +196,7 @@ FORM billCustom 'Счет'
                   imagedNameStatus,
                   'Услуга' = items ON CHANGE changeItems(b),
                   nameCompany,
-                  nameProject,
+                  nameProjects READONLY,
                   overNameVendor,
                   note,
                   amount ON CHANGE changeAmount(b),
@@ -143,7 +205,13 @@ FORM billCustom 'Счет'
 
     PROPERTIES(b) ready, done, canceled, cancel SHOWIF status(b) = BillStatus.draft
 
-PROPERTIES(b) editingOn DISABLEIF ready(b) AND NOT editAllInvoices(currentUser())
+    PROPERTIES(b) editingOn DISABLEIF ready(b) AND NOT editAllInvoices(currentUser())
+    
+    OBJECTS pr = Project
+    PROPERTIES(pr) READONLY number, startDate, endDate, namePartner, nameType, name, nameCompany
+    PROPERTIES(b,pr) READONLYIF readonly(b) amount
+    PROPERTIES(b) READONLYIF readonly(b) TOOLBAR DRAW pr changeBillProjects, fillAmountProjects
+    FILTERS in(b,pr) 
 ;
 
 DESIGN billCustom {
@@ -176,7 +244,7 @@ DESIGN billCustom {
                 lines = 2;
                 MOVE PROPERTY(items(b)) { charWidth = 40; fontSize = 24; }
                 MOVE PROPERTY(nameCompany(b)) { charWidth = 40; fontSize = 24; }
-                MOVE PROPERTY(nameProject(b)) { charWidth = 40; fontSize = 24; }
+                MOVE PROPERTY(nameProjects(b)) { charWidth = 40; fontSize = 24; }
                 MOVE PROPERTY(overNameVendor(b)) { charWidth = 40; fontSize = 24; }
                 MOVE PROPERTY(note(b)) { fontSize = 24; }
                 MOVE PROPERTY(amount(b)) { fontSize = 24; }
@@ -187,6 +255,10 @@ DESIGN billCustom {
         NEW details {
             tabbed = TRUE;
             fill = 1;
+            NEW projects {
+                caption = badged('Projects', countProjects(b));
+                MOVE BOX(pr) { caption = ''; }
+            }
         }
     }
 }
@@ -304,7 +376,7 @@ backgroundColor(Bill b) += WHEN isUrgent(b) THEN RGB(237,193,116);
 FORM billDashboard 'Счета на услуги'
     OBJECTS bl = Bill BACKGROUND backgroundColor(bl)
     PROPERTIES(bl) READONLY number, date, imagedNameStatus BACKGROUND colorStatus(bl), overNameVendor,
-                            items, nameProject, note, overNameRepresentative, amount
+                            items, nameProjects, note, overNameRepresentative, amount
     PROPERTIES(bl) 'Счет' = openFiles GRID, cancel SHOWIF status(bl) = BillStatus.draft
     PROPERTIES newLegalEntityBill() DRAW bl TOOLBAR
     PROPERTIES(bl) NEWSESSION editBillCustom, DELETE
@@ -313,7 +385,7 @@ FORM billDashboard 'Счета на услуги'
 
     OBJECTS bi 'Оплата freelance' = Bill BACKGROUND backgroundColor(bi)
     PROPERTIES(bi) READONLY number, date, imagedNameStatus BACKGROUND colorStatus(bi), overNameVendor, 
-                            items, nameProject, note, overNameRepresentative, amount
+                            items, nameProjects, note, overNameRepresentative, amount
     PROPERTIES(bi) 'Счет' = openFiles GRID, cancel SHOWIF status(bi) = BillStatus.draft
     PROPERTIES newIndividualBill() DRAW bi TOOLBAR
     PROPERTIES(bi) NEWSESSION editBillCustom, DELETE
@@ -321,8 +393,8 @@ FORM billDashboard 'Счета на услуги'
             representative(bi) = currentUser() OR showAllInvoices(currentUser()) OR NOT representative(bi)
 
     PROPERTIES() nameFilterProject, nameFilterRepresentative, nameFilterStatus, filterUrgent
-    FILTERS project(bl) = filterProject() OR NOT filterProject(), 
-        project(bi) = filterProject() OR NOT filterProject(),
+    FILTERS in(bl, filterProject()) OR NOT filterProject(),
+        in(bi, filterProject()) OR NOT filterProject(),
         representative(bl) = filterRepresentative() OR NOT filterRepresentative(), 
         representative(bi) = filterRepresentative() OR NOT filterRepresentative(),
         status(bl) = filterStatus() OR NOT filterStatus(), status(bi) = filterStatus() OR NOT filterStatus(),

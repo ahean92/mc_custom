@@ -9,6 +9,18 @@ numberOrder 'Purchase order' (Bill b) = number(order(b));
 
 lastBill (Purchase.Order o) = GROUP LAST Bill b ORDER b BY order(b);
 
+overFillAmountProjects (Bill b) + {
+    IF order(b) THEN {
+        FOR in(b, Project p) DO {
+            amount(b,p) <- GROUP SUM amount(OrderLine l) IF order(l) = order(b) AND project(l) == p;
+        }
+    } ELSE {
+        FOR Project p == (GROUP MAX Project pp IF in(b,pp)) DO {
+            amount(b,p) <- amount(b);
+        }
+    }
+}
+
 fill (Bill b, Order o) + {
     order(b) <- o;
     
@@ -150,7 +162,8 @@ uploadInvoice 'Счет' (Purchase.Order o){
             vendor(nb) <- vendor(o);
             vendorReference(nb) <- vendorReference(o);
             note(nb) <- CONCAT ' ', 'Счет по заказу', number(o), 'от  ' + date(o), 'поставщик' + nameVendor(o);
-            project(nb) <- GROUP MIN Project p IF inOrder(p, o);
+            in(nb, Project p) <- TRUE IF inOrder(p, o);
+            amount(nb, Project p) <- GROUP SUM amount(OrderLine l) IF order(l) = o AND project(l) == p;
             currency(nb) <- currency(o);
 
             paymentTerms(nb) <- paymentTerms(o);
@@ -208,7 +221,8 @@ FORM inputOrderInvoices 'Добавление счетов'
                         vendor(nb) <- vendor(o);
                         vendorReference(nb) <- vendorReference(o);
                         note(nb) <- CONCAT ' ', 'Счет по заказу', number(o), 'от  ' + date(o), 'поставщик' + nameVendor(o);
-                        project(nb) <- GROUP MIN Project p IF inOrder(p, o);
+                        in(nb, Project p) <- TRUE IF inOrder(p, o);
+                        amount(nb, Project p) <- GROUP SUM amount(OrderLine l) IF order(l) = o AND project(l) == p;
                         currency(nb) <- currency(o);
 
                         paymentTerms(nb) <- paymentTerms(o);
@@ -362,14 +376,14 @@ WHEN SETCHANGED(price(Purchase.OrderLine l)) AND lastBill(order(l)) DO {
 FORM billOrderDashboard 'Счета на товары'
     OBJECTS b = Bill BACKGROUND backgroundColor(b)
     PROPERTIES(b) READONLY number, date, imagedNameStatus BACKGROUND colorStatus(b), overNameVendor,
-        items, nameProject, note, overNameRepresentative, amount
+        items, nameProjects, note, overNameRepresentative, amount
     PROPERTIES(b) 'Счет' = openFiles GRID, cancel SHOWIF status(b) = BillStatus.draft
     PROPERTIES(b) NEWSESSION editBillCustom, DELETE
     FILTERS order(b),
         representative(b) = currentUser() OR showAllInvoices(currentUser()) OR NOT representative(b)
     
     PROPERTIES() Invoicing.nameFilterProject, Invoicing.nameFilterRepresentative, nameFilterStatus, filterUrgent
-    FILTERS project(b) = Invoicing.filterProject() OR NOT Invoicing.filterProject(),
+    FILTERS in(b, Invoicing.filterProject()) OR NOT Invoicing.filterProject(),
         representative(b) = Invoicing.filterRepresentative() OR NOT Invoicing.filterRepresentative(),
         status(b) = filterStatus() OR NOT filterStatus(),
         isUrgent(b) OR NOT filterUrgent()
