@@ -478,3 +478,5 @@ EXTEND FORM projectDashboard
     PROPERTIES (canceled) READONLY BACKGROUND colorStatus(canceled) urgency AFTER payBeforeDate(canceled)
     PROPERTIES (closed) READONLY BACKGROUND colorStatus(closed) urgency AFTER payBeforeDate(closed)
 ;
+
+WHEN LOCAL SETCHANGED (type(Order o)) AND lastBill(o) DO type(lastBill(o)) <- billType(type(o));
