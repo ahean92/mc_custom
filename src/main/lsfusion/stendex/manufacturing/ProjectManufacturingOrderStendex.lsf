@@ -36,11 +36,23 @@ DESIGN materialRequest{
 
 @defineDocFilterCustom(materialRequests, manufacturingOrder, Employee, responsible, o, 'Ответственный' );
 
+overNameManufacturingOrderResponsible 'Ответственный' = overName(manufacturingOrderResponsible());
+
+EXTEND FORM materialRequests
+    PROPERTIES() overNameManufacturingOrderResponsible
+;
+DESIGN materialRequests {
+    filters {
+        MOVE PROPERTY(overNameManufacturingOrderResponsible()) AFTER PROPERTY(nameManufacturingOrderResponsible());
+        REMOVE PROPERTY(nameManufacturingOrderResponsible());
+    }
+}
+
 CONSTRAINT ManufacturingOrder o IS ManufacturingOrder AND NOT project(o) MESSAGE 'Заявку можно создать только в рамках проекта, выберите проект!';
 
 
 EXTEND FORM project
-    PROPERTIES (mo) READONLY nameConsumedItem, nameResponsible
+    PROPERTIES (mo) READONLY nameConsumedItem, overNameResponsible
 ;
 
 DESIGN project{

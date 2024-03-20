@@ -1,8 +1,27 @@
 MODULE ProjectStendex;
 
-REQUIRE Project;
+REQUIRE Project, EmployeeStendex;
 
 NAMESPACE ProjectManagement;
+
+overNameManager 'Manager' (Project o) = OVERRIDE MasterData.overName(manager(o)), MasterData.name(manager(o));
+
+EXTEND FORM project
+    PROPERTIES(p) overNameManager
+;
+DESIGN project {
+    headerRight {
+        MOVE PROPERTY(overNameManager(p)) AFTER PROPERTY(nameManager(p));
+        REMOVE PROPERTY(nameManager(p));
+    }
+}
+
+EXTEND FORM projects
+    PROPERTIES(p) READONLYIF isReadonly() overNameManager AFTER nameManager(p)
+;
+DESIGN projects {
+    PROPERTY(nameManager(p)) { showIf = NULL; }
+}
 
 CLASS StandType 'Тип стенда';
 name '{Name}' = DATA ISTRING[50] (StandType) NONULL CHARWIDTH 15 IN id;

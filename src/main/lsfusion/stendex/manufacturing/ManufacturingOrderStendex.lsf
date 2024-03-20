@@ -1,6 +1,6 @@
 MODULE ManufacturingOrderStendex;
 
-REQUIRE ManufacturingOrder, UtilsStendex;
+REQUIRE ManufacturingOrder, UtilsStendex, EmployeeStendex;
 
 NAMESPACE Manufacturing;
 
@@ -9,9 +9,11 @@ link 'Ссылка' = DATA LINK (ConsumedLine) CHARWIDTH 25;
 orderBeforeDate 'Заказать до' = DATA DATE (ManufacturingOrder);
 orderBeforeDate 'Заказать до' (ConsumedLine l) = orderBeforeDate(manufacturingOrder(l));
 
+overNameResponsible 'Responsible' (ManufacturingOrder o) = OVERRIDE MasterData.overName(responsible(o)), MasterData.name(responsible(o));
+
 FORM materialRequests 'Заявки'
     OBJECTS o = ManufacturingOrder
-    PROPERTIES (o) READONLY 'Дата' = scheduledDate, number, nameType, nameConsumedItem, nameStatus, nameResponsible, orderBeforeDate
+    PROPERTIES (o) READONLY 'Дата' = scheduledDate, number, nameType, nameConsumedItem, nameStatus, overNameResponsible, orderBeforeDate
     PROPERTIES (o) NEWSESSION NEW, EDIT, DELETE
 
     LIST ManufacturingOrder OBJECT o
@@ -23,7 +25,7 @@ FORM materialRequests 'Заявки'
 FORM materialRequest 'Заявка'
     OBJECTS o = ManufacturingOrder PANEL
     PROPERTIES (o) scheduledDateTime, number, orderBeforeDate
-    PROPERTIES (o) READONLY nameType, nameStatus,  nameResponsible
+    PROPERTIES (o) READONLY nameType, nameStatus, overNameResponsible
 
     OBJECTS cl = ConsumedLine
     PROPERTIES (cl) NOSELECT idItem, nameItem, nameUom, description, link, 'Количество' = toConsume
@@ -49,7 +51,7 @@ DESIGN materialRequest{
                 horizontal = TRUE;
                 MOVE PROPERTY (number(o));
                 MOVE PROPERTY (scheduledDateTime(o));
-                MOVE PROPERTY (nameResponsible(o));
+                MOVE PROPERTY (overNameResponsible(o));
                 MOVE PROPERTY (orderBeforeDate(o));
             }
         }

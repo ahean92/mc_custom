@@ -1,0 +1,24 @@
+MODULE SalesOrderStendex;
+
+REQUIRE SalesOrder, EmployeeStendex;
+
+NAMESPACE Sales;
+
+overNameRepresentative 'Our representative' (Order o) = OVERRIDE MasterData.overName(representative(o)), MasterData.name(representative(o));
+
+EXTEND FORM order
+    PROPERTIES(o) overNameRepresentative
+;
+DESIGN order {
+    salesInformation {
+        MOVE PROPERTY(overNameRepresentative(o)) AFTER PROPERTY(nameRepresentative(o));
+        REMOVE PROPERTY(nameRepresentative(o));
+    }
+}
+
+EXTEND FORM orders
+    PROPERTIES(o) READONLYIF isReadonly() overNameRepresentative AFTER nameRepresentative(o)
+;
+DESIGN orders {
+    PROPERTY(nameRepresentative(o)) { showIf = NULL; }
+}

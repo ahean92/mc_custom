@@ -27,6 +27,7 @@ REQUIRE Eval, ProcessMonitor, Backup,
         SalesOrder, SalesOrderFilter, SalesOrderSelection,
         SalesOrderSent, SalesOrderConfirmed, SalesOrderCanceled, SalesOrderLocked,
         SalesOrderSearch, SalesOrderPrint, SalesOrderPartner, SalesOrderItem, SalesOrderDebt, SalesOrderInitial,
+        SalesOrderStendex,
 
         SalesLedgerPartner,
         SalesOrderReport, SalesLedgerReport, SalesSummary,

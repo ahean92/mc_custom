@@ -96,12 +96,12 @@ filterProject = DATA LOCAL NESTED Project ();
 nameFilterProject 'Проект' = name(filterProject());
 
 filterRepresentative = DATA LOCAL NESTED Employee ();
-nameFilterRepresentative 'Наш представитель' = MasterData.name(filterRepresentative());
+nameFilterRepresentative 'Наш представитель' = MasterData.overName(filterRepresentative());
 
 FORM projectDashboard 'Закупка материалов' 
     PROPERTIES () nameFilterProject, nameFilterRepresentative
     OBJECTS request = ManufacturingOrder
-    PROPERTIES (request) READONLY nameProject, 'Дата' = scheduledDate, namePriority, number, nameType, nameConsumedItem, nameStatus,  nameResponsible
+    PROPERTIES (request) READONLY nameProject, 'Дата' = scheduledDate, namePriority, number, nameType, nameConsumedItem, nameStatus, overNameResponsible
     PROPERTIES (request) NEWSESSION EDIT
     FILTERS project(request) = filterProject() OR NOT filterProject()
     FILTERS responsible(request) = filterRepresentative() OR NOT filterRepresentative()
@@ -153,7 +153,7 @@ DESIGN projectDashboard{
 META dashboardStatus(st, capt)
     EXTEND FORM projectDashboard
         OBJECTS st = Purchase.Order
-        PROPERTIES (st) READONLY BACKGROUND colorStatus(st) nameCompany, nameProjects, number, date, nameRepresentative, scheduledDateTime, nameVendor, note, payBeforeDate, untaxedAmount, amount
+        PROPERTIES (st) READONLY BACKGROUND colorStatus(st) nameCompany, nameProjects, number, date, overNameRepresentative, scheduledDateTime, nameVendor, note, payBeforeDate, untaxedAmount, amount
         PROPERTIES (st) NEWSESSION EDIT
         PROPERTIES fileInvoice(st) AFTER nameVendor(st) ON CHANGE { openInvoice(st); }
         FILTERS status(st) = Purchase.OrderStatus.st

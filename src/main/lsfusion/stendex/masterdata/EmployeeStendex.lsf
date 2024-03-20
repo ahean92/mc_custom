@@ -6,7 +6,7 @@ NAMESPACE MasterData;
 
 initials 'Инициалы (И.О.)' = DATA ISTRING[5] (Employee);
 
-overName '{Name}' (Employee i) = CONCAT ' ', lastName(i), initials(i);
+overName '{Name}' (Employee i) = CONCAT ' ', lastName(i), initials(i) CHARWIDTH 15;
 
 EXTEND FORM employee
     PROPERTIES initials(e)
@@ -16,4 +16,11 @@ DESIGN employee {
     info {
         MOVE PROPERTY(initials(e)) AFTER PROPERTY(middleName(e));
     }
+}
+
+EXTEND FORM employees
+    PROPERTIES READONLY overName(e) AFTER name(e)
+;
+DESIGN employees {
+    PROPERTY(name(e)) { showIf = NULL; }
 }

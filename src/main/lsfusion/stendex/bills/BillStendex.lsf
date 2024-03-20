@@ -9,6 +9,16 @@ includeVAT 'С НДС' = DATA BOOLEAN (Bill);
 
 overNameRepresentative 'Our representative' (Bill o)= OVERRIDE MasterData.overName(representative(o)), MasterData.name(representative(o));
 
+EXTEND FORM bill
+    PROPERTIES(b) READONLYIF readonly(b) overNameRepresentative
+;
+DESIGN bill {
+    billInformat {
+        MOVE PROPERTY(overNameRepresentative(b)) AFTER PROPERTY(nameRepresentative(b));
+        REMOVE PROPERTY(nameRepresentative(b));
+    }
+}
+
 forLegalEntity 'Для организаций' = DATA BOOLEAN (BillType);
 legalEntityType () = GROUP MIN BillType t IF forLegalEntity(t);
 
@@ -283,7 +293,7 @@ filterProject = DATA LOCAL NESTED Project ();
 nameFilterProject 'Проект' = name(filterProject());
 
 filterRepresentative = DATA LOCAL NESTED Employee ();
-nameFilterRepresentative 'Наш представитель' = MasterData.name(filterRepresentative());
+nameFilterRepresentative 'Наш представитель' = MasterData.overName(filterRepresentative());
 filterStatus = DATA BillStatus ();
 nameFilterStatus 'Статус оплаты' = name(filterStatus());
 filterUrgent 'Срочные' = DATA LOCAL BOOLEAN ();

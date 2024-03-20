@@ -1,8 +1,27 @@
 MODULE PurchaseOrderStendex;
 
-REQUIRE PurchaseOrderSearch, ProjectPurchaseOrder, PurchaseOrderConfirmed, PurchaseOrderLocked;
+REQUIRE PurchaseOrderSearch, ProjectPurchaseOrder, PurchaseOrderConfirmed, PurchaseOrderLocked, EmployeeStendex;
 
 NAMESPACE Purchase;
+
+overNameRepresentative 'Our representative' (Order o) = OVERRIDE MasterData.overName(representative(o)), MasterData.name(representative(o));
+
+EXTEND FORM order
+    PROPERTIES(o) overNameRepresentative
+;
+DESIGN order {
+    purchaseInformation {
+        MOVE PROPERTY(overNameRepresentative(o)) AFTER PROPERTY(nameRepresentative(o));
+        REMOVE PROPERTY(nameRepresentative(o));
+    }
+}
+
+EXTEND FORM orders
+    PROPERTIES(o) READONLYIF isReadonly() overNameRepresentative AFTER nameRepresentative(o)
+;
+DESIGN orders {
+    PROPERTY(nameRepresentative(o)) { showIf = NULL; }
+}
 
 dataColor 'Цвет' = DATA COLOR (OrderStatus);
 caption 'Подпись' = DATA STRING[50] (OrderStatus);
