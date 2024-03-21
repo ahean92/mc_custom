@@ -106,3 +106,27 @@ NAVIGATOR{
         NEW materialRequests;
     }
 }
+
+showLines 'Показать состав' = DATA LOCAL NESTED BOOLEAN ();
+
+EXTEND FORM materialRequests
+    PROPERTIES showLines() TOOLBAR DRAW o
+
+    OBJECTS cl = ConsumedLine
+    PROPERTIES(cl) READONLY SHOWIF showLines() idItem, nameItem, nameUom, description, link, 'Количество' = toConsume
+    FILTERS manufacturingOrder(cl) = o
+;
+
+DESIGN materialRequests {
+    tabbedPane {
+        NEW orders {
+            caption = 'Заявки';
+            MOVE BOX(o) {
+                TOOLBARBOX(o) {
+                    MOVE PROPERTY(showLines()) BEFORE TOOLBARRIGHT(o);
+                }
+            }
+            MOVE BOX(cl);
+        }
+    }
+}

@@ -105,6 +105,12 @@ FORM projectDashboard 'Закупка материалов'
     PROPERTIES (request) NEWSESSION EDIT
     FILTERS project(request) = filterProject() OR NOT filterProject()
     FILTERS responsible(request) = filterRepresentative() OR NOT filterRepresentative()
+
+    PROPERTIES showRequestLines = Purchase.showLines() TOOLBAR DRAW request
+
+    OBJECTS requestLine = ConsumedLine
+    PROPERTIES(requestLine) READONLY SHOWIF Purchase.showLines() idItem, nameItem, nameUom, description, link, 'Количество' = toConsume
+    FILTERS manufacturingOrder(requestLine) = request
 ;
 //
 filteredRequest(ManufacturingOrder o) = FILTER projectDashboard.request;
@@ -142,7 +148,11 @@ DESIGN projectDashboard{
                         charWidth = 10;
                     }
                     PROPERTY (namePriority(request)) {valueAlignment = CENTER; charWidth = 6;}
+                    TOOLBARBOX(request) {
+                        MOVE PROPERTY(showRequestLines) BEFORE TOOLBARRIGHT(request);
+                    }
                 };
+                MOVE BOX(requestLine);
             }
         }
         REMOVE TOOLBARBOX;
@@ -164,10 +174,10 @@ META dashboardStatus(st, capt)
         PROPERTIES (st, st##Status ) NEWSESSION changeStatus COLUMNS (st##Status) HEADER captionButton(st##Status) BACKGROUND dataColor(st##Status) SHOWIF countOrderLine(st)
         FILTERS showStatus(st, st##Status)
 
-        PROPERTIES show###st##Lines = showLines() TOOLBAR DRAW st
+        PROPERTIES show###st##Lines = Purchase.showLines() TOOLBAR DRAW st
         
         OBJECTS st##Line = Purchase.OrderLine
-        PROPERTIES(st##Line) READONLY SHOWIF showLines() index, nameItem, description, nameUom, idBarCodeItem, idItem, referenceItem, quantity, price, untaxedAmount, amount, taxes, nameProject
+        PROPERTIES(st##Line) READONLY SHOWIF Purchase.showLines() index, nameItem, description, nameUom, idBarCodeItem, idItem, referenceItem, quantity, price, untaxedAmount, amount, taxes, nameProject
         FILTERS order(st##Line) = st
     ;
 
