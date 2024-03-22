@@ -1,6 +1,6 @@
 MODULE ProjectDashboardStendex;
 
-REQUIRE PurchaseOrderStendex, ProjectPurchaseOrderStendex;
+REQUIRE PurchaseOrderStendex, ProjectPurchaseOrderStendex, ProjectStendex;
 
 editingOn 'Редактировать' = DATA LOCAL NESTED BOOLEAN (Project);
 WHEN LOCAL SET(Project p IS Project) DO editingOn(p) <- TRUE;
@@ -223,3 +223,4 @@ NAVIGATOR {
     }
 }
 
+@defineProjectHistoryAttr(budget,budget,'Изменен бюджет');

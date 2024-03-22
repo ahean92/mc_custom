@@ -1,6 +1,6 @@
 MODULE ProjectStendex;
 
-REQUIRE Project, EmployeeStendex;
+REQUIRE Project, EmployeeStendex, ProjectExhibition;
 
 NAMESPACE ProjectManagement;
 
@@ -268,3 +268,72 @@ END
 @addFileProjectByFolder(twoD, '2D', twoD);
 @addFileProjectByFolder(documents, 'Документы', documents);
 @addFileProjectByFolder(blueprints, 'Чертежи', blueprints);
+
+
+CLASS ProjectHistory 'Change history';
+
+project = DATA Project (ProjectHistory) INDEXED;
+countHistories (Project d) = GROUP SUM 1 IF project(ProjectHistory h) = d;
+
+dateTime 'Date' = DATA DATETIME (ProjectHistory);
+
+user = DATA User (ProjectHistory);
+nameUser 'User' (ProjectHistory l) = name(user(l));
+
+computer = DATA Computer (ProjectHistory);
+hostnameComputer 'Computer' (ProjectHistory l) = hostname(computer(l)) CHARWIDTH 10;
+
+type 'Type' = DATA ISTRING[100] (ProjectHistory) CHARWIDTH 15;
+description 'Description' = DATA TEXT (ProjectHistory);
+
+META defineProjectHistoryAttr(attr, name, caption)
+    WHEN CHANGED(attr(Project p)) AND NOT disableHistory() DO {
+        NEW l = ProjectHistory {
+            project(l) <- p;
+            dateTime(l) <- currentDateTime();
+            user(l) <- currentUser();
+            computer(l) <- currentComputer();
+            type(l) <- caption;
+            description (l) <- CONCAT ' ', caption, 'на', (OVERRIDE STRING(name(p)),'пусто');
+        }
+    }
+END
+
+@defineProjectHistoryAttr(type,nameType,'Изменен тип');
+@defineProjectHistoryAttr(number,number,'Изменен номер');
+@defineProjectHistoryAttr(name,name,'Изменено имя');
+@defineProjectHistoryAttr(partner,namePartner,'Изменен клиент');
+@defineProjectHistoryAttr(exhibition,nameExhibition,'Изменена выставка');
+@defineProjectHistoryAttr(standType,nameStandType,'Изменен тип стенда');
+@defineProjectHistoryAttr(designer,nameDesigner,'Изменен дизайнер');
+@defineProjectHistoryAttr(status,nameStatus,'Изменен статус');
+@defineProjectHistoryAttr(company,nameCompany,'Изменена компания');
+@defineProjectHistoryAttr(manager,overNameManager,'Изменен менеджер');
+@defineProjectHistoryAttr(length,length,'Изменена длина, м');
+@defineProjectHistoryAttr(width,width,'Изменена ширина, м');
+WHEN SET(upstairs(Project p)) AND NOT disableHistory() DO {
+    NEW l = ProjectHistory {
+        project(l) <- p;
+        dateTime(l) <- currentDateTime();
+        user(l) <- currentUser();
+        computer(l) <- currentComputer();
+        type(l) <- 'Установлен признак второй этаж';
+        description (l) <- 'Установлен признак второй этаж';
+    }
+}
+WHEN DROPPED(upstairs(Project p)) AND NOT disableHistory() DO {
+    NEW l = ProjectHistory {
+        project(l) <- p;
+        dateTime(l) <- currentDateTime();
+        user(l) <- currentUser();
+        computer(l) <- currentComputer();
+        type(l) <- 'Сброшен признак второй этаж';
+        description (l) <- 'Сброшен признак второй этаж';
+    }
+}
+@defineProjectHistoryAttr(lengthUpstairs,lengthUpstairs,'Изменена длина(второй этаж), м');
+@defineProjectHistoryAttr(widthUpstairs,widthUpstairs,'Изменена ширина(второй этаж), м');
+
+
+@defineDocHistoryForm(project, project, p);
+
