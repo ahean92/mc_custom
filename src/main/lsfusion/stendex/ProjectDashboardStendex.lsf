@@ -109,7 +109,8 @@ FORM projectDashboard 'Закупка материалов'
     PROPERTIES showRequestLines = Purchase.showLines() TOOLBAR DRAW request
 
     OBJECTS requestLine = ConsumedLine
-    PROPERTIES(requestLine) READONLY SHOWIF Purchase.showLines() idItem, nameItem, nameUom, description, link, 'Количество' = toConsume
+    PROPERTIES(requestLine) READONLY SHOWIF Purchase.showLines() idItem, nameItem, nameUom, description, 'Количество' = toConsume
+    PROPERTIES(requestLine) SHOWIF Purchase.showLines() link ON CHANGE { open(link(requestLine)); } AFTER description(requestLine)
     FILTERS manufacturingOrder(requestLine) = request
 ;
 //

@@ -2,7 +2,11 @@ MODULE UtilsStendex;
 
 NAMESPACE Utils;
 
+linkMail () = 'https://e.mail.ru/inbox';
+
+openMail 'Почта' () { open(LINK(linkMail())); };
+
 NAVIGATOR {
-    NEW FOLDER dashboard 'Рабочий стол' WINDOW toolbar FIRST {
-    }
+    NEW FOLDER dashboard 'Рабочий стол' IMAGE 'dashboard.png' WINDOW toolbar FIRST;
+    NEW ACTION openMail IMAGE 'mail.png' WINDOW toolbar LAST;
 }
