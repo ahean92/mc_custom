@@ -66,6 +66,54 @@ DESIGN bills {
 CONSTRAINT (CHANGED(amount(Bill b)) OR CHANGED(amountProjects(b))) AND NOT amount(b) == amountProjects(b)
     MESSAGE 'Не совпадает сумма по проектам и итоговая сумма счета';
 
+EXTEND CLASS BillStatus {
+    onApproval 'На утверждении'
+}
+
+onApproval 'На утверждении' = DATA BOOLEAN (Bill);
+
+status(Bill b) += WHEN onApproval(b) AND NOT (ready(b) OR done(b) OR canceled(b)) THEN BillStatus.onApproval;
+color(BillStatus b) += WHEN b = BillStatus.onApproval THEN RGB(217,247,149);
+
+markAsOnApproval 'На утверждение' (Bill b) {
+    APPLY;
+    IF canceled() THEN RETURN;
+
+    NEWSESSION {
+        onApproval(b) <- TRUE;
+        APPLY;
+    }
+}
+
+EXTEND FORM bill
+    PROPERTIES(b) markAsOnApproval SHOWIF status(b) = BillStatus.draft, onApproval
+    PROPERTIES(b) markAsToDoStendex = markAsToDo SHOWIF status(b) == BillStatus.onApproval
+;
+
+DESIGN bill {
+    primaryActions {
+        MOVE PROPERTY(markAsOnApproval(b)) BEFORE PROPERTY(markAsToDo(b)) { valueClass = 'btn-primary'; }
+        MOVE PROPERTY(markAsToDoStendex) AFTER PROPERTY(markAsOnApproval(b)) { valueClass = 'btn-primary'; }
+        REMOVE PROPERTY(markAsToDo(b));
+    }
+    status {
+        MOVE PROPERTY(onApproval(b)) BEFORE PROPERTY(ready(b));
+    }
+}
+
+EXTEND FORM bills
+    EXTEND FILTERGROUP status
+        FILTER 'На утверждении' status(b) = BillStatus.onApproval
+;
+
+@defineSelectionAction(bills, Bill, markAsOnApproval, 'На утверждение', statuses);
+
+DESIGN bills {
+    statuses {
+        MOVE PROPERTY(markAsOnApprovalBills()) BEFORE PROPERTY(markAsToDoBills());
+    }
+}
+
 isUrgent 'Срочный' = DATA BOOLEAN (Bill);
 includeVAT 'С НДС' = DATA BOOLEAN (Bill);
 
@@ -203,7 +251,7 @@ FORM billCustom 'Счет'
                   details,
                   isUrgent, includeVAT
 
-    PROPERTIES(b) ready, done, canceled, cancel SHOWIF status(b) = BillStatus.draft
+    PROPERTIES(b) onApproval, ready, done, canceled, cancel SHOWIF status(b) = BillStatus.draft
 
     PROPERTIES(b) editingOn DISABLEIF ready(b) AND NOT editAllInvoices(currentUser())
     
@@ -231,6 +279,7 @@ DESIGN billCustom {
                     alignment = END;
                     horizontal = TRUE;
                     MOVE PROPERTY(imagedNameStatus(b));
+                    MOVE PROPERTY(onApproval(b));
                     MOVE PROPERTY(ready(b));
                     MOVE PROPERTY(done(b));
                     MOVE PROPERTY(canceled(b));

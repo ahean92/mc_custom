@@ -20,7 +20,7 @@ EXTEND CLASS BillStatus {
 status(Bill b) += WHEN partiallyPaid(b) THEN BillStatus.partiallyPaid;
 color (BillStatus s) += WHEN s = BillStatus.partiallyPaid THEN RGB(187,242,210);
 
-toReady (Bill b) = (b IS Bill AND NOT ready(b)) OR partiallyPaid(b) MATERIALIZED;
+toReady (Bill b) = (b IS Bill AND NOT ready(b) AND NOT onApproval(b)) OR partiallyPaid(b) MATERIALIZED;
 
 calcReady (Bill b) = (b IS Bill AND paid(b)) OR done(b);
 WHEN GOAFTER ready[Bill], done[Bill] CHANGED(calcReady(Bill b)) OR CHANGED(ready(b)) DO 
@@ -121,7 +121,8 @@ doPayment 'Оплачено' (Bill b) {
 
 EXTEND FORM billCustom
     PROPERTIES(b) READONLY paid, left
-    PROPERTIES(b) SHOWIF toReady(b) pay
+    PROPERTIES(b) SHOWIF toReady(b) markAsOnApproval
+    PROPERTIES(b) SHOWIF onApproval(b) pay
     PROPERTIES(b) SHOWIF toPay(b) doPayment
     PROPERTIES(b) prepayment
     
@@ -133,6 +134,7 @@ EXTEND FORM billCustom
 DESIGN billCustom {
     header {
         statusActions {
+            MOVE PROPERTY(markAsOnApproval(b));
             MOVE PROPERTY(pay(b));
             MOVE PROPERTY(doPayment(b));
         }
@@ -155,6 +157,8 @@ DESIGN billCustom {
     }
 }
 
+showToOnApprovalDefault 'По умолчанию показывать счета На утверждении' = DATA BOOLEAN (UserRole);
+showToOnApprovalDefault (User u) = GROUP SUM 1 IF showToOnApprovalDefault(UserRole r) AND has(u, r);
 showToReadyDefault 'По умолчанию показывать счета В оплату' = DATA BOOLEAN (UserRole);
 showToReadyDefault (User u) = GROUP SUM 1 IF showToReadyDefault(UserRole r) AND has(u, r);
 showToPayDefault 'По умолчанию показывать счета К оплате' =  DATA BOOLEAN (UserRole);
@@ -163,10 +167,11 @@ showDoneDefault 'По умолчанию показывать счета Опл�
 showDoneDefault (User u) = GROUP SUM 1 IF showDoneDefault(UserRole r) AND has(u, r);
 
 EXTEND FORM securityPolicy
-    PROPERTIES(ur) PANEL showToReadyDefault, showToPayDefault, showDoneDefault
+    PROPERTIES(ur) PANEL showToOnApprovalDefault, showToReadyDefault, showToPayDefault, showDoneDefault
 ;
 DESIGN securityPolicy {
     bill {
+        MOVE PROPERTY(showToOnApprovalDefault(ur));
         MOVE PROPERTY(showToReadyDefault(ur));
         MOVE PROPERTY(showToPayDefault(ur));
         MOVE PROPERTY(showDoneDefault(ur));
@@ -174,16 +179,18 @@ DESIGN securityPolicy {
 }
 
 defaultFilter 'По умолчанию' (Bill b, User u) =
-    (showToReadyDefault(u) AND toReady(b)) OR (showToPayDefault(u) AND toPay(b)) OR (showDoneDefault(u) AND done(b))
-    OR NOT (showToReadyDefault(u) OR showToPayDefault(u) OR showDoneDefault(u));
+    (showToReadyDefault(u) AND toReady(b)) OR (showToOnApprovalDefault(u) AND onApproval(b)) OR (showToPayDefault(u) AND toPay(b)) OR
+    (showDoneDefault(u) AND done(b)) OR NOT (showToReadyDefault(u) OR showToOnApprovalDefault(u) OR showToPayDefault(u) OR showDoneDefault(u));
 
 EXTEND FORM billDashboard
     PROPERTIES(bl) READONLY left, toPay, paidDone
-    PROPERTIES(bl) SHOWIF toReady(bl) pay
+    PROPERTIES(bl) SHOWIF toReady(bl) markAsOnApproval
+    PROPERTIES(bl) SHOWIF onApproval(bl) pay
     PROPERTIES(bl) SHOWIF toPay(bl) doPayment
     FILTERGROUP statusL
         FILTER 'По умолчанию' defaultFilter(bl, currentUser()) DEFAULT
         FILTER 'Формирование' toReady(bl)
+        FILTER 'На утверждении' onApproval(bl) AND NOT (toPay(bl) OR paidDone(bl))
         FILTER 'К оплате' toPay(bl)
         FILTER 'Оплачено' done(bl)
         FILTER 'Частично оплачен' partiallyPaid(bl)
@@ -191,11 +198,13 @@ EXTEND FORM billDashboard
     
 
     PROPERTIES(bi) READONLY left, toPay, paidDone
-    PROPERTIES(bi) SHOWIF toReady(bi) pay
+    PROPERTIES(bi) SHOWIF toReady(bi) markAsOnApproval
+    PROPERTIES(bi) SHOWIF onApproval(bi) pay
     PROPERTIES(bi) SHOWIF toPay(bi) doPayment
     FILTERGROUP statusI
         FILTER 'По умолчанию' defaultFilter(bi, currentUser()) DEFAULT
         FILTER 'Формирование' toReady(bi)
+        FILTER 'На утверждении' onApproval(bi) AND NOT (toPay(bi) OR paidDone(bi))
         FILTER 'К оплате' toPay(bi)
         FILTER 'Оплачено' done(bi)
         FILTER 'Частично оплачен' partiallyPaid(bi)
@@ -204,10 +213,12 @@ EXTEND FORM billDashboard
 
 DESIGN billDashboard {
     markLegalEntity {
+        MOVE PROPERTY(markAsOnApproval(bl));
         MOVE PROPERTY(pay(bl));
         MOVE PROPERTY(doPayment(bl));
     }
     markIndividual {
+        MOVE PROPERTY(markAsOnApproval(bi));
         MOVE PROPERTY(pay(bi));
         MOVE PROPERTY(doPayment(bi));
     }
