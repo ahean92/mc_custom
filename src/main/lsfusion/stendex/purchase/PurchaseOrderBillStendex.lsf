@@ -38,6 +38,7 @@ newBill 'Добавить' (Order o) {
     NEWSESSION {
         NEW nb = Bill {
             ready(nb) <- TRUE;
+            onApproval(nb) <- TRUE;
             type(nb) <- billType(type(o));
 
             company(nb) <- company(o);
@@ -155,6 +156,7 @@ uploadInvoice 'Счет' (Purchase.Order o){
         type(uof) <- TypeFile.invoice;
         IF NOT lastBill(o) THEN NEW nb = Bill{
             ready(nb) <- TRUE;
+            onApproval(nb) <- TRUE;
             type(nb) <- billType(type(o));
 
             company(nb) <- company(o);
@@ -214,6 +216,7 @@ FORM inputOrderInvoices 'Добавление счетов'
                     type(uof) <- TypeFile.invoice;
                     IF NOT lastBill(o) THEN NEW nb = Bill{
                         ready(nb) <- TRUE;
+                        onApproval(nb) <- TRUE;
                         type(nb) <- billType(type(o));
 
                         company(nb) <- company(o);
@@ -438,6 +441,7 @@ EXTEND FORM billOrderDashboard
     FILTERGROUP status
         FILTER 'По умолчанию' defaultFilter(b, currentUser()) DEFAULT
         FILTER 'Формирование' toReady(b)
+        FILTER 'На утверждении' onApproval(b) AND NOT (toPay(b) OR paidDone(b))
         FILTER 'К оплате' toPay(b)
         FILTER 'Оплачено' done(b)
         FILTER 'Частично оплачен' partiallyPaid(b)
