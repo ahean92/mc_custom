@@ -5,9 +5,20 @@ REQUIRE PurchaseOrderSearch, ProjectPurchaseOrder, PurchaseOrderConfirmed, Purch
 NAMESPACE Purchase;
 
 overNameRepresentative 'Our representative' (Order o) = OVERRIDE MasterData.overName(representative(o)), MasterData.name(representative(o));
+defaultTaxRate  = DATA Tax ();
+nameDefaultTaxRate 'Налог по умолчанию' = name(defaultTaxRate());
+
+EXTEND FORM options
+    PROPERTIES nameDefaultTaxRate()
+;
+
+WHEN LOCAL SETCHANGED(item(OrderLine l)) AND taxIncluded(l) DO in(l, defaultTaxRate()) <- TRUE;
+WHEN LOCAL SETCHANGED(type(Order o)) AND NOT taxIncluded(type(o)) DO in(OrderLine l, Tax t) <- NULL WHERE order(l) = o;
+WHEN LOCAL SETCHANGED(type(Order o)) AND taxIncluded(type(o)) DO in(OrderLine l, defaultTaxRate()) <- TRUE WHERE order(l) = o AND NOT(GROUP SUM 1 IF in(l, Tax t));
 
 EXTEND FORM order
     PROPERTIES(o) overNameRepresentative
+    PROPERTIES (l) 'Сумма налогов' = taxAmount 
 ;
 DESIGN order {
     purchaseInformation {

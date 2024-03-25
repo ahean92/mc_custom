@@ -38,7 +38,7 @@ EXTEND FORM bill
     OBJECTS p = Project
     PROPERTIES(p) READONLY number, startDate, endDate, namePartner, nameType, name, nameCompany
     PROPERTIES(b,p) READONLYIF readonly(b) amount
-    PROPERTIES(b) READONLYIF readonly(b) TOOLBAR DRAW p changeBillProjects, fillAmountProjects
+    PROPERTIES(b) READONLYIF readonly(b) TOOLBAR DRAW p changeBillProjects
     FILTERS in(b,p)
 ;
 
