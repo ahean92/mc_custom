@@ -293,7 +293,7 @@ toPay 'К оплате' (Purchase.Order o) = toPay(lastBill(o));
 paidDone 'Оплачено' (Purchase.Order o) = paidDone(lastBill(o));
 
 EXTEND FORM Purchase.orders
-    PROPERTIES(o) SHOWIF toReady(lastBill(o)) pay
+    PROPERTIES(o) SHOWIF onApproval(lastBill(o)) pay
     PROPERTIES(o) SHOWIF toPay(lastBill(o)) doPayment
     PROPERTIES (o) left, toPay, paidDone
 
