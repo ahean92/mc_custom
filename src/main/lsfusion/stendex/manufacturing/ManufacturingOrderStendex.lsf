@@ -17,9 +17,12 @@ overNameResponsible 'Responsible' (ManufacturingOrder o) = OVERRIDE MasterData.o
 
 FORM materialRequests 'Заявки'
     OBJECTS o = ManufacturingOrder
-    PROPERTIES (o) READONLY 'Дата' = scheduledDate, number, nameType, nameConsumedItem, nameStatus, overNameResponsible, orderBeforeDate
+    PROPERTIES (o) READONLY date 'Дата' = scheduledDate, number, nameType, nameConsumedItem, nameStatus, overNameResponsible, orderBeforeDate
     PROPERTIES (o) NEWSESSION NEW, EDIT, DELETE
 
+    PROPERTIES order 'Порядок' = LONG(o) SHOWIF NULL
+    ORDERS order DESC
+    
     LIST ManufacturingOrder OBJECT o
 ;
 

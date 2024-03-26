@@ -390,6 +390,9 @@ FORM billOrderDashboard 'Счета на товары'
         representative(b) = Invoicing.filterRepresentative() OR NOT Invoicing.filterRepresentative(),
         status(b) = filterStatus() OR NOT filterStatus(),
         isUrgent(b) OR NOT filterUrgent()
+
+    PROPERTIES order 'Порядок' = LONG(b) SHOWIF NULL
+    ORDERS order DESC
 ;
 
 DESIGN billOrderDashboard {

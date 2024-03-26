@@ -433,6 +433,9 @@ FORM billDashboard 'Счета на услуги'
     FILTERS legalEntity(bl), billService(type(bl)),
             representative(bl) = currentUser() OR showAllInvoices(currentUser()) OR NOT representative(bl)
 
+    PROPERTIES blOrder 'Порядок' = LONG(bl) SHOWIF NULL
+    ORDERS blOrder DESC
+    
     OBJECTS bi 'Оплата freelance' = Bill BACKGROUND backgroundColor(bi)
     PROPERTIES(bi) READONLY number, date, imagedNameStatus BACKGROUND colorStatus(bi), overNameVendor, 
                             items, nameProjects, note, overNameRepresentative, amount
@@ -449,6 +452,9 @@ FORM billDashboard 'Счета на услуги'
         representative(bi) = filterRepresentative() OR NOT filterRepresentative(),
         status(bl) = filterStatus() OR NOT filterStatus(), status(bi) = filterStatus() OR NOT filterStatus(),
         isUrgent(bl) OR NOT filterUrgent(), isUrgent(bi) OR NOT filterUrgent()
+
+    PROPERTIES biOrder 'Порядок' = LONG(bi) SHOWIF NULL
+    ORDERS biOrder DESC
 ;
 
 DESIGN billDashboard {
