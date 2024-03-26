@@ -10,6 +10,13 @@ priority = DATA Priority (ManufacturingOrder);
 namePriority 'Приоритет' (ManufacturingOrder o) = badged(priority(o));
 colorPriority (ManufacturingOrder o) = color(priority(o));
 namePriority 'Приоритет' (ConsumedLine o) = namePriority(manufacturingOrder(o));
+isDefault 'По умолчанию' = DATA BOOLEAN (Priority); 
+
+EXTEND FORM ProjectManagement.options
+    PROPERTIES (p) isDefault
+;
+    
+WHEN LOCAL SET (ManufacturingOrder o IS ManufacturingOrder) AND NOT priority(o) DO priority(o) <- GROUP MAX Priority p IF isDefault(p);
 
 EXTEND FORM materialRequests
     PROPERTIES (o) FIRST READONLY nameProject, namePriority
