@@ -336,7 +336,7 @@ EXTEND FORM projectDashboard
 
 META dashboardActionPayment(st)
     EXTEND FORM projectDashboard
-        PROPERTIES (st) SHOWIF toReady(lastBill(st)) pay
+        PROPERTIES (st) SHOWIF onApproval(lastBill(st)) pay
         PROPERTIES(st) SHOWIF toPay(lastBill(st)) doPayment
         PROPERTIES (st) left, toPay, paidDone
     ;
