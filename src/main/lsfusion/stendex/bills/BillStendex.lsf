@@ -344,6 +344,7 @@ uploadInvoice 'Счет' (Bill b){
         extension(uof) <- extension(uf);
         type(uof) <- TypeFile.invoice;
         lockChangeType(uof) <- TRUE;
+        onApproval(b) <- TRUE;
     }
 } IMAGE 'add.png';
 
