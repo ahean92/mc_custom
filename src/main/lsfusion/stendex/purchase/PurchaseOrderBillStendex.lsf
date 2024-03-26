@@ -487,6 +487,7 @@ EXTEND FORM orders
 ;
 
 EXTEND FORM projectDashboard
+    PROPERTIES (order) READONLY urgency AFTER payBeforeDate(order)
     PROPERTIES (draft) READONLY BACKGROUND colorStatus(draft) urgency AFTER payBeforeDate(draft)
     PROPERTIES (review) READONLY BACKGROUND colorStatus(review) urgency AFTER payBeforeDate(review)
     PROPERTIES (inPayment) READONLY BACKGROUND colorStatus(inPayment) urgency AFTER payBeforeDate(inPayment)
@@ -495,6 +496,9 @@ EXTEND FORM projectDashboard
     PROPERTIES (delivered) READONLY BACKGROUND colorStatus(delivered) urgency AFTER payBeforeDate(delivered)
     PROPERTIES (canceled) READONLY BACKGROUND colorStatus(canceled) urgency AFTER payBeforeDate(canceled)
     PROPERTIES (closed) READONLY BACKGROUND colorStatus(closed) urgency AFTER payBeforeDate(closed)
+
+    FILTERGROUP toBill
+        FILTER 'Create Bill' status(order) = OrderStatus.confirmed AND toBill(order)
 ;
 
 WHEN LOCAL SETCHANGED (type(Order o)) AND lastBill(o) DO type(lastBill(o)) <- billType(type(o));

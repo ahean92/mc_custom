@@ -1,6 +1,6 @@
 MODULE ProjectDashboardStendex;
 
-REQUIRE PurchaseOrderStendex, ProjectPurchaseOrderStendex, ProjectStendex;
+REQUIRE PurchaseOrderStendex, ProjectPurchaseOrderStendex, ProjectStendex, PurchaseOrderFilter;
 
 editingOn 'Редактировать' = DATA LOCAL NESTED BOOLEAN (Project);
 WHEN LOCAL SET(Project p IS Project) DO editingOn(p) <- TRUE;
@@ -98,26 +98,98 @@ nameFilterProject 'Проект' = name(filterProject());
 filterRepresentative = DATA LOCAL NESTED Employee ();
 nameFilterRepresentative 'Наш представитель' = MasterData.overName(filterRepresentative());
 
+showRequestTab 'Отображать вкладку Заявки' = DATA BOOLEAN (UserRole);
+showRequestTab (User u) = GROUP SUM 1 IF showRequestTab(UserRole r) AND has(u, r);
+showRequestTab = showRequestTab(currentUser());
+
+showOrderTab 'Отображать вкладку Заказы' = DATA BOOLEAN (UserRole);
+showOrderTab (User u) = GROUP SUM 1 IF showOrderTab(UserRole r) AND has(u, r);
+showOrderTab = showOrderTab(currentUser());
+
+EXTEND FORM securityPolicy
+    PROPERTIES(ur) PANEL showRequestTab, showOrderTab
+;
+DESIGN securityPolicy {
+    roleApplicationSettings {
+        tabbed = TRUE;
+        NEW projectDashboard {
+            caption = 'Закупка материалов';
+            lines = 3;
+            MOVE PROPERTY(showRequestTab(ur));
+            MOVE PROPERTY(showOrderTab(ur));
+        }
+    }
+}
+
 FORM projectDashboard 'Закупка материалов' 
     PROPERTIES () nameFilterProject, nameFilterRepresentative
+    
     OBJECTS request = ManufacturingOrder
     PROPERTIES (request) READONLY nameProject, 'Дата' = scheduledDate, namePriority, number, nameType, nameConsumedItem, nameStatus, overNameResponsible
-    PROPERTIES (request) NEWSESSION EDIT
+    PROPERTIES (request) NEWSESSION NEW, EDIT, DELETE
     FILTERS project(request) = filterProject() OR NOT filterProject()
     FILTERS responsible(request) = filterRepresentative() OR NOT filterRepresentative()
 
+    FILTERGROUP draft
+        FILTER 'Draft' status(request) = ManufacturingOrderStatus.draft DEFAULT
+    
     PROPERTIES showRequestLines = Purchase.showLines() TOOLBAR DRAW request
 
     OBJECTS requestLine = ConsumedLine
     PROPERTIES(requestLine) READONLY SHOWIF Purchase.showLines() idItem, nameItem, nameUom, description, 'Количество' = toConsume
     PROPERTIES(requestLine) SHOWIF Purchase.showLines() link ON CHANGE { open(link(requestLine)); } AFTER description(requestLine)
     FILTERS manufacturingOrder(requestLine) = request
+
+    PROPERTIES showRequestPanelControl = showPanelControl() PANEL DRAW request
+    
+    OBJECTS requestDates = INTERVAL[DATE] BEFORE request PANEL NULL
+    PROPERTIES requestFilterDates 'Date interval' = VALUE(requestDates)
+    FILTERS NOT scheduledDate(request) < from(requestDates), NOT scheduledDate(request) > to(requestDates)
+    
+    
+    OBJECTS order = Purchase.Order
+    PROPERTIES (order) READONLY nameCompany, nameProjects, number, date, overNameRepresentative, scheduledDateTime, nameVendor, note, payBeforeDate, untaxedAmount, amount
+    PROPERTIES(order) READONLY imagedNameStatus BACKGROUND colorStatus(order) BEFORE nameCompany(order)
+    PROPERTIES(order) NEWSESSION NEW, EDIT, DELETE
+    FILTERS inOrder(filterProject(), order) OR NOT filterProject()
+    FILTERS representative(order) = filterRepresentative() OR NOT filterRepresentative()
+
+    FILTERGROUP statusCustom
+        FILTER 'Draft' status(order) = OrderStatus.draft
+        FILTER 'Отменен' status(order) = OrderStatus.canceled
+        FILTER 'В оплате' status(order) = OrderStatus.inPayment
+        FILTER 'Оплачено частитчно' status(order) = OrderStatus.partiallyPaid
+        FILTER 'Ждем доставки' status(order) = OrderStatus.awaitingDelivery
+        FILTER 'Закрыт' status(order) = OrderStatus.closed
+        FILTER 'На рассмотрении' status(order) = OrderStatus.review
+        FILTER 'Доставлен' status(order) = OrderStatus.delivered
+    
+    PROPERTIES showOrderLines = Purchase.showLines() TOOLBAR DRAW order
+
+    OBJECTS orderLine = Purchase.OrderLine
+    PROPERTIES(orderLine) READONLY SHOWIF Purchase.showLines() index, nameItem, description, nameUom, idBarCodeItem, idItem, referenceItem, quantity, price, untaxedAmount, amount, taxes, nameProject
+    FILTERS order(orderLine) = order
+
+    PROPERTIES showOrderPanelControl = showPanelControl() PANEL DRAW order
+
+    OBJECTS orderDates = INTERVAL[DATE] BEFORE order PANEL NULL
+    PROPERTIES orderFilterDates 'Date interval' = VALUE(orderDates)
+    FILTERS NOT date(order) < from(orderDates), NOT date(order) > to(orderDates)
+
+    PROPERTIES() nameOrderType, nameOrderLocation, nameOrderVendor
+    FILTERS type(order) = orderType() OR NOT orderType()
+    FILTERS location(order) = orderLocation() OR NOT orderLocation()
+    FILTERS vendor(order) = orderVendor() OR NOT orderVendor()
 ;
+
 //
 filteredRequest(ManufacturingOrder o) = FILTER projectDashboard.request;
 countFilteredRequest = GROUP SUM 1 IF filteredRequest(ManufacturingOrder o);
 
-DESIGN projectDashboard{
+filteredOrder(Order o) = FILTER projectDashboard.order;
+countFilteredOrder = GROUP SUM 1 IF filteredOrder(Order o);
+
+DESIGN projectDashboard {
     OBJECTS{
         class = '';
         border = FALSE;
@@ -141,19 +213,85 @@ DESIGN projectDashboard{
             fill = 1;
             alignment = STRETCH;
             tabbed = TRUE;
-            NEW request{
+            NEW request {
                 caption = badged('Заявки', countFilteredRequest());
-                MOVE BOX (request){
-                    caption = '';
-                    PROPERTY (nameType(request)){
-                        charWidth = 10;
+                showIf = showRequestTab();
+                fill = 1;
+                horizontal = TRUE;
+                NEW requestTables {
+                    fill = 100;
+                    NEW requestActions {
+                        caption = '';
+                        alignment = END;
+                        horizontal = TRUE;
+                        MOVE PROPERTY (showRequestPanelControl) {
+                            caption = IF showPanel() THEN 'Скрыть фильтры' ELSE 'Фильтры';
+                        }
                     }
-                    PROPERTY (namePriority(request)) {valueAlignment = CENTER; charWidth = 6;}
-                    TOOLBARBOX(request) {
-                        MOVE PROPERTY(showRequestLines) BEFORE TOOLBARRIGHT(request);
+                    MOVE BOX (request){
+                        caption = '';
+                        PROPERTY (nameType(request)){
+                            charWidth = 10;
+                        }
+                        PROPERTY (namePriority(request)) {valueAlignment = CENTER; charWidth = 6;}
+                        TOOLBARBOX(request) {
+                            MOVE PROPERTY(showRequestLines) BEFORE TOOLBARRIGHT(request);
+                        }
+                    };
+                    MOVE BOX(requestLine);
+                }
+                NEW requestFilters {
+                    caption = 'Filters';
+                    showIf = showPanel();
+                    alignment = STRETCH;
+                    width = 200;
+                    fill = 1;
+                    MOVE FILTERGROUPS(request) {
+                        horizontal = FALSE;
+                        alignment = STRETCH;
                     }
-                };
-                MOVE BOX(requestLine);
+                    MOVE PROPERTY(requestFilterDates);
+                }
+            }
+            NEW order {
+                caption = badged('Заказы', countFilteredOrder());
+                showIf = showOrderTab();
+                fill = 1;
+                horizontal = TRUE;
+                NEW orderTables {
+                    fill = 1000;
+                    NEW orderActions {
+                        caption = '';
+                        alignment = END;
+                        horizontal = TRUE;
+                        MOVE PROPERTY (showOrderPanelControl) {
+                            caption = IF showPanel() THEN 'Скрыть фильтры' ELSE 'Фильтры';
+                        }
+                    }
+                    MOVE BOX (order){
+                        caption = '';
+                        TOOLBARBOX(order) {
+                            MOVE PROPERTY(showOrderLines) BEFORE TOOLBARRIGHT(order);
+                        }
+                    };
+                    MOVE BOX(orderLine);
+                }
+                NEW orderFilters {
+                    caption = 'Filters';
+                    showIf = showPanel();
+                    alignment = STRETCH;
+                    width = 200;
+                    fill = 1;
+                    MOVE FILTERGROUPS(order) {
+                        horizontal = FALSE;
+                        alignment = STRETCH;
+                    }
+                    MOVE PROPERTY(orderFilterDates);
+                    MOVE PROPERTY(nameOrderType()) { caption = ''; placeholder = 'Type'; };
+                    MOVE PROPERTY(nameOrderLocation()) { caption = ''; placeholder = 'Location'; };
+                    MOVE PROPERTY(nameOrderVendor()) { caption = ''; placeholder = 'Vendor'; };
+                }   
+                
             }
         }
         REMOVE TOOLBARBOX;
@@ -162,6 +300,19 @@ DESIGN projectDashboard{
 
 
 META dashboardStatus(st, capt)
+    show###st##Tab 'Отображать вкладку '##capt = DATA BOOLEAN (UserRole);
+    show###st##Tab (User u) = GROUP SUM 1 IF show###st##Tab(UserRole r) AND has(u, r);
+    show###st##Tab = show###st##Tab(currentUser());
+
+    EXTEND FORM securityPolicy
+        PROPERTIES(ur) PANEL show###st##Tab
+    ;
+    DESIGN securityPolicy {
+        projectDashboard {
+            MOVE PROPERTY(show###st##Tab(ur));
+        }
+    }
+    
     EXTEND FORM projectDashboard
         OBJECTS st = Purchase.Order
         PROPERTIES (st) READONLY BACKGROUND colorStatus(st) nameCompany, nameProjects, number, date, overNameRepresentative, scheduledDateTime, nameVendor, note, payBeforeDate, untaxedAmount, amount
@@ -188,6 +339,7 @@ META dashboardStatus(st, capt)
         tab{
             NEW st{
                 caption =  badged(capt, countFiltered###st());
+                showIf = show###st##Tab();
                 NEW action##st{
                     caption = '';
                     alignment = END;
