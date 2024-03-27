@@ -119,9 +119,53 @@ doPayment 'Оплачено' (Bill b) {
     }
 }
 
+FORM inputBillInvoiceFiles 'Добавление счетов'
+    OBJECTS b = Bill PANEL
+
+    OBJECTS of = BillFile
+    PROPERTIES(of) READONLYIF readonly(b) name, extension, description
+    PROPERTIES(of) READONLY nameUser, dateTime
+    PROPERTIES(of) GRID open, DELETE
+    FILTERS bill(of) = b,
+        type(of) = TypeFile.invoice
+
+    PROPERTIES(b) uploadInvoice DRAW of TOOLBAR
+    PROPERTIES inputFile = '' CUSTOM 'inputFile' ON CHANGE {
+        INPUT f = JSON DO
+            IMPORT JSON FROM f FIELDS() STRING name, STRING extension, STRING data DO
+                NEW uof = BillFile {
+                    bill(uof) <- b;
+                    file(uof) <- decode(data, 'base64');
+                    name(uof) <- name;
+                    extension(uof) <- extension;
+                    type(uof) <- TypeFile.invoice;
+                    lockChangeType(uof) <- TRUE;
+                    onApproval(b) <- TRUE;
+                }
+    }
+;
+
+DESIGN inputBillInvoiceFiles {
+    size = (800, 600);
+    BOX(of) {
+        caption = '';
+        MOVE PROPERTY(inputFile);
+    }
+}
+
+doApproval 'На утверждение' (Bill b) {
+    APPLY;
+    IF canceled() THEN RETURN;
+
+    NEWSESSION {
+        DIALOG inputBillInvoiceFiles OBJECTS b = b FLOAT;
+        APPLY;
+    }
+}
+
 EXTEND FORM billCustom
     PROPERTIES(b) READONLY paid, left
-    PROPERTIES(b) SHOWIF toReady(b) markAsOnApproval
+    PROPERTIES(b) SHOWIF toReady(b) doApproval
     PROPERTIES(b) SHOWIF onApproval(b) pay
     PROPERTIES(b) SHOWIF toPay(b) doPayment
     PROPERTIES(b) prepayment
@@ -134,7 +178,7 @@ EXTEND FORM billCustom
 DESIGN billCustom {
     header {
         statusActions {
-            MOVE PROPERTY(markAsOnApproval(b));
+            MOVE PROPERTY(doApproval(b));
             MOVE PROPERTY(pay(b));
             MOVE PROPERTY(doPayment(b));
         }
@@ -182,44 +226,57 @@ defaultFilter 'По умолчанию' (Bill b, User u) =
     (showToReadyDefault(u) AND toReady(b)) OR (showToOnApprovalDefault(u) AND onApproval(b)) OR (showToPayDefault(u) AND toPay(b)) OR
     (showDoneDefault(u) AND done(b)) OR NOT (showToReadyDefault(u) OR showToOnApprovalDefault(u) OR showToPayDefault(u) OR showDoneDefault(u));
 
-EXTEND FORM billDashboard
-    PROPERTIES(bl) READONLY left, toPay, paidDone
-    PROPERTIES(bl) SHOWIF toReady(bl) markAsOnApproval
-    PROPERTIES(bl) SHOWIF onApproval(bl) pay
-    PROPERTIES(bl) SHOWIF toPay(bl) doPayment
-    FILTERGROUP statusL
-        FILTER 'По умолчанию' defaultFilter(bl, currentUser()) DEFAULT
-        FILTER 'Формирование' toReady(bl)
-        FILTER 'На утверждении' onApproval(bl) AND NOT (toPay(bl) OR paidDone(bl))
-        FILTER 'К оплате' toPay(bl)
-        FILTER 'Оплачено' done(bl)
-        FILTER 'Частично оплачен' partiallyPaid(bl)
-        FILTER 'Отменен' canceled(bl)
-    
+@billDashboardStatus(partiallyPaid, 'Частично оплачен');
 
-    PROPERTIES(bi) READONLY left, toPay, paidDone
-    PROPERTIES(bi) SHOWIF toReady(bi) markAsOnApproval
-    PROPERTIES(bi) SHOWIF onApproval(bi) pay
-    PROPERTIES(bi) SHOWIF toPay(bi) doPayment
-    FILTERGROUP statusI
-        FILTER 'По умолчанию' defaultFilter(bi, currentUser()) DEFAULT
-        FILTER 'Формирование' toReady(bi)
-        FILTER 'На утверждении' onApproval(bi) AND NOT (toPay(bi) OR paidDone(bi))
-        FILTER 'К оплате' toPay(bi)
-        FILTER 'Оплачено' done(bi)
-        FILTER 'Частично оплачен' partiallyPaid(bi)
-        FILTER 'Отменен' canceled(bi)
+EXTEND FORM billDashboard
+    PROPERTIES newLegalEntityBill() DRAW draftLE TOOLBAR
+    PROPERTIES(draftLE) NEWSESSION DELETE
+    PROPERTIES(draftLE) cancel, doApproval
+    PROPERTIES newIndividualBill() DRAW draftI TOOLBAR
+    PROPERTIES(draftI) NEWSESSION DELETE
+    PROPERTIES(draftI) cancel, doApproval
+    
+    PROPERTIES(onApprovalLE) left, pay
+    PROPERTIES(onApprovalI) left, pay
+    
+    PROPERTIES(partiallyPaidLE) left, toPay, paidDone, pay
+    PROPERTIES(partiallyPaidI) left, toPay, paidDone, pay
+    
+    PROPERTIES(readyLE) left, toPay, paidDone, doPayment
+    PROPERTIES(readyI) left, toPay, paidDone, doPayment
+    
+    PROPERTIES(doneLE) left, toPay, paidDone
+    PROPERTIES(doneI) left, toPay, paidDone
 ;
 
 DESIGN billDashboard {
-    markLegalEntity {
-        MOVE PROPERTY(markAsOnApproval(bl));
-        MOVE PROPERTY(pay(bl));
-        MOVE PROPERTY(doPayment(bl));
-    }
-    markIndividual {
-        MOVE PROPERTY(markAsOnApproval(bi));
-        MOVE PROPERTY(pay(bi));
-        MOVE PROPERTY(doPayment(bi));
+    tab {
+        draftLEMark {
+            MOVE PROPERTY(cancel(draftLE));
+            MOVE PROPERTY(doApproval(draftLE));
+        }
+        draftIMark {
+            MOVE PROPERTY(cancel(draftI));
+            MOVE PROPERTY(doApproval(draftI));
+        }
+        onApprovalLEMark {
+            MOVE PROPERTY(pay(onApprovalLE));
+        }
+        onApprovalIMark {
+            MOVE PROPERTY(pay(onApprovalI));
+        }
+        MOVE partiallyPaid AFTER onApproval;
+        partiallyPaidLEMark {
+            MOVE PROPERTY(pay(partiallyPaidLE));
+        }
+        partiallyPaidIMark {
+            MOVE PROPERTY(pay(partiallyPaidI));
+        }
+        readyLEMark {
+            MOVE PROPERTY(doPayment(readyLE));
+        }
+        readyIMark {
+            MOVE PROPERTY(doPayment(readyI));
+        }
     }
 }
