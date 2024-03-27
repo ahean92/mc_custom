@@ -22,6 +22,9 @@ FORM changeBillProjects 'Выбрать проекты'
         FILTER 'Closed' archived(p) OR closed(p)
 ;
 
+DESIGN changeBillProjects{
+    PROPERTY (in(b, p)) {changeOnSingleClick = TRUE; }
+}
 changeBillProjects 'Выбрать проекты' (Bill b) {
     DIALOG changeBillProjects OBJECTS b = b;
 }
