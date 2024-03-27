@@ -113,8 +113,12 @@ doPayment 'Оплачено' (Bill b) {
     IF canceled() THEN RETURN;
     
     NEWSESSION {
-        DIALOG inputBillPaymentOrderFiles OBJECTS b = b FLOAT;
-        done(OutgoingPayment p) <- TRUE WHERE paid(b, p) AND NOT done(p);
+        LOCAL count = INTEGER();
+        count() <- OVERRIDE (GROUP SUM 1 IF bill(BillFile f) == b AND type(f) = TypeFile.paymentOrder), 0;
+        DIALOG inputBillPaymentOrderFiles OBJECTS b = b FLOAT NESTEDSESSION;
+        IF (GROUP SUM 1 IF bill(BillFile f) == b AND type(f) = TypeFile.paymentOrder) > count() THEN {
+            done(OutgoingPayment p) <- TRUE WHERE paid(b, p) AND NOT done(p);
+        }
         APPLY;
     }
 }
