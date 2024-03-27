@@ -422,43 +422,16 @@ filterUrgent 'Срочные' = DATA LOCAL BOOLEAN ();
 
 backgroundColor = ABSTRACT CASE COLOR (Bill);
 backgroundColor(Bill b) += WHEN isUrgent(b) THEN RGB(237,193,116);
+overBackgroundColor (Bill b) = OVERRIDE backgroundColor(b), colorStatus(b);
 
 FORM billDashboard 'Счета на услуги'
-    OBJECTS bl = Bill BACKGROUND backgroundColor(bl)
-    PROPERTIES(bl) READONLY number, date, imagedNameStatus BACKGROUND colorStatus(bl), overNameVendor,
-                            items, nameProjects, note, overNameRepresentative, amount
-    PROPERTIES(bl) 'Счет' = openFiles GRID, cancel SHOWIF status(bl) = BillStatus.draft
-    PROPERTIES newLegalEntityBill() DRAW bl TOOLBAR
-    PROPERTIES(bl) NEWSESSION editBillCustom, DELETE
-    FILTERS legalEntity(bl), billService(type(bl)),
-            representative(bl) = currentUser() OR showAllInvoices(currentUser()) OR NOT representative(bl)
-
-    PROPERTIES blOrder 'Порядок' = LONG(bl) SHOWIF NULL
-    ORDERS blOrder DESC
-    
-    OBJECTS bi 'Оплата freelance' = Bill BACKGROUND backgroundColor(bi)
-    PROPERTIES(bi) READONLY number, date, imagedNameStatus BACKGROUND colorStatus(bi), overNameVendor, 
-                            items, nameProjects, note, overNameRepresentative, amount
-    PROPERTIES(bi) 'Счет' = openFiles GRID, cancel SHOWIF status(bi) = BillStatus.draft
-    PROPERTIES newIndividualBill() DRAW bi TOOLBAR
-    PROPERTIES(bi) NEWSESSION editBillCustom, DELETE
-    FILTERS individual(bi), billService(type(bi)),
-            representative(bi) = currentUser() OR showAllInvoices(currentUser()) OR NOT representative(bi)
-
     PROPERTIES() nameFilterProject, nameFilterRepresentative, nameFilterStatus, filterUrgent
-    FILTERS in(bl, filterProject()) OR NOT filterProject(),
-        in(bi, filterProject()) OR NOT filterProject(),
-        representative(bl) = filterRepresentative() OR NOT filterRepresentative(), 
-        representative(bi) = filterRepresentative() OR NOT filterRepresentative(),
-        status(bl) = filterStatus() OR NOT filterStatus(), status(bi) = filterStatus() OR NOT filterStatus(),
-        isUrgent(bl) OR NOT filterUrgent(), isUrgent(bi) OR NOT filterUrgent()
-
-    PROPERTIES biOrder 'Порядок' = LONG(bi) SHOWIF NULL
-    ORDERS biOrder DESC
 ;
 
 DESIGN billDashboard {
     OBJECTS {
+        class = '';
+        border = FALSE;
         NEW filters {
             caption = '';
             border = FALSE;
@@ -468,46 +441,14 @@ DESIGN billDashboard {
             MOVE PROPERTY (nameFilterRepresentative());
             MOVE PROPERTY (nameFilterStatus());
             MOVE PROPERTY (filterUrgent());
+            MOVE PROPERTY (formRefresh());
         }
-        NEW pane{
+        NEW tab {
             fill = 1;
-            NEW billLegalEntity {
-                caption = 'Счета на оплату';
-                fill = 1;
-                NEW headerLegalEntity {
-                    horizontal = TRUE;
-                    alignment = STRETCH;
-                    MOVE TOOLBAR(bl);
-                    NEW actionsLegalEntity {
-                        fill = 1;
-                        NEW markLegalEntity {
-                            horizontal = TRUE;
-                            alignment = END;
-                            MOVE PROPERTY (cancel(bl));
-                        }
-                    }
-                }
-                MOVE BOX(bl) { caption = ''; };
-            }
-            NEW billIndividual {
-                caption = 'Оплата freelance';
-                fill = 1;
-                NEW headerIndividual {  
-                    horizontal = TRUE;
-                    alignment = STRETCH;
-                    MOVE TOOLBAR(bi);
-                    NEW actionsIndividual {
-                        fill = 1;
-                        NEW markIndividual {
-                            horizontal = TRUE;
-                            alignment = END;
-                            MOVE PROPERTY (cancel(bi));
-                        }
-                    }
-                }
-                MOVE BOX(bi) { caption = ''; }
-            }
+            alignment = STRETCH;
+            tabbed = TRUE;
         }
+        REMOVE TOOLBARBOX;
     }
 }
 
@@ -516,3 +457,114 @@ NAVIGATOR {
         NEW billDashboard;
     }
 }
+
+DESIGN securityPolicy {
+    roleApplicationSettings {
+        tabbed = TRUE;
+        NEW billDashboard {
+            caption = 'Счета на услуги';
+            lines = 3;
+        }
+    }
+}
+
+META billDashboardStatus(st, capt)
+    showBill###st##Tab 'Отображать вкладку '##capt = DATA BOOLEAN (UserRole);
+    showBill###st##Tab (User u) = GROUP SUM 1 IF showBill###st##Tab(UserRole r) AND has(u, r);
+    showBill###st##Tab = showBill###st##Tab(currentUser());
+
+    EXTEND FORM securityPolicy
+        PROPERTIES(ur) PANEL showBill###st##Tab
+    ;
+    DESIGN securityPolicy {
+        billDashboard {
+            MOVE PROPERTY(showBill###st##Tab(ur));
+        }
+    }
+
+    EXTEND FORM billDashboard
+        OBJECTS st##LE = Bill BACKGROUND overBackgroundColor(st##LE)
+        PROPERTIES(st##LE) READONLY number, date, overNameVendor, items, nameProjects, note, overNameRepresentative, amount
+        PROPERTIES(st##LE) 'Счет' = openFiles GRID
+        PROPERTIES(st##LE) NEWSESSION editBillCustom
+        FILTERS status(st##LE) = BillStatus.st
+        FILTERS legalEntity(st##LE), billService(type(st##LE)),
+                representative(st##LE) = currentUser() OR showAllInvoices(currentUser()) OR NOT representative(st##LE)
+        FILTERS in(st##LE, filterProject()) OR NOT filterProject(),
+                representative(st##LE) = filterRepresentative() OR NOT filterRepresentative(),
+                status(st##LE) = filterStatus() OR NOT filterStatus(),
+                isUrgent(st##LE) OR NOT filterUrgent()
+        
+        PROPERTIES st##LE##Order 'Порядок' = LONG(st##LE) SHOWIF NULL
+        ORDERS st##LE##Order DESC
+
+        OBJECTS st##I = Bill BACKGROUND overBackgroundColor(st##I)
+        PROPERTIES(st##I) READONLY number, date, overNameVendor, items, nameProjects, note, overNameRepresentative, amount
+        PROPERTIES(st##I) 'Счет' = openFiles GRID
+        PROPERTIES(st##I) NEWSESSION editBillCustom
+        FILTERS status(st##I) = BillStatus.st
+        FILTERS individual(st##I), billService(type(st##I)),
+            representative(st##I) = currentUser() OR showAllInvoices(currentUser()) OR NOT representative(st##I)
+        FILTERS in(st##I, filterProject()) OR NOT filterProject(),
+                representative(st##I) = filterRepresentative() OR NOT filterRepresentative(),
+                status(st##I) = filterStatus() OR NOT filterStatus(),
+                isUrgent(st##I) OR NOT filterUrgent()
+        
+        PROPERTIES st##I##Order 'Порядок' = LONG(st##I) SHOWIF NULL
+        ORDERS st##I##Order DESC
+    ;
+
+    filtered###st##LE(Bill b) = FILTER billDashboard.st##LE;
+    filtered###st##I(Bill b) = FILTER billDashboard.st##I;
+    countFiltered###st = GROUP SUM 1 IF filtered###st##LE(Bill b) OR filtered###st##I(b);
+    
+    DESIGN billDashboard{
+        tab {
+            NEW st {
+                caption = badged(capt, countFiltered###st());
+                showIf = showBill###st##Tab();
+                fill = 1;
+                NEW st##LE {
+                    caption = 'Счета на оплату';
+                    fill = 1;
+                    NEW st##LE##Header {
+                        horizontal = TRUE;
+                        alignment = STRETCH;
+                        MOVE TOOLBAR(st##LE);
+                        NEW st##LE##Actions {
+                            fill = 1;
+                            NEW st##LE##Mark {
+                                horizontal = TRUE;
+                                alignment = END;
+                            }
+                        }
+                    }
+                    MOVE BOX(st##LE) { caption = ''; };
+                }
+                NEW st##I {
+                    caption = 'Оплата freelance';
+                    fill = 1;
+                    NEW st##I##Header {
+                        horizontal = TRUE;
+                        alignment = STRETCH;
+                        MOVE TOOLBAR(st##I);
+                        NEW st##I##Actions {
+                            fill = 1;
+                            NEW st##I##Mark {
+                                horizontal = TRUE;
+                                alignment = END;
+                            }
+                        }
+                    }
+                    MOVE BOX(st##I) { caption = ''; };
+                }
+            }
+        }
+    }
+END
+
+@billDashboardStatus(draft, 'Формирование');
+@billDashboardStatus(onApproval, 'На утверждении');
+@billDashboardStatus(ready, 'К оплате');
+@billDashboardStatus(done, 'Оплачено');
+@billDashboardStatus(canceled, 'Отменен');
