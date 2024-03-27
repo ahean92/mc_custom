@@ -153,7 +153,7 @@ nameType 'Type' (ProjectFile f) = name(type(f));
 fileFolder = DATA FileFolder (ProjectFile);
 nameFolder (ProjectFile f) = name(fileFolder(f));
 
-CONSTRAINT LOCAL SET([GROUP SUM 1 BY project(ProjectFile f), type(f), fileFolder(f)](Project p, FileType t, FileFolder f) > 1) AND isUnique(t)
+CONSTRAINT SET([GROUP SUM 1 BY project(ProjectFile f), type(f), fileFolder(f)](Project p, FileType t, FileFolder f) > 1) AND isUnique(t)
     MESSAGE 'Запрещено добавление больше одного файла данного типа в проект';
 
 addFile 'Добавить' (Project o, FileType t, FileFolder f) {

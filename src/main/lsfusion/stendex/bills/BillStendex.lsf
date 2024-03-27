@@ -364,10 +364,10 @@ uploadPaymentOrder 'Платежное поручение' (Bill b){
 countPaymentOrders(Bill b) = GROUP SUM 1 IF type(BillFile f) = TypeFile.paymentOrder AND bill(f) = b;
 countInvoices(Bill b) = GROUP SUM 1 IF type(BillFile f) = TypeFile.invoice AND bill(f) = b;
 
-CONSTRAINT LOCAL SETCHANGED (status(Bill b)) AND status(b) = BillStatus.ready AND NOT countInvoices(b)
+CONSTRAINT SETCHANGED (status(Bill b)) AND status(b) = BillStatus.ready AND NOT countInvoices(b)
     MESSAGE 'Для перевода в статус "К оплате" необходимо прикрепить счет!';
 
-CONSTRAINT LOCAL SETCHANGED (status(Bill b)) AND status(b) = BillStatus.done AND NOT countPaymentOrders(b)
+CONSTRAINT SETCHANGED (status(Bill b)) AND status(b) = BillStatus.done AND NOT countPaymentOrders(b)
     MESSAGE 'Для перевода в статус "Оплачено" необходимо прикрепить платежное поручение!';
 
 

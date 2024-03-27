@@ -93,7 +93,7 @@ autoUploaded = DATA BOOLEAN (OrderFile);
 
 lockManualAdded (TypeFile t) = t == TypeFile.invoice OR t == TypeFile.paymentOrder OR t = TypeFile.consignment;
 
-CONSTRAINT LOCAL SETCHANGED (type(OrderFile f)) AND lockManualAdded(type(f)) AND NOT autoUploaded(f) CHECKED BY type[OrderFile]
+CONSTRAINT SETCHANGED (type(OrderFile f)) AND lockManualAdded(type(f)) AND NOT autoUploaded(f) CHECKED BY type[OrderFile]
     MESSAGE 'Запрещено вручную прикреалять файлы этого типа!';
 
 uploadConsigment 'Накладная' (Order o){
@@ -362,7 +362,7 @@ WHEN (SETCHANGED(lastBill(Purchase.Order o)) OR SETCHANGED(status(lastBill(o))))
 WHEN (SETCHANGED(lastBill(Purchase.Order o)) OR SETCHANGED(status(lastBill(o)))) AND status(lastBill(o)) == BillStatus.done
     DO changeStatus(o, OrderStatus.awaitingDelivery);
 
-CONSTRAINT LOCAL CHANGED(changedLines(Order o)) AND ready(lastBill(o)) MESSAGE 'Нельзя изменять документ со счетом в оплате';
+CONSTRAINT CHANGED(changedLines(Order o)) AND ready(lastBill(o)) MESSAGE 'Нельзя изменять документ со счетом в оплате';
 
 WHEN SETCHANGED(item(Purchase.OrderLine l)) AND lastBill(order(l)) DO {
     item(BillLine bl) <- item(l) WHERE orderLine(bl) == l;
