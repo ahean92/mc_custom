@@ -490,6 +490,7 @@ META billDashboardStatus(st, capt)
         PROPERTIES(st##LE) READONLY number, date, overNameVendor, items, nameProjects, note, overNameRepresentative, amount
         PROPERTIES(st##LE) 'Счет' = openFiles GRID
         PROPERTIES(st##LE) NEWSESSION editBillCustom
+        PROPERTIES(st##LE) NEWSESSION DELETE
         FILTERS status(st##LE) = BillStatus.st
         FILTERS legalEntity(st##LE), billService(type(st##LE)),
                 representative(st##LE) = currentUser() OR showAllInvoices(currentUser()) OR NOT representative(st##LE)
@@ -505,6 +506,7 @@ META billDashboardStatus(st, capt)
         PROPERTIES(st##I) READONLY number, date, overNameVendor, items, nameProjects, note, overNameRepresentative, amount
         PROPERTIES(st##I) 'Счет' = openFiles GRID
         PROPERTIES(st##I) NEWSESSION editBillCustom
+        PROPERTIES(st##I) NEWSESSION DELETE
         FILTERS status(st##I) = BillStatus.st
         FILTERS individual(st##I), billService(type(st##I)),
             representative(st##I) = currentUser() OR showAllInvoices(currentUser()) OR NOT representative(st##I)

@@ -234,10 +234,8 @@ defaultFilter 'По умолчанию' (Bill b, User u) =
 
 EXTEND FORM billDashboard
     PROPERTIES newLegalEntityBill() DRAW draftLE TOOLBAR
-    PROPERTIES(draftLE) NEWSESSION DELETE
     PROPERTIES(draftLE) cancel, doApproval
     PROPERTIES newIndividualBill() DRAW draftI TOOLBAR
-    PROPERTIES(draftI) NEWSESSION DELETE
     PROPERTIES(draftI) cancel, doApproval
     
     PROPERTIES(onApprovalLE) left, pay
