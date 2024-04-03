@@ -151,7 +151,7 @@ FORM projectDashboard 'Закупка материалов'
     
     
     OBJECTS order = Purchase.Order
-    PROPERTIES (order) READONLY nameCompany, nameProjects, number, date, overNameRepresentative, scheduledDateTime, nameVendor, note, payBeforeDate, untaxedAmount, amount
+    PROPERTIES (order) READONLY nameCompany, nameProjects, number, date, overNameRepresentative, scheduledDate, nameVendor, note, payBeforeDate, untaxedAmount, amount
     PROPERTIES(order) READONLY imagedNameStatus BACKGROUND colorStatus(order) BEFORE nameCompany(order)
     PROPERTIES(order) NEWSESSION NEW, EDIT, DELETE
     FILTERS inOrder(filterProject(), order) OR NOT filterProject()
@@ -321,7 +321,7 @@ META dashboardStatus(st, capt)
     
     EXTEND FORM projectDashboard
         OBJECTS st = Purchase.Order
-        PROPERTIES (st) READONLY BACKGROUND colorStatus(st) nameCompany, nameProjects, number, date, overNameRepresentative, scheduledDateTime, nameVendor, note, payBeforeDate, untaxedAmount, amount
+        PROPERTIES (st) READONLY BACKGROUND colorStatus(st) nameCompany, nameProjects, number, date, overNameRepresentative, scheduledDate, nameVendor, note, payBeforeDate, untaxedAmount, amount
         PROPERTIES (st) NEWSESSION EDIT
         PROPERTIES BACKGROUND colorStatus(st) fileInvoice(st) AFTER nameVendor(st) ON CHANGE { openInvoice(st); }
         FILTERS status(st) = Purchase.OrderStatus.st
