@@ -213,6 +213,17 @@ changeAmount (Bill b) {
             untaxedAmount(BillLine l) <- a WHERE bill(l) = b AND NOT item(l) IS Product;
     }
 }
+changeAmount(Bill b, NUMERIC[14,2] amount){
+    IF NOT countServiceLine(b) THEN
+        NEW l = BillLine {
+            bill(l) <- b;
+            untaxedAmount(l) <- amount;
+        }
+    ELSE
+        untaxedAmount(BillLine l) <- amount WHERE bill(l) = b AND NOT item(l) IS Product;
+}
+WHEN LOCAL SETCHANGED(amount(Bill b, Project p)) OR DROPCHANGED(amount(b, p)) AND billService(type(b)) DO changeAmount(b, (GROUP SUM amount(b, Project pp) IF in(b, pp)));
+
 
 showAllInvoices 'Показывать все счета' = DATA BOOLEAN (UserRole);
 showAllInvoices (User u) = GROUP SUM 1 IF showAllInvoices(UserRole r) AND has(u, r);
@@ -250,7 +261,7 @@ FORM billCustom 'Счет'
                   nameProjects READONLY,
                   overNameVendor,
                   note,
-                  amount ON CHANGE changeAmount(b),
+                  amount READONLY,
                   details,
                   isUrgent, includeVAT
 
