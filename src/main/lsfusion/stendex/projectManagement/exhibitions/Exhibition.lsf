@@ -52,9 +52,9 @@ DESIGN exhibition {
             alignment = STRETCH;
             horizontal = TRUE;
             NEW headerLeft {
-                MOVE PROPERTY(name(e));
-                MOVE PROPERTY(year(e)) {pattern = '####'; };
                 MOVE PROPERTY(nameType(e));
+                MOVE PROPERTY(year(e)) {pattern = '####'; };
+                MOVE PROPERTY(name(e));
                 MOVE PROPERTY(namePlace(e)) { charWidth = 80; }
                 MOVE PROPERTY(nameOrganizer(e)) { charWidth = 80; }
             }
