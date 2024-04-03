@@ -372,3 +372,24 @@ EXTEND FORM orders
     PROPERTIES order 'Порядок' = LONG(o) SHOWIF NULL
     ORDERS order DESC
 ;
+
+scheduledDate 'Scheduled date' (Order o) = DATE (scheduledDateTime(o));
+EXTEND FORM order
+    PROPERTIES (o) scheduledDate
+;
+
+DESIGN order {
+    OBJECTS {
+        details {
+            shippingInformation {
+                REMOVE PROPERTY (scheduledDateTime(o));
+                MOVE PROPERTY (scheduledDate(o));
+            }
+        }
+        header {
+            headerRight {
+                MOVE PROPERTY(note(o)) LAST { alignment = STRETCH; };
+            }
+        }
+    }
+}

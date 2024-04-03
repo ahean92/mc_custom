@@ -45,7 +45,6 @@ WHEN LOCAL CHANGED(vendor(Order o)) AND NOT CHANGED(paymentTerms(o)) DO paymentT
 // Shipping information
 scheduledDateTime 'Scheduled date' = DATA DATETIME (Order) IN id;
 scheduledDateTime(Order o) <- currentDateTime() WHEN SET(o IS Order);
-scheduledDate 'Scheduled date' (Order o) = DATE (scheduledDateTime(o));
 
 // company
 company 'Company' = DATA Company (Order) NONULL;
@@ -133,7 +132,7 @@ FORM order 'Purchase order'
     PROPERTIES(o) nameType, dateTime, number,
         nameVendor, nameCompany, nameLocation, nameCurrency,
         namePaymentTerms,
-        scheduledDate,
+        scheduledDateTime,
         nameRepresentative, vendorReference, note,
         details
     PROPERTIES(o) READONLY untaxedAmount, taxAmount, amount
@@ -186,7 +185,7 @@ DESIGN order {
                 NEW shippingInformation {
                     caption = 'Shipping';
                     alignment = STRETCH;
-                    MOVE PROPERTY(scheduledDate(o));
+                    MOVE PROPERTY(scheduledDateTime(o));
                 }
                 NEW purchaseInformation {
                     caption = 'Others';
@@ -282,15 +281,5 @@ EXTEND FORM order PROPERTIES copy(o);
 DESIGN order {
     secondaryActions {
         MOVE PROPERTY(copy(o)) { valueClass = 'btn-secondary'; }
-    }
-}
-
-DESIGN order {
-    OBJECTS {
-        header {
-            headerRight {
-                MOVE PROPERTY(note(o)) LAST { alignment = STRETCH; };
-            }
-        }
     }
 }
