@@ -222,7 +222,6 @@ changeAmount(Bill b, NUMERIC[14,2] amount){
     ELSE
         untaxedAmount(BillLine l) <- amount WHERE bill(l) = b AND NOT item(l) IS Product;
 }
-WHEN LOCAL SETCHANGED(amount(Bill b, Project p)) OR DROPCHANGED(amount(b, p)) AND billService(type(b)) DO changeAmount(b, (GROUP SUM amount(b, Project pp) IF in(b, pp)));
 
 
 showAllInvoices 'Показывать все счета' = DATA BOOLEAN (UserRole);
@@ -498,7 +497,7 @@ META billDashboardStatus(st, capt)
 
     EXTEND FORM billDashboard
         OBJECTS st##LE = Bill BACKGROUND overBackgroundColor(st##LE)
-        PROPERTIES(st##LE) READONLY number, date, overNameVendor, items, nameProjects, note, overNameRepresentative, amount
+        PROPERTIES(st##LE) READONLY number, date, overNameVendor, items, nameProjects, note, overNameRepresentative, nameCompany, amount
         PROPERTIES(st##LE) 'Счет' = openFiles GRID
         PROPERTIES(st##LE) NEWSESSION editBillCustom
         PROPERTIES(st##LE) NEWSESSION DELETE

@@ -11,12 +11,12 @@ CLASS Exhibition 'Выставка';
 readonly = ABSTRACT CASE BOOLEAN (Exhibition);
 
 type 'Type' = DATA ExhibitionType (Exhibition) NONULL;
-nameType 'Type' (Exhibition e) = name(type(e)) IN id;
+nameType 'Название выставки' (Exhibition e) = name(type(e)) IN id;
 WHEN LOCAL SET(Exhibition e IS Exhibition) AND NOT CHANGED(type(e)) DO type(e) <- defaultExhibitionType();
 
 dataName '{Name}' = DATA STRING (Exhibition) CHARWIDTH 20 IN id;
 year 'Год проведения' = DATA INTEGER (Exhibition) IN id;
-name '{Name}' (Exhibition e) = OVERRIDE dataName(e), nameType(e) + '-' + year(e);
+name 'Идентификатор' (Exhibition e) = OVERRIDE dataName(e), nameType(e) + '-' + year(e);
 
 place 'Место проведения' = DATA ExhibitionPlace (Exhibition) NONULL;
 namePlace 'Место проведения' (Exhibition e) = name(place(e)) IN id;
@@ -52,19 +52,19 @@ DESIGN exhibition {
             alignment = STRETCH;
             horizontal = TRUE;
             NEW headerLeft {
-                MOVE PROPERTY(nameType(e));
                 MOVE PROPERTY(name(e));
-                MOVE PROPERTY(year(e));
-                MOVE PROPERTY(namePlace(e));
-                MOVE PROPERTY(nameOrganizer(e));
+                MOVE PROPERTY(year(e)) {pattern = '####'; };
+                MOVE PROPERTY(nameType(e));
+                MOVE PROPERTY(namePlace(e)) { charWidth = 80; }
+                MOVE PROPERTY(nameOrganizer(e)) { charWidth = 80; }
             }
             NEW headerRight {
-                MOVE PROPERTY(installationStartDate(e));
-                MOVE PROPERTY(installationEndDate(e));
-                MOVE PROPERTY(startDate(e));
-                MOVE PROPERTY(endDate(e));
-                MOVE PROPERTY(demolitionStartDate(e));
-                MOVE PROPERTY(demolitionEndDate(e));
+                MOVE PROPERTY(installationStartDate(e)) { charWidth = 30; }
+                MOVE PROPERTY(installationEndDate(e)){ charWidth = 30; }
+                MOVE PROPERTY(startDate(e)){ charWidth = 30; }
+                MOVE PROPERTY(endDate(e)){ charWidth = 30; }
+                MOVE PROPERTY(demolitionStartDate(e)){ charWidth = 30; }
+                MOVE PROPERTY(demolitionEndDate(e)){ charWidth = 30; }
             }    
         }
     }  

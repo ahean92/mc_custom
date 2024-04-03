@@ -9,6 +9,8 @@ numberOrder 'Purchase order' (Bill b) = number(order(b));
 
 lastBill (Purchase.Order o) = GROUP LAST Bill b ORDER b BY order(b);
 
+WHEN LOCAL (SETCHANGED(amount(Bill b, Project p)) OR DROPCHANGED(amount(b, p))) AND NOT order(b) DO changeAmount(b, (GROUP SUM amount(b, Project pp) IF in(b, pp)));
+
 overFillAmountProjects (Bill b) + {
     IF order(b) THEN {
         FOR in(b, Project p) DO {
