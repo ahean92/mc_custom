@@ -136,7 +136,11 @@ FORM projectDashboard 'Закупка материалов'
     PROPERTIES requestOrder 'Порядок' = LONG(request) SHOWIF NULL
     ORDERS requestOrder DESC
     
-    PROPERTIES showRequestLines = Purchase.showLines() TOOLBAR DRAW request
+    PROPERTIES showRequestLines = Purchase.showLines() ON CHANGE {
+        NEWSESSION APPLY {
+            Purchase.showLines(currentUser()) <- NOT Purchase.showLines(currentUser());
+        }
+    } TOOLBAR DRAW request
 
     OBJECTS requestLine = ConsumedLine
     PROPERTIES(requestLine) READONLY SHOWIF Purchase.showLines() idItem, nameItem, nameUom, description, 'Количество' = toConsume
@@ -169,9 +173,12 @@ FORM projectDashboard 'Закупка материалов'
 
     PROPERTIES orderOrder 'Порядок' = LONG(order) SHOWIF NULL
     ORDERS orderOrder DESC
+    PROPERTIES showOrderLines = Purchase.showLines() ON CHANGE {
+        NEWSESSION APPLY {
+            Purchase.showLines(currentUser()) <- NOT Purchase.showLines(currentUser());
+        }
+    } TOOLBAR DRAW order 
     
-    PROPERTIES showOrderLines = Purchase.showLines() TOOLBAR DRAW order
-
     OBJECTS orderLine = Purchase.OrderLine
     PROPERTIES(orderLine) READONLY SHOWIF Purchase.showLines() index, nameItem, description, nameUom, idBarCodeItem, idItem, referenceItem, quantity, price, untaxedAmount, amount, taxes, nameProject
     FILTERS order(orderLine) = order
@@ -334,8 +341,12 @@ META dashboardStatus(st, capt)
         OBJECTS st##Status = Purchase.OrderStatus
         PROPERTIES (st, st##Status ) NEWSESSION changeStatus COLUMNS (st##Status) HEADER captionButton(st##Status) BACKGROUND dataColor(st##Status) SHOWIF countOrderLine(st)
         FILTERS showStatus(st, st##Status)
-
-        PROPERTIES show###st##Lines = Purchase.showLines() TOOLBAR DRAW st
+        
+        PROPERTIES show###st##Lines = Purchase.showLines() ON CHANGE {
+            NEWSESSION APPLY {
+                Purchase.showLines(currentUser()) <- NOT Purchase.showLines(currentUser());
+            }
+        } TOOLBAR DRAW st
         
         OBJECTS st##Line = Purchase.OrderLine
         PROPERTIES(st##Line) READONLY SHOWIF Purchase.showLines() index, nameItem, description, nameUom, idBarCodeItem, idItem, referenceItem, quantity, price, untaxedAmount, amount, taxes, nameProject

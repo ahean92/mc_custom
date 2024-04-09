@@ -327,10 +327,11 @@ changedLines (Order o) = [GROUP SUM 1 IF SETCHANGED (item(OrderLine l)) OR SETCH
 
 //CONSTRAINT LOCAL CHANGED(changedLines(Order o)) AND invoice(o) MESSAGE 'Нельзя изменять документ после прикрепления счета';
 
-showLines 'Показать состав' = DATA LOCAL NESTED BOOLEAN ();
+showLines 'Показать состав' = DATA BOOLEAN (CustomUser);
+showLines 'Показать состав' = showLines(currentUser());
 
 EXTEND FORM orders
-    PROPERTIES showLines() TOOLBAR DRAW o
+    PROPERTIES showLines() TOOLBAR DRAW o 
     
     OBJECTS l = OrderLine
     PROPERTIES(l) READONLY SHOWIF showLines() index, nameItem, description, nameUom, idBarCodeItem, idItem, referenceItem, quantity, price, untaxedAmount, taxes

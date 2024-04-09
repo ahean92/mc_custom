@@ -115,10 +115,15 @@ NAVIGATOR{
     }
 }
 
-showLines 'Показать состав' = DATA LOCAL NESTED BOOLEAN ();
+showLines 'Показать состав' = DATA BOOLEAN (CustomUser);
+showLines 'Показать состав' = showLines(currentUser());
 
 EXTEND FORM materialRequests
-    PROPERTIES showLines() TOOLBAR DRAW o
+    PROPERTIES showLines() TOOLBAR DRAW o ON CHANGE {
+        NEWSESSION APPLY {
+            showLines(currentUser()) <- NOT showLines(currentUser());
+        }
+    }
 
     OBJECTS cl = ConsumedLine
     PROPERTIES(cl) READONLY SHOWIF showLines() idItem, nameItem, nameUom, description, 'Количество' = toConsume
