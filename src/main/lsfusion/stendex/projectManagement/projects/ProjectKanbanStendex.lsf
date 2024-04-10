@@ -69,6 +69,7 @@ DESIGN projects {
         NEW kanban {
             caption = 'Kanban';
             MOVE GRID(pp) {
+                height = 100;
                 MOVE PROPERTY(edit) { alignment = STRETCH; }
             }
             REMOVE BOX(pp);
