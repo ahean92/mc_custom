@@ -19,7 +19,7 @@ DESIGN project {
 EXTEND FORM projects
     PROPERTIES(p) READONLYIF isReadonly() overNameManager AFTER nameManager(p)
 
-    PROPERTIES order 'Порядок' = LONG(p) SHOWIF NULL
+    PROPERTIES order 'Порядок' = VALUE(p)
     ORDERS order DESC
 ;
 DESIGN projects {

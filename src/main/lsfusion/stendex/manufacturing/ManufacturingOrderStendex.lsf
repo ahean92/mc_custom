@@ -20,7 +20,7 @@ FORM materialRequests 'Заявки'
     PROPERTIES (o) READONLY date 'Дата' = scheduledDate, number, nameType, nameConsumedItem, nameStatus, overNameResponsible, orderBeforeDate
     PROPERTIES (o) NEWSESSION NEW, EDIT, DELETE
 
-    PROPERTIES order 'Порядок' = LONG(o) SHOWIF NULL
+    PROPERTIES order 'Порядок' = VALUE(o)
     ORDERS order DESC
     
     LIST ManufacturingOrder OBJECT o

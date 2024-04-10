@@ -133,7 +133,7 @@ FORM projectDashboard 'Закупка материалов'
     FILTERGROUP draft
         FILTER 'Draft' status(request) = ManufacturingOrderStatus.draft DEFAULT
 
-    PROPERTIES requestOrder 'Порядок' = LONG(request) SHOWIF NULL
+    PROPERTIES requestOrder 'Порядок' = VALUE(request)
     ORDERS requestOrder DESC
     
     PROPERTIES showRequestLines = Purchase.showLines() ON CHANGE {
@@ -171,7 +171,7 @@ FORM projectDashboard 'Закупка материалов'
         FILTER 'На рассмотрении' status(order) = OrderStatus.review
         FILTER 'Доставлен' status(order) = OrderStatus.delivered
 
-    PROPERTIES orderOrder 'Порядок' = LONG(order) SHOWIF NULL
+    PROPERTIES orderOrder 'Порядок' = VALUE(order) 
     ORDERS orderOrder DESC
     PROPERTIES showOrderLines = Purchase.showLines() ON CHANGE {
         NEWSESSION APPLY {
@@ -335,7 +335,7 @@ META dashboardStatus(st, capt)
         FILTERS inOrder(filterProject(), st) OR NOT filterProject()
         FILTERS representative(st) = filterRepresentative() OR NOT filterRepresentative()
 
-        PROPERTIES st##Order 'Порядок' = LONG(st) SHOWIF NULL
+        PROPERTIES st##Order 'Порядок' = VALUE(st)
         ORDERS st##Order DESC
         
         OBJECTS st##Status = Purchase.OrderStatus

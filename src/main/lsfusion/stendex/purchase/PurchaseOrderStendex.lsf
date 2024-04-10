@@ -370,7 +370,7 @@ DESIGN order {
 EXTEND FORM orders
     PROPERTIES(o) READONLYIF isReadonly() payBeforeDate
 
-    PROPERTIES order 'Порядок' = LONG(o) SHOWIF NULL
+    PROPERTIES order 'Порядок' = VALUE(o)
     ORDERS order DESC
 ;
 

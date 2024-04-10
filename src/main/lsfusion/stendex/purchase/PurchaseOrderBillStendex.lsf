@@ -393,7 +393,7 @@ FORM billOrderDashboard 'Счета на товары'
         status(b) = filterStatus() OR NOT filterStatus(),
         isUrgent(b) OR NOT filterUrgent()
 
-    PROPERTIES order 'Порядок' = LONG(b) SHOWIF NULL
+    PROPERTIES order 'Порядок' = VALUE(b)
     ORDERS order DESC
 ;
 

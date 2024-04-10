@@ -509,7 +509,7 @@ META billDashboardStatus(st, capt)
                 status(st##LE) = filterStatus() OR NOT filterStatus(),
                 isUrgent(st##LE) OR NOT filterUrgent()
         
-        PROPERTIES st##LE##Order 'Порядок' = LONG(st##LE) SHOWIF NULL
+        PROPERTIES st##LE##Order 'Порядок' = VALUE(st##LE)
         ORDERS st##LE##Order DESC
 
         OBJECTS st##I = Bill BACKGROUND overBackgroundColor(st##I)
