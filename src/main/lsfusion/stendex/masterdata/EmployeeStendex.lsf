@@ -4,9 +4,9 @@ REQUIRE Employee;
 
 NAMESPACE MasterData;
 
-initials 'Инициалы (И.О.)' = DATA ISTRING[5] (Employee);
+initials 'Инициалы (И.О.)' = DATA ISTRING[5] (Individual);
 
-overName '{Name}' (Employee i) = CONCAT ' ', lastName(i), initials(i) CHARWIDTH 15;
+overName '{Name}' (Individual i) = CONCAT ' ', lastName(i), ISTRING(OVERRIDE initials(i), (CONCAT '', substr(firstName(i), 1, 1) + '.', substr(middleName(i), 1, 1) + '.'))  CHARWIDTH 15;
 
 EXTEND FORM employee
     PROPERTIES initials(e)
