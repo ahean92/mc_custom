@@ -4,10 +4,10 @@ REQUIRE ManufacturingOrder, UtilsStendex, EmployeeStendex;
 
 NAMESPACE Manufacturing;
 
-link 'Ссылка' = DATA LINK (ConsumedLine) CHARWIDTH 25;
+link 'Ссылка' = DATA STRING (ConsumedLine) CHARWIDTH 25;
 
 openLink 'Открыть ссылку' (ConsumedLine l) {
-    open(link(l));
+    open(LINK(link(l)));
 }
 
 orderBeforeDate 'Заказать до' = DATA DATE (ManufacturingOrder);
