@@ -374,7 +374,7 @@ EXTEND FORM orders
     ORDERS order DESC
 ;
 
-scheduledDate 'Scheduled date' (Order o) = DATE (scheduledDateTime(o));
+scheduledDate 'Scheduled date' (Order o) = DATA DATE (Order);
 EXTEND FORM order
     PROPERTIES (o) scheduledDate
 ;
