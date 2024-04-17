@@ -1,0 +1,134 @@
+MODULE ExhibitionReport;
+
+REQUIRE Exhibition, ProjectStendex;
+
+PRIORITY MasterData;
+
+NAMESPACE ProjectManagement;
+
+namePlace 'Место' (Project p) = namePlace(exhibition(p));
+overSquare 'м2' (Project p) = square(p) (+) (squareUpstairs(p) IF upstairs(p));
+
+firstDayOfMonth (Month m, INTEGER y) = toDateFormat('01.' +
+    lpad(TEXT(number(m)), 2, '0') + '.' + TEXT(y), 'DD.MM.YYYY');
+lastDayOfMonth (Month m, INTEGER y) = lastDayOfMonth(toDateFormat('01.' +
+    lpad(TEXT(number(m)), 2, '0') + '.' + TEXT(y), 'DD.MM.YYYY'));
+
+filter(Project p, Month m, INTEGER y) = 
+    (DATE(installationStartDate(p)) >= firstDayOfMonth(m, y) AND DATE(installationStartDate(p)) <= lastDayOfMonth(m, y)) OR
+    (DATE(installationEndDate(p)) >= firstDayOfMonth(m, y) AND DATE(installationEndDate(p)) <= lastDayOfMonth(m, y)) OR
+    (DATE(startDateExhibition(p)) >= firstDayOfMonth(m, y) AND DATE(startDateExhibition(p)) <= lastDayOfMonth(m, y)) OR
+    (DATE(endDateExhibition(p)) >= firstDayOfMonth(m, y) AND DATE(endDateExhibition(p)) <= lastDayOfMonth(m, y)) OR
+    (DATE(demolitionStartDate(p)) >= firstDayOfMonth(m, y) AND DATE(demolitionStartDate(p)) <= lastDayOfMonth(m, y)) OR
+    (DATE(demolitionEndDate(p)) >= firstDayOfMonth(m, y) AND DATE(demolitionEndDate(p)) <= lastDayOfMonth(m, y));
+countProjects (Month m, INTEGER y) = GROUP SUM 1 IF filter(Project p, m, y);
+quantity (Month m, INTEGER y) = IF countProjects(m, y) THEN 'Кол-во стендов: ' + countProjects(m, y) ELSE 'Проектов не найдено';
+
+filter(Project p, DATE d) = iterate(d, DATE(installationStartDate(p)), DATE(installationEndDate(p))) OR
+    iterate(d, DATE(startDateExhibition(p)), DATE(endDateExhibition(p))) OR
+    iterate(d, DATE(demolitionStartDate(p)), DATE(demolitionEndDate(p)));
+
+value(Project p, DATE d) = ' ' IF p IS Project AND d IS DATE CHARWIDTH 2;
+
+background(Project p, DATE d) = CASE
+    WHEN iterate(d, DATE(installationStartDate(p)), DATE(installationEndDate(p))) THEN RGB(255,0,0)
+    WHEN iterate(d, DATE(startDateExhibition(p)), DATE(endDateExhibition(p))) THEN RGB(247, 250, 92)
+    WHEN iterate(d, DATE(demolitionStartDate(p)), DATE(demolitionEndDate(p))) THEN RGB(79, 200, 247);
+
+caption(Month m, INTEGER y) = staticCaption(m) + ' ' + y;
+
+show(Month m, INTEGER y, INTEGER i, Month mm, INTEGER yy) = countProjects(mm, yy) AND
+    sumMonth(firstDayOfMonth(m, y), i-1) >= firstDayOfMonth(mm, yy);
+
+FORM exhibitionReport 'График застройки'
+    OBJECTS y = INTEGER PANEL
+    OBJECTS m = Month PANEL
+    OBJECTS i = INTEGER PANEL
+    PROPERTIES year '' = VALUE(y), month '' = staticCaption(m) SELECTOR, number '' = VALUE(i)
+
+    //месяц 1
+    OBJECTS  y1 = INTEGER, m1 = Month
+    PROPERTIES SHOWIF sumMonth(firstDayOfMonth(m, y), i-1) >= firstDayOfMonth(m1, y1) READONLY caption(m1, y1) PANEL, quantity(m1, y1) PANEL
+    FILTERS y1 = y, 
+            m1 = m
+
+    OBJECTS d1 = DATE
+    FILTERS iterate(d1, firstDayOfMonth(m1, y1), lastDayOfMonth(m1, y1))
+    
+    OBJECTS p1 = Project 
+    PROPERTIES(p1) SHOWIF show(m,y,i,m1,y1) READONLY nameExhibition, namePlace, 'Компания' = namePartner, 'Отв.' = overNameManager, overSquare
+    PROPERTIES SHOWIF show(m,y,i,m1,y1) READONLY value(p1, d1) COLUMNS(d1) HEADER(extractDay(d1)) BACKGROUND background(p1,d1)
+    FILTERS filter(p1, m1, y1)
+    
+    EVENTS ON INIT {
+        SEEK exhibitionReport.y = extractYear(currentDate());
+        SEEK exhibitionReport.m = extractMonth(currentDate());
+        SEEK exhibitionReport.i = 1;
+    }
+;
+
+DESIGN exhibitionReport {
+    OBJECTS {
+        NEW top FIRST {
+            horizontal = TRUE;
+            MOVE PROPERTY(year);
+            MOVE PROPERTY(month);
+            MOVE PROPERTY(number);
+        }
+
+        BOX(y) { caption = ''; }
+        BOX(m) { caption = ''; }
+        BOX(i) { caption = ''; }
+
+        MOVE PROPERTY(caption(m1, y1)) BEFORE BOX(p1) { caption = ''; fontSize = 16; }
+        MOVE PROPERTY(quantity(m1, y1)) BEFORE BOX(p1) { caption = ''; }
+        BOX(p1) { caption = ''; }
+        GRID(p1) { height = -1; }
+        REMOVE TOOLBARBOX(p1);
+    }
+}
+
+NAVIGATOR {
+    operations {
+        NEW exhibitionReport;
+    }
+}
+
+META addMonth (num)
+    EXTEND FORM exhibitionReport
+        OBJECTS y##num = INTEGER, m##num = Month
+        PROPERTIES SHOWIF sumMonth(firstDayOfMonth(m, y), i-1) >= firstDayOfMonth(m##num, y##num) READONLY caption(m##num, y##num) PANEL, quantity(m##num, y##num) PANEL
+        FILTERS y##num = extractYear(sumMonth(firstDayOfMonth(m, y), INTEGER(##num) - 1)),
+                m##num = extractMonth(sumMonth(firstDayOfMonth(m, y), INTEGER(##num) - 1))
+
+        OBJECTS d##num = DATE
+        FILTERS iterate(d##num, firstDayOfMonth(m##num, y##num), lastDayOfMonth(m##num, y##num))
+
+        OBJECTS p##num = Project
+        PROPERTIES(p##num) SHOWIF show(m,y,i,m##num,y##num) READONLY nameExhibition, namePlace, 'Компания' = namePartner, 'Отв.' = overNameManager, overSquare
+        PROPERTIES SHOWIF show(m,y,i,m##num,y##num) READONLY value(p##num, d##num) COLUMNS(d##num) HEADER(extractDay(d##num)) BACKGROUND background(p##num,d##num)
+        FILTERS filter(p##num, m##num, y##num)
+    ;
+
+    DESIGN exhibitionReport {
+        OBJECTS {
+            MOVE PROPERTY(caption(m##num, y##num)) BEFORE BOX(p##num) { caption = ''; fontSize = 16; }
+            MOVE PROPERTY(quantity(m##num, y##num)) BEFORE BOX(p##num) { caption = ''; }
+            BOX(p##num) { caption = ''; }
+            GRID(p##num) { height = -1; }
+            REMOVE TOOLBARBOX(p##num);
+        }
+    }
+END
+
+@addMonth(2);
+@addMonth(3);
+@addMonth(4);
+@addMonth(5);
+@addMonth(6);
+@addMonth(7);
+@addMonth(8);
+@addMonth(9);
+@addMonth(10);
+@addMonth(11);
+@addMonth(12);
