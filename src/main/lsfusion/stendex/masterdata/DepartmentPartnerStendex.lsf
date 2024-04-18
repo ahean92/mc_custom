@@ -1,0 +1,22 @@
+MODULE DepartmentPartnerStendex;
+
+REQUIRE DepartmentPartner, DepartmentStendex;
+
+NAMESPACE MasterData;
+
+EXTEND FORM partner
+    PROPERTIES(ad) note
+;
+
+DESIGN partner {
+    tabs {
+        MOVE BOX(ad) LAST { 
+            caption = badged('Склады', countDepartment(p)); 
+            PROPERTY (name(ad)) {hide = TRUE;};
+            PROPERTY (city(ad)) {hide = TRUE;};
+            PROPERTY (state(ad)) {hide = TRUE;};
+            PROPERTY (zip(ad)) {hide = TRUE;};
+        }
+        PROPERTY (newDepartment(p)) { caption = 'Склад';};
+    }
+}

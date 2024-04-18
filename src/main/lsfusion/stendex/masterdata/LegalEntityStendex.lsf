@@ -1,0 +1,16 @@
+MODULE LegalEntityStendex;
+REQUIRE LegalEntity;
+
+NAMESPACE MasterData;
+
+juridicalAddress 'Юридический адрес' = DATA ISTRING[150] (LegalEntity);
+
+EXTEND FORM partner
+    PROPERTIES(p) juridicalAddress
+;
+
+DESIGN partner {
+    legalInfoOptions {
+        MOVE PROPERTY(juridicalAddress(p));
+    }
+}

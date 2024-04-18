@@ -1,0 +1,17 @@
+MODULE DepartmentStendex;
+
+REQUIRE Department;
+
+NAMESPACE MasterData;
+
+note 'Комментарий' = DATA ISTRING (Department) CHARWIDTH 20;
+
+EXTEND FORM department
+    PROPERTIES(d) note
+;
+
+DESIGN department {
+    params {
+        MOVE PROPERTY(note(d));                    
+    }
+}

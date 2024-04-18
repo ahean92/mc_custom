@@ -1,0 +1,14 @@
+MODULE IndividualStendex;
+
+REQUIRE Individual;
+
+NAMESPACE MasterData;
+
+CONSTRAINT SET(LegalEntity l IS LegalEntity) AND NOT [GROUP MIN Individual i BY legalEntity(i)](l)
+    MESSAGE 'Для созданного контрагента отсутствуют контакты';
+
+DESIGN partner {
+    tabs {
+        MOVE BOX(em) FIRST;
+    }
+}

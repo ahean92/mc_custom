@@ -2,7 +2,8 @@ MODULE MyCompanyCustom;
 
 REQUIRE Eval, ProcessMonitor, Backup,
         Individual, IndividualImport, IndividualInitial, Employee, EmployeeImport,
-        LegalEntity, LegalEntityImport, DaDataLegalEntityFind, PartnerStendex,
+        LegalEntity, LegalEntityImport, DaDataLegalEntityFind, PartnerStendex, LegalEntityStendex, IndividualStendex,
+        DepartmentStendex, DepartmentPartner, DepartmentPartnerStendex,
         Contract, ContractPartner, ContractImport,
         Company, CompanyInitial,
         Category, CategoryImport, CategoryImage,

@@ -73,3 +73,22 @@ DESIGN dialogPartners {
         MOVE PROPERTY(codeNameFilter())  { placeholder = 'Кодовое название'; }
     }
 }
+
+DESIGN partner {       
+    headerColumn1 {
+        PROPERTY(address(p)) {caption = 'Почтовый адрес';};
+    }
+    headerColumn2 {
+        MOVE PROPERTY(inn(p));
+    }
+}
+
+
+DESIGN partner {
+    header {
+        alignment = STRETCH;
+        headerRight {
+            fill = 1;
+        };
+    }
+}
