@@ -389,7 +389,6 @@ END
 
 @dashboardStatus(closed, 'Закрыт');
 
-
 NAVIGATOR {
     dashboard{
         NEW projectDashboard;
@@ -397,3 +396,10 @@ NAVIGATOR {
 }
 
 @defineProjectHistoryAttr(budget,budget,'Изменен бюджет');
+
+EXTEND FORM projectDashboard
+    PROPERTIES BACKGROUND colorStatus(awaitingDelivery) openPaymentOrder(awaitingDelivery) GRID BEFORE fileInvoice(awaitingDelivery)
+    PROPERTIES BACKGROUND colorStatus(delivered) openPaymentOrder(delivered) GRID BEFORE fileInvoice(delivered)
+    PROPERTIES BACKGROUND colorStatus(canceled) openPaymentOrder(canceled) GRID BEFORE fileInvoice(canceled)
+    PROPERTIES BACKGROUND colorStatus(closed) openPaymentOrder(closed) GRID BEFORE fileInvoice(closed)
+;

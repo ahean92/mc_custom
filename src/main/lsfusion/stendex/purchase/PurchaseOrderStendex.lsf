@@ -68,7 +68,6 @@ DESIGN securityPolicy {
 
 allowStatusSet 'Разрешить' = DATA BOOLEAN (OrderStatus, UserRole);
 
-
 EXTEND FORM Purchase.options
     OBJECTS s = OrderStatus
     PROPERTIES (s) name, imagedName, dataColor, caption
@@ -103,7 +102,6 @@ CLASS TypeFile{
 type = DATA TypeFile (OrderFile) NONULL;
 nameType 'Тип' (OrderFile f) = staticCaption(type(f));
 WHEN SET (OrderFile f IS OrderFile) AND NOT type(f) DO type(f) <- TypeFile.other;
-
 
 isPP (OrderFile f) = type(f) = TypeFile.paymentOrder;
 amount 'Сумма' = DATA NUMERIC[16,2](OrderFile);
@@ -156,7 +154,6 @@ END
 
 @defineStatusOrder(inPayment, 'В оплате');
 color(OrderStatus o) += WHEN o = OrderStatus.inPayment THEN RGB(255, 255, 51);
-
 
 @defineStatusOrder(partiallyPaid, 'Оплачено частитчно');
 color(OrderStatus o) += WHEN o = OrderStatus.partiallyPaid THEN RGB(255, 204, 102);
@@ -394,3 +391,35 @@ DESIGN order {
         }
     }
 }
+
+countPaymentOrders 'Кол-во платёжных поручений' (Order o) = GROUP SUM 1 IF order(OrderFile of) = o AND type(of) = TypeFile.paymentOrder;
+
+paymentOrder 'ПП' (Order o) = GROUP MAX OrderFile of IF order(of) = o AND type(of) = TypeFile.paymentOrder;
+
+
+FORM listPaymentOrders 'Платёжные документы'
+    OBJECTS o = Order
+
+    OBJECTS of = OrderFile
+    PROPERTIES(of) READONLYIF readonly(o) name, description
+    PROPERTIES(of) READONLY nameUser, dateTime
+
+    FILTERS order(of) = o
+    FILTERS type(of) = TypeFile.paymentOrder
+;
+
+DESIGN listPaymentOrders {
+    BOX (of) { caption = ''; }
+}
+
+openPaymentOrder 'Открыть ПП' (Order o) {
+    IF countPaymentOrders(o) > 1 THEN {
+        DIALOG listPaymentOrders OBJECTS o = o, of INPUT of DO open(of);
+    } ELSE {
+        open(file(paymentOrder(o)), nameExtension(paymentOrder(o)));
+    }
+}
+
+EXTEND FORM orders
+    PROPERTIES openPaymentOrder(o);
+;
