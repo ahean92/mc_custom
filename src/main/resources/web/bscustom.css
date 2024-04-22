@@ -70,3 +70,6 @@ h6.caption-panel-header.collapsible {
 .carousel-control-next, .carousel-control-prev {
     width: 5%;
 }
+div[lsfusion-form="ProjectManagement.exhibitionReport"] td.dataGridCell {
+    border-right-width: 1px;
+}
