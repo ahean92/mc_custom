@@ -1,0 +1,25 @@
+MODULE TimeEntryHours;
+
+REQUIRE TimeEntryType;
+
+NAMESPACE ProjectManagement;
+
+CLASS TimeEntryHours 'Time entry hours';
+
+type = DATA TimeEntryType (TimeEntryHours);
+
+name 'Name' = DATA STRING (TimeEntryHours) CHARWIDTH 10;
+hours 'Hours' = DATA NUMERIC[8,2] (TimeEntryHours);
+
+nameHours (TimeEntryHours h) = OVERRIDE name(h), STRING(rtrim(toChar(hours(h), 'FM99999.99'),'.'));
+
+countHours (TimeEntryType t) = GROUP SUM 1 IF type(TimeEntryHours e) = t;
+
+calcDefaultHours (TimeEntryType t) = GROUP MIN TimeEntryHours e IF type(e) = t;
+defaultHours (TimeEntryType t) = calcDefaultHours(t) IF countHours(t) = 1;
+
+EXTEND FORM timeEntryType
+    OBJECTS h = TimeEntryHours
+    PROPERTIES(h) name, hours, NEW, DELETE
+    FILTERS type(h) = o
+;

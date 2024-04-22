@@ -1,0 +1,100 @@
+MODULE TimesheetSupervisor;
+
+REQUIRE DateUtils, ProjectManagementSettings, Employee, Timesheet, 
+        ProjectTimeEntry, ProjectAssignment, TimeEntryHours;
+
+PRIORITY MasterData;
+
+NAMESPACE ProjectManagement;
+
+FORM timesheetSupervisorDateEmployee 'Time entries'
+    OBJECTS d = DATE PANEL
+    OBJECTS e = Employee PANEL
+
+    OBJECTS t = TimeEntry
+    PROPERTIES(t) READONLY nameProject SHOWIF NOT timesheetProject(), hours, nameType, description
+    PROPERTIES(t) EDIT, DELETE
+    FILTERS date(t) = d,
+            employee(t) = e,
+            project(t) = timesheetProject() OR NOT timesheetProject()
+;
+
+FORM timesheetSupervisor 'Supervisor timesheet'
+    OBJECTS dates = INTERVAL[DATE] PANEL NULL
+    PROPERTIES dates '' = VALUE(dates)
+    
+    PROPERTIES() nameTimesheetProject, nameTimesheetTimeEntryType SELECT 'buttonGroup', 
+                 nameTimesheetTimeEntryHours SHOWIF timesheetTimeEntryType() AND countHours(timesheetTimeEntryType()) SELECT 'buttonGroup' 
+    
+    OBJECTS d = DATE
+    FILTERS iterate(d, from(dates), to(dates))
+    
+    OBJECTS e = Employee
+    PROPERTIES(e) READONLY firstName, lastName, namePosition, rolesTimesheet
+    PROPERTIES hoursTimesheet(d, e) WAIT COLUMNS (d) HEADER extractDay(d) BACKGROUND backgroundHoursTimesheet(d, e)
+               ON CHANGE {
+                   FOR TimeEntryType et = timesheetTimeEntryType() AND (timesheetProject() OR NOT project(timeEntry(d, e, timesheetTimeEntryType()))) DO {
+                       IF NOT timesheetTimeEntryHours() THEN {
+                           INPUT n = hoursTimesheet(d, e) DO {
+                               changeTimesheetHours(d, e, et, n, TRUE);
+                           }
+                       } ELSE
+                           changeTimesheetHours(d, e, et, hours(timesheetTimeEntryHours()), NULL);
+                   } ELSE
+                       SHOW timesheetSupervisorDateEmployee OBJECTS d = d, e = e FLOAT;
+               } ON CONTEXTMENU copy(d) ON CONTEXTMENU clear(d)
+    FILTERS assigned(timesheetProject(), e) OR (NOT countAssignments(timesheetProject()) AND NOT countAssignments(currentUser()))
+
+    EVENTS ON INIT {
+        timesheetProject() <- defaultProject(currentUser());
+        timesheetTimeEntryType() <- defaultTimeEntryType();
+        SEEK timesheetSupervisor.dates = interval(firstDayOfMonth(currentDate()), lastDayOfMonth(currentDate()));
+    }
+    PROPERTIES prevInterval '<' = { SEEK timesheetSupervisor.dates = prevMonthInterval(dates); },
+               nextInterval '>' = { SEEK timesheetSupervisor.dates = nextMonthInterval(dates); }
+;
+
+WHEN LOCAL FORMS timesheetSupervisor CHANGED(timesheetTimeEntryType()) DO timesheetTimeEntryHours() <- defaultHours(timesheetTimeEntryType());
+
+DESIGN timesheetSupervisor {
+    OBJECTS {
+        NEW header {
+            alignment = STRETCH;
+            horizontal = TRUE;
+            NEW interval {
+                horizontal = TRUE;
+                MOVE PROPERTY(prevInterval);
+                MOVE PROPERTY(dates);
+                MOVE PROPERTY(nextInterval);
+            }
+            MOVE PROPERTY(nameTimesheetProject()) { fill = 1; }
+            NEW edit {
+                fill = 2;
+                NEW editRight {
+                    alignment = END;
+                    horizontal = TRUE;
+                    MOVE PROPERTY(nameTimesheetTimeEntryHours()) {
+                        caption = '';
+                        placeholder = 'Hours';
+                    }
+                    MOVE PROPERTY(nameTimesheetTimeEntryType()) {
+                        caption = '';
+                        placeholder = 'Type';
+                    }
+                }
+            }
+        }
+        MOVE BOX(e) {
+            PROPERTY(hoursTimesheet(d, e)) { 
+                charWidth = 2;
+//                valueTooltip = timeEntries(d, e);
+            }
+        }
+    }
+}
+
+NAVIGATOR {
+    dashboards {
+        NEW timesheetSupervisor;
+    }
+}

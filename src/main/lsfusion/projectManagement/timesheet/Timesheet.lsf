@@ -1,0 +1,99 @@
+MODULE Timesheet;
+
+REQUIRE ProjectAssignment, ProjectTimeEntry, TimeEntryHours;
+
+NAMESPACE ProjectManagement;
+
+timesheetProject = DATA LOCAL NESTED Project ();
+nameTimesheetProject 'Project' = name(timesheetProject());
+
+CONSTRAINT timesheetProject() AND countAssignments(currentUser()) AND NOT assigned(timesheetProject(), currentUser())
+    CHECKED BY timesheetProject[] MESSAGE '';
+
+matchesProject (TimeEntry t) = project(t) = timesheetProject() OR (NOT timesheetProject() AND NOT project(t));
+
+timesheetTimeEntryType = DATA LOCAL TimeEntryType ();
+nameTimesheetTimeEntryType 'Time entry type' = name(timesheetTimeEntryType());
+
+timesheetTimeEntryHours = DATA LOCAL TimeEntryHours ();
+nameTimesheetTimeEntryHours 'Hours' = nameHours(timesheetTimeEntryHours());
+CONSTRAINT timesheetTimeEntryHours() AND NOT type(timesheetTimeEntryHours()) = timesheetTimeEntryType()
+    CHECKED BY timesheetTimeEntryHours[] MESSAGE '';
+
+rolesTimesheet 'Roles' (Employee e) = roles(timesheetProject(), e);
+
+hoursTimesheet 'Hours' (DATE d, Employee e)=
+    IF timesheetProject() THEN hours(d, e, timesheetProject())
+    ELSE hours(d, e);
+
+backgroundHoursTimesheet 'Hours' (DATE d, Employee e)=
+    IF countTimeEntryType(d, e) > 1 THEN RGB(255,192,0) ELSE
+        OVERRIDE
+            IF timesheetProject() THEN rgbColor(type(timeEntry(d, e, timesheetProject())))
+            ELSE rgbColor(type(timeEntry(d, e))),
+            RGB(255,224,224) IF extractDOWNumber(d) = 0 OR extractDOWNumber(d) = 6;
+
+changeTimesheetHours (DATE d, Employee e, TimeEntryType et, NUMERIC[8,2] n, BOOLEAN input) {
+    IF n THEN {
+        IF timesheetProject() THEN {
+            FOR TimeEntry t = timeEntry(d, e, timesheetProject(), et) DO {
+                IF hours(t) = n AND NOT input THEN
+                    DELETE t;
+                ELSE
+                    hours(t) <- n;
+            } ELSE {
+                DELETE TimeEntry te WHERE project(te) = timesheetProject() AND employee(te) = e AND date(te) = d;
+                NEW t = TimeEntry {
+                    project(t) <- timesheetProject();
+                    type(t) <- et;
+                    employee(t) <- e;
+                    date(t) <- d;
+                    hours(t) <- n;
+                }
+            }
+        } ELSE {
+            FOR TimeEntry t = timeEntry(d, e, et) DO {
+                IF hours(t) = n AND NOT input THEN
+                    DELETE t;
+                ELSE
+                    hours(t) <- n;
+            } ELSE {
+                DELETE TimeEntry te WHERE NOT project(te) AND employee(te) = e AND date(te) = d;
+                NEW t = TimeEntry {
+                    type(t) <- et;
+                    employee(t) <- e;
+                    date(t) <- d;
+                    hours(t) <- n;
+                }
+            }
+        }
+    } ELSE
+        DELETE TimeEntry t WHERE matchesProject(t) AND employee(t) = e AND date(t) = d;
+}
+
+countTimeEntryProject (DATE d) = GROUP SUM 1 IF date(TimeEntry t) = d AND matchesProject(t);
+
+clear 'Clear' (DATE d) {
+    DELETE TimeEntry t WHERE date(t) = d AND matchesProject(t);
+}
+
+maxDate (DATE to) = GROUP MAX date(TimeEntry t) IF date(t) < to AND matchesProject(t);
+copy 'Copy' (DATE d) {
+    clear(d);
+    FOR date(TimeEntry t) = maxDate(d) AND matchesProject(t) INLINE DO NEW tn = TimeEntry {
+        date(tn) <- d;
+        hours(tn) <- hours(t);
+        employee(tn) <- employee(t);
+        project(tn) <- project(t);
+        type(tn) <- type(t);
+    }
+}
+
+copyApply 'Copy' (DATE d) {
+    ASK 'Copying will delete all time entries for the selected day. Continue ?' IF countTimeEntryProject(d) DO
+        NEWSESSION APPLY { copy(d); }
+}
+
+clearApply 'Clear' (DATE d) {
+    NEWSESSION APPLY { clear(d); }
+} CONFIRM;

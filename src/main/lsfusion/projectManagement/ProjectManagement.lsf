@@ -2,6 +2,7 @@ MODULE ProjectManagement;
 
 REQUIRE Project, ProjectFilter, ProjectTask, ProjectTimeEntry,
         TaskKanban,
+        ProjectAssignment,
         ProjectPurchaseOrder,
         ProjectBill, ProjectPurchaseOrderBill,
         ProjectReceipt, ProjectPurchaseOrderReceipt,
@@ -10,4 +11,5 @@ REQUIRE Project, ProjectFilter, ProjectTask, ProjectTimeEntry,
         ProjectSalesLedgerInvoice, ProjectSalesLedgerReport,
         ProjectShipment, ProjectInvoiceShipment, ProjectSalesOrderShipment,
         ProjectManufacturingOrder,
-        Shift, ProjectShift, ShiftSchedule;
+        Shift, ProjectShift, ShiftSchedule,
+        TimesheetSupervisor, TimesheetSupervisorMobile;

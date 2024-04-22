@@ -19,7 +19,7 @@ FORM printBill 'Invoice'
                   nameVendor, addressLinesVendor, phoneVendor
     
     OBJECTS l = BillLine
-    PROPERTIES(l) nameItem, 
+    PROPERTIES(l) nameItem, description, nameUom, idBarCodeItem, idItem, referenceItem,
                   quantity, price, untaxedAmount,
                   taxPercent, taxAmount, taxes, 
                   amount
@@ -27,4 +27,4 @@ FORM printBill 'Invoice'
 ;
 
 @defineDocTemplateType(bill, 'Bill template');
-@defineDocTemplateTypeForm(bill, b);
+@defineDocTemplateTypeForm(bill, b, Invoicing);
