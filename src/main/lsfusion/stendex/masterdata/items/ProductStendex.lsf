@@ -1,0 +1,31 @@
+MODULE ProductStendex;
+
+REQUIRE Product;
+
+NAMESPACE MasterData;
+
+FORM dialogProduct '{Product}'
+    OBJECTS p = Product PANEL
+    PROPERTIES(p) name, canonicalNameCategory, nameUom
+;
+
+DESIGN dialogProduct {
+    caption = badged(name(p), class(p));
+    OBJECTS {        
+        NEW header {            
+            MOVE PROPERTY(name(p)) { alignment = STRETCH;}
+            MOVE PROPERTY(canonicalNameCategory(p));
+            MOVE PROPERTY(nameUom(p));
+            
+        }        
+    }
+}
+
+newProduct 'Product' (ISTRING[200] name) {
+    NEW product = Product {
+        category(product) <- rootCategory();
+        dataName(product) <- name;
+        DIALOG dialogProduct OBJECTS p = product INPUT DOCKED;
+    }
+}
+
