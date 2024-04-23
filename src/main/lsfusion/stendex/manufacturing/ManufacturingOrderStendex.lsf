@@ -37,7 +37,7 @@ FORM materialRequest 'Заявка'
     OBJECTS cl = ConsumedLine
     PROPERTIES (cl) NOSELECT idItem, 
     nameItem ON CHANGE {
-        INPUT i = item(cl) LIST name(i) ACTIONS 'add' { newProduct(STRING(i)); } DO item(cl) <- i;
+        INPUT i = item(cl) LIST name(i) ACTIONS 'add' { newReducedProduct(STRING(i)); } DO item(cl) <- i;
     },
     nameUom, description, link, 'Количество' = toConsume
     PROPERTIES(cl) NOSELECT openLink READONLYIF NOT link(cl) AFTER link(cl) GRID
