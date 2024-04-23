@@ -1,0 +1,25 @@
+MODULE NotificationsStendex;
+
+REQUIRE PurchaseOrderStendex, Chat, System;
+
+NAMESPACE Notifications;
+
+chatOrderNotification = DATA Chat ();
+nameChatOrderNotification 'Чат уведомлений по заказам' = name(chatOrderNotification());
+EXTEND FORM System.options
+    PROPERTIES nameChatOrderNotification()
+;
+DESIGN System.options{
+    pane{
+        NEW notification{
+            caption = 'Уведомления';
+            MOVE PROPERTY (nameChatOrderNotification());
+        }
+    }   
+}
+
+messageNotification (Order o) = CONCAT '\n', 'Новый заказ', '№' + number(o), 'Поставщик ' + nameVendor(o), 'Сумма ' + amount(o);   
+
+WHEN SET(Order o IS Order) AND number(o) AND chatOrderNotification() DO{
+    sendMessage(chatOrderNotification(), messageNotification(o), NULL, TRUE);
+}
