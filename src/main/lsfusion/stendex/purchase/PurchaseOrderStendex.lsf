@@ -423,3 +423,6 @@ openPaymentOrder 'Открыть ПП' (Order o) {
 EXTEND FORM orders
     PROPERTIES openPaymentOrder(o);
 ;
+
+dataUom = DATA Uom (OrderLine); 
+overUom(OrderLine l) += dataUom(l);

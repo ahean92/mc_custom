@@ -92,7 +92,8 @@ CONSTRAINT item(OrderLine l) AND NOT canBePurchased(item(l))
 
 description 'Description' = DATA ISTRING (OrderLine);
 
-uom (OrderLine l) = uom(item(l));
+overUom = ABSTRACT Uom (OrderLine);
+uom (OrderLine l) = OVERRIDE overUom(l), uom(item(l));
 nameUom 'UoM' (OrderLine l) = name(uom(l));
 
 quantity '{Quantity}' = DATA NUMERIC[16,3] (OrderLine);

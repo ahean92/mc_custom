@@ -20,3 +20,11 @@ DESIGN dialogProduct {
         }        
     }
 }
+
+newReducedProduct 'Product' (ISTRING[200] name) {
+    NEW product = Product {
+        category(product) <- rootCategory();
+        dataName(product) <- name;
+        DIALOG dialogProduct OBJECTS p = product INPUT DOCKED;
+    }
+}
