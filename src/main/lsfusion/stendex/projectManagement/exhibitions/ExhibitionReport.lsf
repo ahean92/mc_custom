@@ -56,20 +56,7 @@ CLASS NumberMonth 'Месяц' {
 }
 
 name '' (NumberMonth n) = staticCaption(n) CHARWIDTH 8;
-
-number 'Месяцев' (NumberMonth n) = CASE
-    WHEN n == NumberMonth.one THEN 1
-    WHEN n == NumberMonth.two THEN 2
-    WHEN n == NumberMonth.three THEN 3
-    WHEN n == NumberMonth.four THEN 4
-    WHEN n == NumberMonth.five THEN 5
-    WHEN n == NumberMonth.six THEN 6
-    WHEN n == NumberMonth.seven THEN 7
-    WHEN n == NumberMonth.eight THEN 8
-    WHEN n == NumberMonth.nine THEN 9
-    WHEN n == NumberMonth.ten THEN 10
-    WHEN n == NumberMonth.eleven THEN 11
-    WHEN n == NumberMonth.twelve THEN 12;
+number 'Месяцев' (NumberMonth n) = INTEGER(name(n));
 
 FORM numberMonths ''
     OBJECTS n = NumberMonth 
@@ -78,6 +65,8 @@ FORM numberMonths ''
     
     LIST NumberMonth OBJECT n
 ;
+
+skipInit = DATA LOCAL BOOLEAN ();
 
 FORM exhibitionReport 'График застройки'
     OBJECTS y = INTEGER PANEL
@@ -94,15 +83,17 @@ FORM exhibitionReport 'График застройки'
     OBJECTS d1 = DATE
     FILTERS iterate(d1, firstDayOfMonth(m1, y1), lastDayOfMonth(m1, y1))
     
-    OBJECTS p1 = Project 
+    OBJECTS p1 = Project SUBREPORT 
     PROPERTIES(p1) SHOWIF show(m,y,number(i),m1,y1) READONLY nameExhibition, namePlace, 'Компания' = namePartner, 'Отв.' = overNameManager, overSquare
     PROPERTIES SHOWIF show(m,y,number(i),m1,y1) READONLY value(p1, d1) COLUMNS(d1) HEADER(extractDay(d1)) BACKGROUND background(p1,d1)
     FILTERS filter(p1, m1, y1)
     
     EVENTS ON INIT {
-        SEEK exhibitionReport.y = extractYear(currentDate());
-        SEEK exhibitionReport.m = extractMonth(currentDate());
-        SEEK exhibitionReport.i = NumberMonth.one;
+        IF NOT skipInit() THEN {
+            SEEK exhibitionReport.y = extractYear(currentDate());
+            SEEK exhibitionReport.m = extractMonth(currentDate());
+            SEEK exhibitionReport.i = NumberMonth.one;
+        }
     }
 ;
 
@@ -143,7 +134,7 @@ META addMonth (num)
         OBJECTS d##num = DATE
         FILTERS iterate(d##num, firstDayOfMonth(m##num, y##num), lastDayOfMonth(m##num, y##num))
 
-        OBJECTS p##num = Project
+        OBJECTS p##num = Project SUBREPORT
         PROPERTIES(p##num) SHOWIF show(m,y,number(i),m##num,y##num) READONLY nameExhibition, namePlace, 'Компания' = namePartner, 'Отв.' = overNameManager, overSquare
         PROPERTIES SHOWIF show(m,y,number(i),m##num,y##num) READONLY value(p##num, d##num) COLUMNS(d##num) HEADER(extractDay(d##num)) BACKGROUND background(p##num,d##num)
         FILTERS filter(p##num, m##num, y##num)
@@ -171,3 +162,17 @@ END
 @addMonth(10);
 @addMonth(11);
 @addMonth(12);
+
+printExhibitionReport 'Распечатать' (INTEGER y, Month m, NumberMonth i) {
+    skipInit() <- TRUE;
+    PRINT exhibitionReport OBJECTS y = y, m = m, i = i;
+    skipInit() <- NULL;
+} IMAGE 'print.png';
+
+EXTEND FORM exhibitionReport PROPERTIES printExhibitionReport(y, m, i);
+
+DESIGN exhibitionReport {
+    top {
+        MOVE PROPERTY(printExhibitionReport(y, m, i));
+    }
+}

@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Created with Jaspersoft Studio version 6.12.2.final using JasperReports Library version 6.12.0  -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="ProjectManagement.exhibitionReport" pageWidth="1191" pageHeight="842" orientation="Landscape" columnWidth="1151" leftMargin="20" rightMargin="20" topMargin="30" bottomMargin="30" uuid="7b9d422b-a9b7-435a-af6a-a9c8b379abd7">
+	<property name="net.sf.jasperreports.export.xls.print.page.width" value="842"/>
+	<property name="net.sf.jasperreports.export.xls.print.page.height" value="595"/>
+	<property name="com.jaspersoft.studio.unit." value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.pageHeight" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.pageWidth" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.topMargin" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.bottomMargin" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.leftMargin" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.rightMargin" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.columnWidth" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.columnSpacing" value="pixel"/>
+	<style name="DefaultStyle" isDefault="true" vTextAlign="Middle" fontName="lsf.TimesNewRoman" fontSize="10">
+		<box>
+			<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+		</box>
+		<paragraph leftIndent="2" rightIndent="2"/>
+	</style>
+	<style name="GroupCellStyle6" vTextAlign="Middle" fontName="lsf.TimesNewRoman" fontSize="10">
+		<box>
+			<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+		</box>
+		<paragraph leftIndent="2" rightIndent="2"/>
+	</style>
+	<style name="GroupCellStyle5" mode="Opaque" backcolor="#CACACA" vTextAlign="Middle" fontName="lsf.TimesNewRoman" fontSize="10">
+		<box>
+			<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+		</box>
+		<paragraph leftIndent="2" rightIndent="2"/>
+	</style>
+	<style name="GroupCellStyle4" mode="Opaque" backcolor="#D5D5D5" vTextAlign="Middle" fontName="lsf.TimesNewRoman" fontSize="10">
+		<box>
+			<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+		</box>
+		<paragraph leftIndent="2" rightIndent="2"/>
+	</style>
+	<style name="GroupCellStyle3" mode="Opaque" backcolor="#DFDFDF" vTextAlign="Middle" fontName="lsf.TimesNewRoman" fontSize="10">
+		<box>
+			<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+		</box>
+		<paragraph leftIndent="2" rightIndent="2"/>
+	</style>
+	<parameter name="y1_report" class="net.sf.jasperreports.engine.JasperReport"/>
+	<parameter name="y1_source" class="net.sf.jasperreports.engine.JRDataSource"/>
+	<parameter name="y1_params" class="java.util.Map"/>
+	<parameter name="y2_report" class="net.sf.jasperreports.engine.JasperReport"/>
+	<parameter name="y2_source" class="net.sf.jasperreports.engine.JRDataSource"/>
+	<parameter name="y2_params" class="java.util.Map"/>
+	<parameter name="y3_report" class="net.sf.jasperreports.engine.JasperReport"/>
+	<parameter name="y3_source" class="net.sf.jasperreports.engine.JRDataSource"/>
+	<parameter name="y3_params" class="java.util.Map"/>
+	<parameter name="y4_report" class="net.sf.jasperreports.engine.JasperReport"/>
+	<parameter name="y4_source" class="net.sf.jasperreports.engine.JRDataSource"/>
+	<parameter name="y4_params" class="java.util.Map"/>
+	<parameter name="y5_report" class="net.sf.jasperreports.engine.JasperReport"/>
+	<parameter name="y5_source" class="net.sf.jasperreports.engine.JRDataSource"/>
+	<parameter name="y5_params" class="java.util.Map"/>
+	<parameter name="y6_report" class="net.sf.jasperreports.engine.JasperReport"/>
+	<parameter name="y6_source" class="net.sf.jasperreports.engine.JRDataSource"/>
+	<parameter name="y6_params" class="java.util.Map"/>
+	<parameter name="y7_report" class="net.sf.jasperreports.engine.JasperReport"/>
+	<parameter name="y7_source" class="net.sf.jasperreports.engine.JRDataSource"/>
+	<parameter name="y7_params" class="java.util.Map"/>
+	<parameter name="y8_report" class="net.sf.jasperreports.engine.JasperReport"/>
+	<parameter name="y8_source" class="net.sf.jasperreports.engine.JRDataSource"/>
+	<parameter name="y8_params" class="java.util.Map"/>
+	<parameter name="y9_report" class="net.sf.jasperreports.engine.JasperReport"/>
+	<parameter name="y9_source" class="net.sf.jasperreports.engine.JRDataSource"/>
+	<parameter name="y9_params" class="java.util.Map"/>
+	<parameter name="y10_report" class="net.sf.jasperreports.engine.JasperReport"/>
+	<parameter name="y10_source" class="net.sf.jasperreports.engine.JRDataSource"/>
+	<parameter name="y10_params" class="java.util.Map"/>
+	<parameter name="y11_report" class="net.sf.jasperreports.engine.JasperReport"/>
+	<parameter name="y11_source" class="net.sf.jasperreports.engine.JRDataSource"/>
+	<parameter name="y11_params" class="java.util.Map"/>
+	<parameter name="y12_report" class="net.sf.jasperreports.engine.JasperReport"/>
+	<parameter name="y12_source" class="net.sf.jasperreports.engine.JRDataSource"/>
+	<parameter name="y12_params" class="java.util.Map"/>
+	<field name="y.object" class="java.lang.Integer"/>
+	<field name="year" class="java.lang.Integer"/>
+	<field name="m.object" class="java.lang.Long"/>
+	<field name="month" class="java.lang.String"/>
+	<field name="i.object" class="java.lang.Long"/>
+	<field name="name(i)" class="java.lang.String"/>
+	<detail>
+		<band>
+			<subreport>
+				<reportElement stretchType="RelativeToBandHeight" x="0" y="0" width="0" height="0" uuid="d72c1c38-63dc-4004-8fd4-8a6e813a4ec1"/>
+				<parametersMapExpression><![CDATA[$P{y1_params}]]></parametersMapExpression>
+				<dataSourceExpression><![CDATA[$P{y1_source}]]></dataSourceExpression>
+				<subreportExpression><![CDATA[$P{y1_report}]]></subreportExpression>
+			</subreport>
+		</band>
+		<band>
+			<subreport>
+				<reportElement stretchType="RelativeToBandHeight" x="0" y="0" width="0" height="0" uuid="c00747d4-e264-45d2-8985-1f20c54ad75e"/>
+				<parametersMapExpression><![CDATA[$P{y2_params}]]></parametersMapExpression>
+				<dataSourceExpression><![CDATA[$P{y2_source}]]></dataSourceExpression>
+				<subreportExpression><![CDATA[$P{y2_report}]]></subreportExpression>
+			</subreport>
+		</band>
+		<band>
+			<subreport>
+				<reportElement stretchType="RelativeToBandHeight" x="0" y="0" width="0" height="0" uuid="997a34f4-d24f-4e93-914a-a689e497e4d9"/>
+				<parametersMapExpression><![CDATA[$P{y3_params}]]></parametersMapExpression>
+				<dataSourceExpression><![CDATA[$P{y3_source}]]></dataSourceExpression>
+				<subreportExpression><![CDATA[$P{y3_report}]]></subreportExpression>
+			</subreport>
+		</band>
+		<band>
+			<subreport>
+				<reportElement stretchType="RelativeToBandHeight" x="0" y="0" width="0" height="0" uuid="58f01775-98fd-4e6d-a265-3c49825705e3"/>
+				<parametersMapExpression><![CDATA[$P{y4_params}]]></parametersMapExpression>
+				<dataSourceExpression><![CDATA[$P{y4_source}]]></dataSourceExpression>
+				<subreportExpression><![CDATA[$P{y4_report}]]></subreportExpression>
+			</subreport>
+		</band>
+		<band>
+			<subreport>
+				<reportElement stretchType="RelativeToBandHeight" x="0" y="0" width="0" height="0" uuid="53d9c364-ef8a-4a38-8db7-e2af1f5c83f0"/>
+				<parametersMapExpression><![CDATA[$P{y5_params}]]></parametersMapExpression>
+				<dataSourceExpression><![CDATA[$P{y5_source}]]></dataSourceExpression>
+				<subreportExpression><![CDATA[$P{y5_report}]]></subreportExpression>
+			</subreport>
+		</band>
+		<band>
+			<subreport>
+				<reportElement stretchType="RelativeToBandHeight" x="0" y="0" width="0" height="0" uuid="046d6606-6249-4590-bd6c-3093e3b588db"/>
+				<parametersMapExpression><![CDATA[$P{y6_params}]]></parametersMapExpression>
+				<dataSourceExpression><![CDATA[$P{y6_source}]]></dataSourceExpression>
+				<subreportExpression><![CDATA[$P{y6_report}]]></subreportExpression>
+			</subreport>
+		</band>
+		<band>
+			<subreport>
+				<reportElement stretchType="RelativeToBandHeight" x="0" y="0" width="0" height="0" uuid="7825e915-caad-4794-a3f5-71a53e897f45"/>
+				<parametersMapExpression><![CDATA[$P{y7_params}]]></parametersMapExpression>
+				<dataSourceExpression><![CDATA[$P{y7_source}]]></dataSourceExpression>
+				<subreportExpression><![CDATA[$P{y7_report}]]></subreportExpression>
+			</subreport>
+		</band>
+		<band>
+			<subreport>
+				<reportElement stretchType="RelativeToBandHeight" x="0" y="0" width="0" height="0" uuid="5c7b253b-8d75-4926-8d34-5ee26dea2e29"/>
+				<parametersMapExpression><![CDATA[$P{y8_params}]]></parametersMapExpression>
+				<dataSourceExpression><![CDATA[$P{y8_source}]]></dataSourceExpression>
+				<subreportExpression><![CDATA[$P{y8_report}]]></subreportExpression>
+			</subreport>
+		</band>
+		<band>
+			<subreport>
+				<reportElement stretchType="RelativeToBandHeight" x="0" y="0" width="0" height="0" uuid="79c41572-3f17-476b-a441-ce47a7cf42b8"/>
+				<parametersMapExpression><![CDATA[$P{y9_params}]]></parametersMapExpression>
+				<dataSourceExpression><![CDATA[$P{y9_source}]]></dataSourceExpression>
+				<subreportExpression><![CDATA[$P{y9_report}]]></subreportExpression>
+			</subreport>
+		</band>
+		<band>
+			<subreport>
+				<reportElement stretchType="RelativeToBandHeight" x="0" y="0" width="0" height="0" uuid="941b9b40-23b3-40cf-a787-34d070b8da33"/>
+				<parametersMapExpression><![CDATA[$P{y10_params}]]></parametersMapExpression>
+				<dataSourceExpression><![CDATA[$P{y10_source}]]></dataSourceExpression>
+				<subreportExpression><![CDATA[$P{y10_report}]]></subreportExpression>
+			</subreport>
+		</band>
+		<band>
+			<subreport>
+				<reportElement stretchType="RelativeToBandHeight" x="0" y="0" width="0" height="0" uuid="e3f0c483-9aad-486d-903a-a8deb98f0e46"/>
+				<parametersMapExpression><![CDATA[$P{y11_params}]]></parametersMapExpression>
+				<dataSourceExpression><![CDATA[$P{y11_source}]]></dataSourceExpression>
+				<subreportExpression><![CDATA[$P{y11_report}]]></subreportExpression>
+			</subreport>
+		</band>
+		<band>
+			<subreport>
+				<reportElement stretchType="RelativeToBandHeight" x="0" y="0" width="0" height="0" uuid="68fb9682-0c63-498c-8de9-e17fff8acb2f"/>
+				<parametersMapExpression><![CDATA[$P{y12_params}]]></parametersMapExpression>
+				<dataSourceExpression><![CDATA[$P{y12_source}]]></dataSourceExpression>
+				<subreportExpression><![CDATA[$P{y12_report}]]></subreportExpression>
+			</subreport>
+		</band>
+	</detail>
+</jasperReport>
