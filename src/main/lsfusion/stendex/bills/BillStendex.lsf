@@ -65,8 +65,9 @@ EXTEND FORM bills
 DESIGN bills {
     PROPERTY(nameProject(b)) { showIf = NULL; }
 }
+skipCheckSumBillProjects = DATA BOOLEAN ();
 
-CONSTRAINT (SETCHANGED(amount(Bill b)) OR SETCHANGED(amountProjects(b))) AND amount(b) AND NOT amount(b) == amountProjects(b)
+CONSTRAINT (SETCHANGED(amount(Bill b)) OR SETCHANGED(amountProjects(b))) AND NOT skipCheckSumBillProjects() AND amount(b) AND NOT amount(b) == amountProjects(b)
     MESSAGE 'Не совпадает сумма по проектам и итоговая сумма счета';
 
 EXTEND CLASS BillStatus {
