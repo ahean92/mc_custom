@@ -6,27 +6,35 @@ PRIORITY MasterData;
 
 NAMESPACE ProjectManagement;
 
+exhibitionReport 'Отображать в графике застройки' = DATA BOOLEAN (ProjectStatus);
+exhibitionReport (Project p) = exhibitionReport(status(p));
+
+EXTEND FORM projectStatus PROPERTIES(o) exhibitionReport;
+EXTEND FORM projectStatuses PROPERTIES(o) READONLY exhibitionReport;
+EXTEND FORM options PROPERTIES(ps) READONLY exhibitionReport;
+
 namePlace 'Место' (Project p) = namePlace(exhibition(p));
-overSquare 'м2' (Project p) = square(p) (+) (squareUpstairs(p) IF upstairs(p));
+overSquare 'м2' (Project p) = square(p) (+) (squareUpstairs(p) IF upstairs(p)) CHARWIDTH 4;
 
 firstDayOfMonth (Month m, INTEGER y) = toDateFormat('01.' +
     lpad(TEXT(number(m)), 2, '0') + '.' + TEXT(y), 'DD.MM.YYYY');
 lastDayOfMonth (Month m, INTEGER y) = lastDayOfMonth(toDateFormat('01.' +
     lpad(TEXT(number(m)), 2, '0') + '.' + TEXT(y), 'DD.MM.YYYY'));
 
-filter(Project p, Month m, INTEGER y) = 
-    (DATE(installationStartDate(p)) >= firstDayOfMonth(m, y) AND DATE(installationStartDate(p)) <= lastDayOfMonth(m, y)) OR
+filter(Project p, Month m, INTEGER y) = exhibitionReport(p) AND
+    ((DATE(installationStartDate(p)) >= firstDayOfMonth(m, y) AND DATE(installationStartDate(p)) <= lastDayOfMonth(m, y)) OR
     (DATE(installationEndDate(p)) >= firstDayOfMonth(m, y) AND DATE(installationEndDate(p)) <= lastDayOfMonth(m, y)) OR
     (DATE(startDateExhibition(p)) >= firstDayOfMonth(m, y) AND DATE(startDateExhibition(p)) <= lastDayOfMonth(m, y)) OR
     (DATE(endDateExhibition(p)) >= firstDayOfMonth(m, y) AND DATE(endDateExhibition(p)) <= lastDayOfMonth(m, y)) OR
     (DATE(demolitionStartDate(p)) >= firstDayOfMonth(m, y) AND DATE(demolitionStartDate(p)) <= lastDayOfMonth(m, y)) OR
-    (DATE(demolitionEndDate(p)) >= firstDayOfMonth(m, y) AND DATE(demolitionEndDate(p)) <= lastDayOfMonth(m, y));
+    (DATE(demolitionEndDate(p)) >= firstDayOfMonth(m, y) AND DATE(demolitionEndDate(p)) <= lastDayOfMonth(m, y)));
 countProjects (Month m, INTEGER y) = GROUP SUM 1 IF filter(Project p, m, y);
 quantity (Month m, INTEGER y) = IF countProjects(m, y) THEN 'Кол-во стендов: ' + countProjects(m, y) ELSE 'Проектов не найдено';
 
-filter(Project p, DATE d) = iterate(d, DATE(installationStartDate(p)), DATE(installationEndDate(p))) OR
+filter(Project p, DATE d) = exhibitionReport(p) AND
+    (iterate(d, DATE(installationStartDate(p)), DATE(installationEndDate(p))) OR
     iterate(d, DATE(startDateExhibition(p)), DATE(endDateExhibition(p))) OR
-    iterate(d, DATE(demolitionStartDate(p)), DATE(demolitionEndDate(p)));
+    iterate(d, DATE(demolitionStartDate(p)), DATE(demolitionEndDate(p))));
 
 value(Project p, DATE d) = ' ' IF p IS Project AND d IS DATE CHARWIDTH 2;
 
@@ -84,8 +92,13 @@ FORM exhibitionReport 'График застройки'
     FILTERS iterate(d1, firstDayOfMonth(m1, y1), lastDayOfMonth(m1, y1))
     
     OBJECTS p1 = Project SUBREPORT 
-    PROPERTIES(p1) SHOWIF show(m,y,number(i),m1,y1) READONLY nameExhibition, namePlace, 'Компания' = namePartner, 'Отв.' = overNameManager, overSquare
-    PROPERTIES SHOWIF show(m,y,number(i),m1,y1) READONLY value(p1, d1) COLUMNS(d1) HEADER(extractDay(d1)) BACKGROUND background(p1,d1)
+    PROPERTIES(p1) SHOWIF show(m,y,number(i),m1,y1) nameExhibition ON CHANGE { SHOW project OBJECTS p = p1 DOCKED; } , 
+                   namePlace ON CHANGE { SHOW project OBJECTS p = p1 DOCKED; } , 
+                   'Компания' = namePartner ON CHANGE { SHOW project OBJECTS p = p1 DOCKED; } , 
+                   'Отв.' = overNameManager ON CHANGE { SHOW project OBJECTS p = p1 DOCKED; } , 
+                   overSquare ON CHANGE { SHOW project OBJECTS p = p1 DOCKED; }
+    PROPERTIES SHOWIF show(m,y,number(i),m1,y1) value(p1, d1) COLUMNS(d1) HEADER(extractDay(d1)) BACKGROUND background(p1,d1) ON CHANGE { SHOW project OBJECTS p = p1 DOCKED; }
+    ORDERS nameExhibition(p1)
     FILTERS filter(p1, m1, y1)
     
     EVENTS ON INIT {
@@ -135,8 +148,13 @@ META addMonth (num)
         FILTERS iterate(d##num, firstDayOfMonth(m##num, y##num), lastDayOfMonth(m##num, y##num))
 
         OBJECTS p##num = Project SUBREPORT
-        PROPERTIES(p##num) SHOWIF show(m,y,number(i),m##num,y##num) READONLY nameExhibition, namePlace, 'Компания' = namePartner, 'Отв.' = overNameManager, overSquare
-        PROPERTIES SHOWIF show(m,y,number(i),m##num,y##num) READONLY value(p##num, d##num) COLUMNS(d##num) HEADER(extractDay(d##num)) BACKGROUND background(p##num,d##num)
+        PROPERTIES(p##num) SHOWIF show(m,y,number(i),m##num,y##num) nameExhibition ON CHANGE { SHOW project OBJECTS p = p##num DOCKED; }, 
+                           namePlace ON CHANGE { SHOW project OBJECTS p = p##num DOCKED; }, 
+                           'Компания' = namePartner ON CHANGE { SHOW project OBJECTS p = p##num DOCKED; }, 
+                           'Отв.' = overNameManager ON CHANGE { SHOW project OBJECTS p = p##num DOCKED; }, 
+                           overSquare ON CHANGE { SHOW project OBJECTS p = p##num DOCKED; }
+        PROPERTIES SHOWIF show(m,y,number(i),m##num,y##num) value(p##num, d##num) COLUMNS(d##num) HEADER(extractDay(d##num)) BACKGROUND background(p##num,d##num) ON CHANGE { SHOW project OBJECTS p = p##num DOCKED; }
+        ORDERS nameExhibition(p##num)
         FILTERS filter(p##num, m##num, y##num)
     ;
 
