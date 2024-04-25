@@ -34,7 +34,7 @@ REQUIRE Eval, ProcessMonitor, Backup,
         SalesOrderReport, SalesLedgerReport, SalesSummary,
 
         Project, ProjectFilter, Priority,
-        ProjectPurchaseOrder, ProjectManufacturingOrderStendex,
+        ProjectPurchaseOrder, ProjectManufacturingOrderStendex, ManufacturingOrderDashboardStendex,
         ProjectSalesOrder, ProjectDashboardStendex,
         ProjectManufacturingOrder, EmployeeStendex,
         ProjectKanbanStendex, ProjectExhibition, ProjectStendex, TimesheetSupervisorMobile, TimesheetSupervisor,

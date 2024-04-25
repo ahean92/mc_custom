@@ -1,0 +1,314 @@
+MODULE ManufacturingOrderDashboardStendex;
+
+REQUIRE ProjectManufacturingOrderStendex, ItemImage, CategoryImage;
+
+NAMESPACE Manufacturing;
+
+hideTouch 'Hide' = DATA BOOLEAN (Category);
+hideTouch 'Hide' = DATA BOOLEAN (Item);
+
+EXTEND FORM options
+    TREE categories c = Category PARENT parent(c)
+    PROPERTIES READONLY name(c)
+    PROPERTIES hideTouch(c)
+    ORDERS name(c)
+    FILTERGROUP activeCategory
+        FILTER '{Active}' active(c) DEFAULT
+
+    OBJECTS itm = Item
+    PROPERTIES(itm) READONLY name, nameUom, idBarCode, id
+    PROPERTIES hideTouch(itm)
+    ORDERS name(itm)
+    FILTERS level(category(itm), c)
+    FILTERGROUP active
+        FILTER '{Active}' active(itm) 'F10' DEFAULT
+;
+
+DESIGN options {
+    tabbedPane {
+        NEW touch {
+            caption = 'Touch';
+            horizontal = TRUE;
+            MOVE BOX(TREE categories);
+            MOVE BOX(itm) { caption = ''; }
+        }
+    }
+}
+
+CLASS ABSTRACT TouchNode;
+
+EXTEND CLASS Category : TouchNode;
+EXTEND CLASS Item : TouchNode;
+
+name (TouchNode n) = MULTI name[Category](n), name[Item](n);
+parent (TouchNode n) = MULTI parent[Category](n), category[Item](n);
+image (TouchNode n) = MULTI image[Category](n), image[Item](n);
+hide (TouchNode n) = MULTI hideTouch[Category](n), hideTouch[Item](n);
+active (TouchNode n) = MULTI active[Category](n), active[Item](n);
+
+image2 (Item i) = image(i);
+
+canonicalName 'Canonical name' (TouchNode n) =
+    GROUP CONCAT name(TouchNode parent), ' / ' ORDER DESC level(n, parent) CHARWIDTH 50 IN id;
+
+index (TouchNode n) = PARTITION SUM 1 IF NOT hide(n) ORDER name(n), n BY parent(n);
+
+FORM manufacturingOrderDashboard 'Управление заявками'
+    OBJECTS i = ManufacturingOrder PANEL
+    PROPERTIES(i) nameProject, namePriority, number, scheduledDateTime, orderBeforeDate
+    
+    OBJECTS l = ConsumedLine
+    PROPERTIES(l) index READONLY, nameItem, toConsume, description, DELETE GRID
+    PROPERTIES(l) PANEL READONLY nameItemPanel = nameItem, nameUom, idBarCodeItem, idItem, link
+    FILTERS manufacturingOrder(l) = i
+    
+    OBJECTS tn = TouchNode PANEL
+    PROPERTIES(tn) READONLY '' = canonicalName
+;
+
+back 'Back' (TouchNode tn) {
+    SEEK manufacturingOrderDashboard.tn = parent(tn);
+}
+
+drop 'Reset' () {
+    SEEK manufacturingOrderDashboard.tn = GROUP LAST Category c ORDER c WHERE c IS Category AND NOT parent(c);
+}
+EXTEND FORM manufacturingOrderDashboard
+    PROPERTIES drop(), back(tn)
+    EVENTS ON INIT drop()
+;
+
+lastOrderLine (ManufacturingOrder i, Item p) = GROUP LAST ConsumedLine l ORDER l BY manufacturingOrder(l), item(l);
+
+setQuantity (ManufacturingOrder i, Item p, NUMERIC[14,3] q) {
+    IF lastOrderLine(i, p) THEN {
+        IF q THEN
+            toConsume(ConsumedLine l) <- q IF l = lastOrderLine(i, p)
+                WHERE manufacturingOrder(l) = i AND item(l) = p;
+        ELSE
+            DELETE ConsumedLine l WHERE manufacturingOrder(l) = i AND item(l) = p;
+    } ELSE
+        IF q THEN
+            NEW l = ConsumedLine{
+                manufacturingOrder(l) <- i;
+                item(l) <- p;
+                toConsume(l) <- q;
+            }
+
+}
+
+selectOrderSearch 'Select' (ManufacturingOrder i, Item it) {
+    setQuantity(i, it, 1);
+    SEEK manufacturingOrderDashboard.l = lastOrderLine(i, it);
+} CHANGEMOUSE 'DBLCLK';
+
+select (ManufacturingOrder i, TouchNode tn) {
+    IF tn IS Category THEN
+        SEEK manufacturingOrderDashboard.tn = tn;
+    ELSE
+        selectOrderSearch(i, tn);
+}
+
+createOrder () {
+    NEW i = ManufacturingOrder {
+        SEEK manufacturingOrderDashboard.i = i;
+    }
+}
+
+newOrder 'Новая заявка' () {
+    CANCEL;
+    createOrder();
+} CONFIRM CHANGEKEY 'shift F12';
+
+FORM enterPin 'Введите PIN-код'
+    OBJECTS s = ISTRING[10] PANEL
+    PROPERTIES 'PIN' = VALUE(s)
+;
+
+saveOrder 'Оформить заказ' (ManufacturingOrder i) {
+    DIALOG enterPin OBJECTS s INPUT NOMANAGESESSION DO {
+        IF individual(s) THEN {
+            responsible(i) <- individual(s);
+            APPLY;
+            createOrder();
+        } ELSE {
+            MESSAGE 'PIN-код не найден';
+        }
+    }
+}
+
+EXTEND FORM manufacturingOrderDashboard
+    PROPERTIES newOrder(), saveOrder(i)
+    
+    OBJECTS tn1 = TouchNode
+    FILTERS parent(tn1) = tn, mod(index(tn1),3) = 1, NOT hide(tn1)
+    PROPERTIES NOWAIT select(i, tn1) COLUMNS (tn1) HEADER name(tn1) IMAGE image(tn1)
+    FILTERS active(tn1)
+
+    OBJECTS tn2 = TouchNode
+    FILTERS parent(tn2) = tn, mod(index(tn2),3) = 2, NOT hide(tn2)
+    PROPERTIES NOWAIT select(i, tn2) COLUMNS (tn2) HEADER name(tn2) IMAGE image(tn2)
+    FILTERS active(tn2)
+
+    OBJECTS tn3 = TouchNode
+    FILTERS parent(tn3) = tn, mod(index(tn3),3) = 0, NOT hide(tn3)
+    PROPERTIES NOWAIT select(i, tn3) COLUMNS (tn3) HEADER name(tn3) IMAGE image(tn3)
+    FILTERS active(tn3)
+    
+    EVENTS ON INIT createOrder()
+;
+
+DESIGN manufacturingOrderDashboard {
+    OBJECTS {
+        class = '';
+        border = FALSE;
+        NEW mainPane {
+            fill = 1;
+            horizontal = TRUE;
+            NEW leftPane {
+                width = 1;
+                fill = 1;
+                NEW orderPane {
+                    fill = 1;
+                    NEW orderHeader1 {
+                        alignment = STRETCH;
+                        horizontal = TRUE;
+                        MOVE PROPERTY(nameProject(i));
+                        MOVE PROPERTY(namePriority(i));
+                    }
+                    NEW orderHeader2 {
+                        alignment = STRETCH;
+                        horizontal = TRUE;
+                        MOVE PROPERTY(number(i));
+                        MOVE PROPERTY(scheduledDateTime(i));
+                        MOVE PROPERTY(orderBeforeDate(i));
+                    }
+                    REMOVE BOX(l);
+                    MOVE GRID(l) {
+                        PROPERTY(index(l)) { charWidth = 1; }
+                        PROPERTY(nameItem(l)) { charWidth = 30; }
+                        PROPERTY(toConsume(l)) { charWidth = 5; }
+                        PROPERTY(description(l)) { charWidth = 30; }
+                    }
+                    NEW linesFooter {
+                        horizontal = TRUE;
+                        alignment = STRETCH;
+                        NEW info {
+                            fill = 1;
+                            NEW invoiceKeyboard FIRST {
+                                horizontal = TRUE;
+                                alignment = STRETCH;
+                            }
+                            NEW itemDetails {
+                                alignment = STRETCH;
+                                NEW itemDetails1 {
+                                    alignment = STRETCH;
+                                    horizontal = TRUE;
+                                    MOVE PROPERTY(nameItemPanel) { panelCaptionVertical = TRUE; focusable = FALSE; }
+                                    MOVE PROPERTY(nameUom(l)) { panelCaptionVertical = TRUE; focusable = FALSE; }
+                                }
+                                NEW itemDetails2 {
+                                    alignment = STRETCH;
+                                    horizontal = TRUE;
+                                    MOVE PROPERTY(idBarCodeItem(l)) { panelCaptionVertical = TRUE; focusable = FALSE; }
+                                    MOVE PROPERTY(idItem(l)) { panelCaptionVertical = TRUE; focusable = FALSE; }
+                                    MOVE PROPERTY(link(l)) { panelCaptionVertical = TRUE; focusable = FALSE; }
+                                }
+                            }
+                        }
+                        NEW actions {
+                            alignment = STRETCH;
+                            MOVE PROPERTY(newOrder()) { fill = 1; valueClass = 'btn-danger'; }
+                            MOVE PROPERTY(saveOrder(i)) { fill = 1; valueClass = 'btn-primary'; }
+                        }
+                    }
+                }
+            }
+            NEW tabPane {
+                width = 1;
+                fill = 1;
+                tabbed = TRUE;
+                NEW touch {
+                    caption = 'Touch';
+                    NEW current {
+                        alignment = STRETCH;
+                        horizontal = TRUE;
+                        MOVE PROPERTY(canonicalName(tn)) { fill = 1; focusable = FALSE; }
+                        MOVE PROPERTY(drop()) { fontSize = 16; focusable = FALSE; }
+                        MOVE PROPERTY(back(tn)) { fontSize = 16; focusable = FALSE; }
+                    }
+                    NEW touchScroll {
+                        fill = 1;
+                        height = 100;
+                        NEW touchPane {
+                            fill = 1;
+                            horizontal = TRUE;
+                            MOVE PROPERTY(select(i, tn1)) { fill = 1; valueClass = 'btn-outline-primary'; panelColumnVertical = TRUE; panelCaptionVertical = TRUE; focusable = FALSE; }
+                            MOVE PROPERTY(select(i, tn2)) { fill = 1; valueClass = 'btn-outline-primary'; panelColumnVertical = TRUE; panelCaptionVertical = TRUE; focusable = FALSE; }
+                            MOVE PROPERTY(select(i, tn3)) { fill = 1; valueClass = 'btn-outline-primary'; panelColumnVertical = TRUE; panelCaptionVertical = TRUE; focusable = FALSE; }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    REMOVE TOOLBARBOX;
+}
+
+setQuantity(ConsumedLine l, INTEGER n) {
+    IF n = 0 THEN
+        DELETE l;
+    ELSE
+        toConsume(l) <- n;
+}
+addQuantity(ConsumedLine l, INTEGER n) {
+    IF toConsume(l) + n <= 0 THEN 
+        DELETE l;
+    ELSE 
+        toConsume(l) <- toConsume(l) + n;
+}
+
+manufacturingOrderDashboardPress0 '0' (ConsumedLine o) {
+    setQuantity(o, 0);
+}
+manufacturingOrderDashboardAdd1 '+1' (ConsumedLine o) {
+    addQuantity(o, 1);
+}
+manufacturingOrderDashboardSubtarct1 '-1' (ConsumedLine o) {
+    addQuantity(o, -1);
+}
+manufacturingOrderDashboardAdd5 '+5' (ConsumedLine o) {
+    addQuantity(o, 5);
+}
+manufacturingOrderDashboardSubtarct5 '-5' (ConsumedLine o) {
+    addQuantity(o, -5);
+}
+manufacturingOrderDashboardAdd10 '+10' (ConsumedLine o) {
+    addQuantity(o, 10);
+}
+manufacturingOrderDashboardSubtarct10 '-10' (ConsumedLine o) {
+    addQuantity(o, -10);
+}
+
+EXTEND FORM manufacturingOrderDashboard 
+    PROPERTIES(l) manufacturingOrderDashboardSubtarct10, manufacturingOrderDashboardSubtarct5, manufacturingOrderDashboardSubtarct1, 
+        manufacturingOrderDashboardPress0, manufacturingOrderDashboardAdd1, manufacturingOrderDashboardAdd5, manufacturingOrderDashboardAdd10
+;
+DESIGN manufacturingOrderDashboard {
+    invoiceKeyboard {
+        MOVE PROPERTY(manufacturingOrderDashboardSubtarct10(l)) { fill = 1; fontSize = 14; focusable = FALSE; }
+        MOVE PROPERTY(manufacturingOrderDashboardSubtarct5(l)) { fill = 1; fontSize = 14; focusable = FALSE; }
+        MOVE PROPERTY(manufacturingOrderDashboardSubtarct1(l)) { fill = 1; fontSize = 14; focusable = FALSE; }
+        MOVE PROPERTY(manufacturingOrderDashboardPress0(l)) { fill = 1; fontSize = 14; focusable = FALSE; }
+        MOVE PROPERTY(manufacturingOrderDashboardAdd1(l)) { fill = 1; fontSize = 14; focusable = FALSE; }
+        MOVE PROPERTY(manufacturingOrderDashboardAdd5(l)) { fill = 1; fontSize = 14; focusable = FALSE; }
+        MOVE PROPERTY(manufacturingOrderDashboardAdd10(l)) { fill = 1; fontSize = 14; focusable = FALSE; }
+    }
+}
+
+NAVIGATOR {
+    dashboard {
+        NEW manufacturingOrderDashboard;
+    }
+}

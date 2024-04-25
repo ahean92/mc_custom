@@ -8,13 +8,19 @@ initials 'Инициалы (И.О.)' = DATA ISTRING[5] (Individual);
 
 overName '{Name}' (Individual i) = CONCAT ' ', lastName(i), ISTRING(OVERRIDE initials(i), (CONCAT '', substr(firstName(i), 1, 1) + '.', substr(middleName(i), 1, 1) + '.'))  CHARWIDTH 15;
 
+pin 'PIN-код' = DATA ISTRING[10] (Individual) ECHO;
+individual (ISTRING[10] pin) = GROUP AGGR Individual o BY pin(o);
+
 EXTEND FORM employee
-    PROPERTIES initials(e)
+    PROPERTIES initials(e), pin(e)
 ;
 
 DESIGN employee {
     info {
         MOVE PROPERTY(initials(e)) AFTER PROPERTY(middleName(e));
+    }
+    login {
+        MOVE PROPERTY(pin(e)) AFTER PROPERTY(sha256Password(e));
     }
 }
 
