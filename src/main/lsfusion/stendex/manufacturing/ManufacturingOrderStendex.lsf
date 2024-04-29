@@ -148,3 +148,15 @@ DESIGN materialRequests {
         }
     }
 }
+
+WHEN CHANGED(item(ConsumedLine l)) AND manufacturingOrder(l) = ManufacturingOrder d
+    AND status(d) = ManufacturingOrderStatus.draft AND NOT disableHistory() DO {
+    NEW h = ManufacturingOrderHistory {
+        manufacturingOrder(h) <- d;
+        dateTime(h) <- currentDateTime();
+        user(h) <- currentUser();
+        computer(h) <- currentComputer();
+        type(h) <- 'Product changed';
+        description (h) <- 'Номенклатура изменилась с ' + ' "' + PREV(nameItem(l)) + '"' + ' на ' + '"' + nameItem(l) + '"';
+    }
+}
