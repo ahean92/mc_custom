@@ -282,3 +282,10 @@ DESIGN billDashboard {
         }
     }
 }
+
+EXTEND FORM billDashboard
+    PROPERTIES openBillPaymentOrder(partiallyPaidLE) GRID AFTER openFilesInvoice(partiallyPaidLE)
+    PROPERTIES openBillPaymentOrder(readyLE) GRID AFTER openFilesInvoice(readyLE)
+    PROPERTIES openBillPaymentOrder(canceledLE) GRID AFTER openFilesInvoice(canceledLE)
+    PROPERTIES openBillPaymentOrder(doneLE) GRID AFTER openFilesInvoice(doneLE)
+;

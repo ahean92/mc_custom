@@ -482,6 +482,12 @@ DESIGN securityPolicy {
     }
 }
 
+openFilesInvoice (Bill i) {
+    FOR BillFile bf IS BillFile AND bill(bf) = i AND type(bf) = TypeFile.invoice DO {
+        open(bf);
+    }
+}
+
 META billDashboardStatus(st, capt)
     showBill###st##Tab 'Отображать вкладку '##capt = DATA BOOLEAN (UserRole);
     showBill###st##Tab (User u) = GROUP SUM 1 IF showBill###st##Tab(UserRole r) AND has(u, r);
@@ -499,7 +505,7 @@ META billDashboardStatus(st, capt)
     EXTEND FORM billDashboard
         OBJECTS st##LE = Bill BACKGROUND overBackgroundColor(st##LE)
         PROPERTIES(st##LE) READONLY number, date, overNameVendor, items, nameProjects, note, overNameRepresentative, nameCompany, amount
-        PROPERTIES(st##LE) 'Счет' = openFiles GRID
+        PROPERTIES(st##LE) 'Счет' = openFilesInvoice GRID
         PROPERTIES(st##LE) NEWSESSION editBillCustom
         PROPERTIES(st##LE) NEWSESSION DELETE
         FILTERS status(st##LE) = BillStatus.st
@@ -584,3 +590,29 @@ END
 @billDashboardStatus(ready, 'К оплате');
 @billDashboardStatus(done, 'Оплачено');
 @billDashboardStatus(canceled, 'Отменен');
+
+countBillPaymentOrders 'Кол-во платёжных поручений' (Bill i) = GROUP SUM 1 IF bill(BillFile bf) = i AND type(bf) = TypeFile.paymentOrder;
+
+paymentOrder 'ПП' (Bill i) = GROUP MAX BillFile bf IF bill(bf) = i AND type(bf) = TypeFile.paymentOrder;
+
+FORM listBillPaymentOrders 'Платёжные документы'
+    OBJECTS i = Bill
+
+    OBJECTS bf = BillFile
+    PROPERTIES(bf) READONLYIF readonly(i) name, description
+    PROPERTIES(bf) READONLY nameUser, dateTime
+
+    FILTERS bill(bf) = i
+    FILTERS type(bf) = TypeFile.paymentOrder
+;
+
+DESIGN listBillPaymentOrders {
+    BOX (bf) { caption = ''; }
+}
+
+openBillPaymentOrder 'ПП' (Bill i) {
+    CASE EXCLUSIVE
+        WHEN countBillPaymentOrders(i) > 1 THEN DIALOG listBillPaymentOrders OBJECTS i = i, bf INPUT bf DO open(bf);
+        WHEN countBillPaymentOrders(i) = 1 THEN open(file(paymentOrder(i)), nameExtension(paymentOrder(i)));
+        ELSE MESSAGE 'Отсутствует ПП, прикреплённое к счёту';
+}

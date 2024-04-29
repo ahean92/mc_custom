@@ -396,9 +396,8 @@ countPaymentOrders 'Кол-во платёжных поручений' (Order o)
 
 paymentOrder 'ПП' (Order o) = GROUP MAX OrderFile of IF order(of) = o AND type(of) = TypeFile.paymentOrder;
 
-
 FORM listPaymentOrders 'Платёжные документы'
-    OBJECTS o = Order
+    OBJECTS o = Order PANEL
 
     OBJECTS of = OrderFile
     PROPERTIES(of) READONLYIF readonly(o) name, description
@@ -412,17 +411,12 @@ DESIGN listPaymentOrders {
     BOX (of) { caption = ''; }
 }
 
-openPaymentOrder 'Открыть ПП' (Order o) {
-    IF countPaymentOrders(o) > 1 THEN {
-        DIALOG listPaymentOrders OBJECTS o = o, of INPUT of DO open(of);
-    } ELSE {
-        open(file(paymentOrder(o)), nameExtension(paymentOrder(o)));
-    }
+openPaymentOrder 'ПП' (Order o) {
+    CASE EXCLUSIVE
+        WHEN countPaymentOrders(o) > 1 THEN DIALOG listPaymentOrders OBJECTS o = o, of INPUT of DO open(of);
+        WHEN countPaymentOrders(o) = 1 THEN open(file(paymentOrder(o)), nameExtension(paymentOrder(o)));
+        ELSE MESSAGE 'Отсутствует ПП, прикреплённое к счёту';
 }
-
-EXTEND FORM orders
-    PROPERTIES openPaymentOrder(o);
-;
 
 dataUom = DATA Uom (OrderLine); 
 overUom(OrderLine l) += dataUom(l);
