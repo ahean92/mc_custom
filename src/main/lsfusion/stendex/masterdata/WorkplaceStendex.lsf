@@ -1,0 +1,40 @@
+MODULE WorkplaceStendex;
+
+REQUIRE ProjectManagementSettings, Color;
+
+NAMESPACE ProjectManagement;
+
+CLASS Workplace 'Место расположения';
+
+name '{Name}' = DATA ISTRING[50] (Workplace) IN id;
+color 'Color' = DATA Color (Workplace) IN id;
+nameColor 'Color' (Workplace p) = name(color(p));
+idColor 'Color' (Workplace p) = id(color(p));
+rgbColor 'Color' (Workplace p) = rgb(color(p));
+
+FORM location 'Место расположения'
+    OBJECTS wp = Workplace PANEL
+    PROPERTIES(wp) name, nameColor
+
+    EDIT Workplace OBJECT wp
+;
+
+FORM locations 'Места расположения'
+    OBJECTS wp = Workplace
+    PROPERTIES(wp) name, nameColor
+
+    LIST Workplace OBJECT wp
+;
+
+
+EXTEND FORM options
+    OBJECTS wp = Workplace
+    PROPERTIES(wp) READONLY name, nameColor
+    PROPERTIES(wp) NEWSESSION NEW, EDIT, DELETE
+;
+
+DESIGN options {
+    tabbedPane {
+        MOVE BOX(wp);
+    }
+}

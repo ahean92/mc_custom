@@ -8,16 +8,42 @@ initials 'Инициалы (И.О.)' = DATA ISTRING[5] (Individual);
 
 overName '{Name}' (Individual i) = CONCAT ' ', lastName(i), ISTRING(OVERRIDE initials(i), (CONCAT '', substr(firstName(i), 1, 1) + '.', substr(middleName(i), 1, 1) + '.'))  CHARWIDTH 15;
 
+tariff 'Тарифная ставка (в час)' = DATA NUMERIC[10,2] (Employee);
+
+CLASS EmployeeType 'Тип сотрудника' {
+    hired 'Наемный',
+    staff 'Штатный'
+}
+
+name '{Name}' (EmployeeType t) = ISTRING[100](staticCaption(t)) IF t IS EmployeeType CHARWIDTH 10;
+
+type = DATA EmployeeType (Employee);
+nameType 'Тип сотрудника' (Employee e) = name(type(e));
+
+employeeType = DATA LOCAL EmployeeType ();
+nameEmoloyeeType 'Тип сотрудника' = name(employeeType());
+
+FORM employeeTypes 'Места расположения'
+    OBJECTS wp = EmployeeType
+    PROPERTIES(wp) name
+
+    LIST EmployeeType OBJECT wp
+;
+
 pin 'PIN-код' = DATA ISTRING[10] (Individual) ECHO;
 individual (ISTRING[10] pin) = GROUP AGGR Individual o BY pin(o);
 
 EXTEND FORM employee
     PROPERTIES initials(e), pin(e)
+    
+    PROPERTIES (e) nameType, tariff
 ;
 
 DESIGN employee {
     info {
         MOVE PROPERTY(initials(e)) AFTER PROPERTY(middleName(e));
+        MOVE PROPERTY(nameType(e));
+        MOVE PROPERTY(tariff(e));
     }
     login {
         MOVE PROPERTY(pin(e)) AFTER PROPERTY(sha256Password(e));
@@ -25,7 +51,10 @@ DESIGN employee {
 }
 
 EXTEND FORM employees
-    PROPERTIES READONLY overName(e) AFTER name(e)
+    PROPERTIES READONLY overName(e) AFTER name(e), tariff(e)
+    
+    PROPERTIES() nameEmoloyeeType SELECT 'buttonGroup'
+    FILTERS employeeType() == type(e) OR NOT employeeType()
 ;
 DESIGN employees {
     PROPERTY(name(e)) { showIf = NULL; }

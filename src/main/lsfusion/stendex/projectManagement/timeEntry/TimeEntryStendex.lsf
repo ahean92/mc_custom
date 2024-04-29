@@ -1,0 +1,29 @@
+MODULE TimeEntryStendex;
+
+REQUIRE TimeEntry, WorkplaceStendex;
+
+NAMESPACE ProjectManagement;
+
+overtimeHours 'Часы переработки' = DATA NUMERIC[8,2] (TimeEntry);
+workplace = DATA Workplace (TimeEntry);
+nameWorkplace 'Расположение' (TimeEntry t) = name(workplace(t));
+
+EXTEND FORM timeEntry 
+    PROPERTIES(t) overtimeHours AFTER hours(t), nameWorkplace BACKGROUND color(workplace(t))
+;
+
+DESIGN timeEntry {
+    OBJECTS {
+        pane{
+            time {
+                MOVE PROPERTY(overtimeHours(t));
+            }
+            
+            MOVE PROPERTY(nameWorkplace(t));
+        }
+    }
+}
+
+EXTEND FORM timeEntries 
+    PROPERTIES(t) READONLY overtimeHours AFTER hours(t), nameWorkplace BACKGROUND color(workplace(t))
+;

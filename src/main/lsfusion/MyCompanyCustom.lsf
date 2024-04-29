@@ -42,7 +42,10 @@ REQUIRE Eval, ProcessMonitor, Backup,
 
         BillStendex, BillPaymentStendex, ProjectBillStendex, PurchaseOrderBillStendex,
 
-        ExhibitionReport;
+        ExhibitionReport,
+
+        WorkplaceStendex,
+        TimeEntryStendex;
 
 
 onWebClientLoad() +{
