@@ -33,10 +33,25 @@ FORM employeeTypes 'Места расположения'
 pin 'PIN-код' = DATA ISTRING[10] (Individual) ECHO;
 individual (ISTRING[10] pin) = GROUP AGGR Individual o BY pin(o);
 
+passportInformation 'Паспортные данные' = DATA STRING (Employee) CHARWIDTH 50;
+//passportScan 'Скан паспорта' = DATA IMAGEFILE (Employee);
+
+scanFile = DATA FILE (Employee);
+hasScanFile (Employee e) = TRUE IF scanFile(e);
+
+openScanFile 'Скан паспорта' (Employee e) {
+    IF hasScanFile(e) THEN {
+        open(scanFile(e));
+    }
+}
+loadScanFile 'Upload' (Employee e) { INPUT = scanFile(e) CHANGE; }
+dropScanFile 'Reset' (Employee e) { scanFile(e) <- NULL; }
+
 EXTEND FORM employee
     PROPERTIES initials(e), pin(e)
     
-    PROPERTIES (e) nameType, tariff
+    PROPERTIES (e) nameType, tariff, passportInformation,
+        openScanFile, loadScanFile, dropScanFile SHOWIF hasScanFile(e)    
 ;
 
 DESIGN employee {
@@ -44,6 +59,16 @@ DESIGN employee {
         MOVE PROPERTY(initials(e)) AFTER PROPERTY(middleName(e));
         MOVE PROPERTY(nameType(e));
         MOVE PROPERTY(tariff(e));
+        MOVE PROPERTY(passportInformation(e));
+        NEW passportScan {
+            alignment = STRETCH;
+            horizontal = TRUE;
+            caption = 'Скан паспорта';
+            
+            MOVE PROPERTY(openScanFile(e));
+            MOVE PROPERTY(loadScanFile(e));
+            MOVE PROPERTY(dropScanFile(e));
+        }
     }
     login {
         MOVE PROPERTY(pin(e)) AFTER PROPERTY(sha256Password(e));

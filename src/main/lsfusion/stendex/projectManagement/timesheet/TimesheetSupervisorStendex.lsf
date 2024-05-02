@@ -1,0 +1,68 @@
+MODULE TimesheetSupervisorStendex;
+
+REQUIRE TimesheetSupervisor, EmployeeStendex;
+
+PRIORITY MasterData;
+
+NAMESPACE ProjectManagement;
+
+hours (Employee e, TimeEntryHours h, DATE dFrom, DATE dTo) = 
+    GROUP SUM hours(TimeEntry te) IF h == timeEntryHours(te) AND NOT date(te) < dFrom AND NOT date(te) > dTo AND employee(te) == e AND 
+        (project(te) = timesheetProject() OR NOT timesheetProject());
+
+hours 'Hours' (Employee e, TimeEntryHours h, INTERVAL[DATE] dates) = hours(e, h, from(dates), to(dates));
+
+FORM dialogEmployeeTimeEntryHours 'Employee'
+    OBJECTS dates = INTERVAL[DATE] PANEL NULL    
+    OBJECTS e = Employee PANEL
+    PROPERTIES (e) READONLY lastName, firstName, middleName, photo, passportInformation, tariff
+    PROPERTIES (e) openScanFile
+       
+    OBJECTS h = TimeEntryHours
+    PROPERTIES(h) name
+    PROPERTIES(e, h, dates) hours
+    FILTERS hours(e, h, dates)
+;
+
+DESIGN dialogEmployeeTimeEntryHours {
+    OBJECTS {
+        NEW header {
+            alignment = STRETCH;
+            horizontal = TRUE;
+            fill = 1;
+
+            MOVE PROPERTY(photo(e)) {
+                fill = 1;
+                width = 100;
+                caption = '';
+            }
+
+            NEW info {
+                fill = 2;
+                MOVE PROPERTY(lastName(e));
+                MOVE PROPERTY(firstName(e));
+                MOVE PROPERTY(middleName(e));
+                MOVE PROPERTY(passportInformation(e));
+                MOVE PROPERTY(passportInformation(e));
+                MOVE PROPERTY(openScanFile(e));
+                MOVE PROPERTY(tariff(e));
+            }
+        }
+        NEW hours {
+            fill = 1;
+            MOVE BOX(h) {
+                fill = 2; 
+                caption = '';
+            } 
+        }
+    }
+}
+
+EXTEND FORM timesheetSupervisor
+    PROPERTIES photo(e) ON CHANGE { SHOW dialogEmployeeTimeEntryHours OBJECTS dates = dates, e = e  FLOAT;} FIRST
+    PROPERTIES firstName '{First_name}' = firstName(e) ON CHANGE { SHOW dialogEmployeeTimeEntryHours OBJECTS dates = dates, e = e  FLOAT;} AFTER photo(e)
+;
+
+DESIGN timesheetSupervisor {
+    PROPERTY(firstName(e)) { hide = TRUE; }
+}
