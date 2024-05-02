@@ -25,7 +25,7 @@ overFillAmountProjects (Bill b) + {
 
 fill (Bill b, Order o) + {
     order(b) <- o;
-    
+
     FOR order(OrderFile f) == o AND type(f) = TypeFile.invoice NEW bf = BillFile DO {
         bill(bf) <- b;
         file(bf) <- file(f);
@@ -41,6 +41,7 @@ newBill 'Добавить' (Order o) {
         NEW nb = Bill {
             ready(nb) <- TRUE;
             onApproval(nb) <- TRUE;
+            dataStatus(nb) <- BillStatus.onApproval;
             type(nb) <- billType(type(o));
 
             company(nb) <- company(o);
@@ -50,7 +51,7 @@ newBill 'Добавить' (Order o) {
             note(nb) <- note(o);
 
             currency(nb) <- currency(o);
-            
+
             paymentTerms(nb) <- paymentTerms(o);
 
             FOR order(OrderLine ol) = o AND toBillOrdered(ol) > 0
@@ -117,7 +118,7 @@ FORM inputOrderConsigments 'Добавление накладных'
     PROPERTIES(of) READONLY nameUser, dateTime
     PROPERTIES(of) GRID open, DELETE READONLYIF readonly(o)
     FILTERS order(of) = o,
-            type(of) = TypeFile.consignment
+        type(of) = TypeFile.consignment
 
     PROPERTIES(o) uploadConsigment DRAW of TOOLBAR READONLYIF readonly(o)
     PROPERTIES inputFile = '' CUSTOM 'inputFile' ON CHANGE {
@@ -159,6 +160,7 @@ uploadInvoice 'Счет' (Purchase.Order o){
         IF NOT lastBill(o) THEN NEW nb = Bill{
             ready(nb) <- TRUE;
             onApproval(nb) <- TRUE;
+            dataStatus(nb) <- BillStatus.onApproval;
             type(nb) <- billType(type(o));
 
             company(nb) <- company(o);
@@ -203,7 +205,7 @@ FORM inputOrderInvoices 'Добавление счетов'
     PROPERTIES(of) READONLY nameUser, dateTime
     PROPERTIES(of) GRID open, DELETE READONLYIF readonly(o)
     FILTERS order(of) = o,
-            type(of) = TypeFile.invoice
+        type(of) = TypeFile.invoice
 
     PROPERTIES(o) uploadInvoice DRAW of TOOLBAR READONLYIF readonly(o)
     PROPERTIES inputFile = '' CUSTOM 'inputFile' ON CHANGE {
@@ -272,8 +274,8 @@ newInvoice 'Счет' (Order o) {
 
 EXTEND FORM Purchase.order
     PROPERTIES (o) newInvoice TOOLBAR DRAW of SHOWIF inProject(o)
-    PROPERTIES (o) newConsigment TOOLBAR DRAW of 
-        SHOWIF inProject(o) AND (status(o) = OrderStatus.awaitingDelivery OR status(o) = OrderStatus.delivered);
+    PROPERTIES (o) newConsigment TOOLBAR DRAW of
+    SHOWIF inProject(o) AND (status(o) = OrderStatus.awaitingDelivery OR status(o) = OrderStatus.delivered);
 ;
 
 DESIGN Purchase.order {
@@ -386,7 +388,7 @@ FORM billOrderDashboard 'Счета на товары'
     PROPERTIES(b) NEWSESSION editBillCustom, DELETE
     FILTERS order(b),
         representative(b) = currentUser() OR showAllInvoices(currentUser()) OR NOT representative(b)
-    
+
     PROPERTIES() Invoicing.nameFilterProject, Invoicing.nameFilterRepresentative, nameFilterStatus, filterUrgent
     FILTERS in(b, Invoicing.filterProject()) OR NOT Invoicing.filterProject(),
         representative(b) = Invoicing.filterRepresentative() OR NOT Invoicing.filterRepresentative(),
@@ -445,12 +447,12 @@ EXTEND FORM billOrderDashboard
     PROPERTIES(b) SHOWIF toPay(b) doPayment
     FILTERGROUP status
         FILTER 'По умолчанию' defaultFilter(b, currentUser()) DEFAULT
-        FILTER 'Формирование' toReady(b)
-        FILTER 'На утверждении' onApproval(b) AND NOT (toPay(b) OR paidDone(b))
-        FILTER 'К оплате' toPay(b)
-        FILTER 'Оплачено' done(b)
-        FILTER 'Частично оплачен' partiallyPaid(b)
-        FILTER 'Отменен' canceled(b)
+        FILTER 'Формирование' status(b) = BillStatus.draft
+        FILTER 'На утверждении' status(b) = BillStatus.onApproval
+        FILTER 'К оплате' status(b) = BillStatus.ready
+        FILTER 'Оплачено' status(b) = BillStatus.done
+        FILTER 'Частично оплачен' status(b) = BillStatus.partiallyPaid
+        FILTER 'Отменен' status(b) = BillStatus.canceled
 ;
 
 DESIGN billOrderDashboard {

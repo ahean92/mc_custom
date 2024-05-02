@@ -4,6 +4,38 @@ REQUIRE BillDone, BillCanceled, ProjectBill, ServiceP, UtilsStendex, EmployeeSte
 
 NAMESPACE Invoicing;
 
+//dataColor 'Цвет' = DATA COLOR (BillStatus);
+caption 'Подпись' = DATA STRING[50] (BillStatus);
+captionButton (BillStatus s) = OVERRIDE caption(s), name(s);
+
+useCustomStatus = ABSTRACT BOOLEAN ();
+useCustomStatus() += TRUE;
+
+dataStatus = DATA BillStatus (Bill);
+dateTime = DATA DATETIME(Bill, BillStatus);
+
+WHEN SETCHANGED(status(Bill b)) DO {
+    dateTime(b,status(b)) <- currentDateTime();
+}
+
+allowPrevStatusSetBill 'Разрешить возвращать статус счета' = DATA BOOLEAN (UserRole);
+allowPrevStatusSetBill (User u) = GROUP SUM 1 IF allowPrevStatusSetBill(UserRole r) AND has(u, r);
+
+EXTEND FORM securityPolicy
+    PROPERTIES(ur) PANEL allowPrevStatusSetBill
+;
+
+DESIGN securityPolicy {
+    roleApplicationSettings {
+        tabbed = TRUE;
+        NEW billDashboard {
+            caption = 'Счета на услуги';
+            lines = 3;
+            MOVE PROPERTY(allowPrevStatusSetBill(ur));
+        }
+    }
+}
+
 in 'On' = DATA BOOLEAN (Bill, Project);
 countProjects (Bill b) =  GROUP SUM 1 IF in(b, Project p);
 amount 'Сумма по проекту' = DATA NUMERIC[14,2] (Bill, Project);
@@ -85,6 +117,7 @@ markAsOnApproval 'На утверждение' (Bill b) {
 
     NEWSESSION {
         onApproval(b) <- TRUE;
+        dataStatus(b) <- BillStatus.onApproval;
         APPLY;
     }
 }
@@ -359,6 +392,7 @@ uploadInvoice 'Счет' (Bill b){
         type(uof) <- TypeFile.invoice;
         lockChangeType(uof) <- TRUE;
         onApproval(b) <- TRUE;
+        dataStatus(b) <- BillStatus.onApproval;
     }
 } IMAGE 'add.png';
 
@@ -472,12 +506,55 @@ NAVIGATOR {
     }
 }
 
-DESIGN securityPolicy {
-    roleApplicationSettings {
-        tabbed = TRUE;
-        NEW billDashboard {
-            caption = 'Счета на услуги';
-            lines = 3;
+changeStatus ABSTRACT LIST (Bill, BillStatus);
+changeStatus (Bill b, BillStatus s) +{
+    APPLY;
+    IF canceled() THEN RETURN;
+}
+
+changeStatus (Bill b, BillStatus s) +{
+    IF s = BillStatus.canceled THEN  NEWSESSION {
+        dataStatus(b) <- s;
+        APPLY;
+    }
+}
+
+changeStatus (Bill b, BillStatus s) +{
+    IF s = BillStatus.draft THEN  NEWSESSION {
+        dataStatus(b) <- s;
+        APPLY;
+    }
+}
+
+showStatusRule = ABSTRACT CASE BOOLEAN (Bill, BillStatus);
+showStatusRule(Bill b, BillStatus s) += WHEN status(b) = BillStatus.draft AND s = BillStatus.canceled THEN TRUE;
+showStatusRule(Bill b, BillStatus s) += WHEN status(b) = BillStatus.onApproval AND s = BillStatus.canceled THEN TRUE;
+showStatusRule(Bill b, BillStatus s) += WHEN status(b) = BillStatus.ready AND s = BillStatus.canceled THEN TRUE;
+showStatus (Bill b, BillStatus s) = showStatusRule(b, s);
+
+changeToPrevStatus (Bill b, BillStatus s) {
+    dateTime(b,status(b)) <- NULL;
+    changeStatus(b,s);
+}
+hidePrevStatusRule = ABSTRACT CASE BOOLEAN (BillStatus);
+prevStatus (Bill b) = GROUP LAST BillStatus s IF dateTime(b,s) < dateTime(b,status(b)) ORDER dateTime(b,s), s;
+showPrevStatus (Bill b, BillStatus s) = prevStatus(b) == s AND allowPrevStatusSetBill(currentUser()) AND NOT hidePrevStatusRule(s);
+
+EXTEND FORM billCustom
+    OBJECTS bs = BillStatus
+    PROPERTIES (b, bs) changeToPrevStatus COLUMNS (bs) HEADER captionButton(bs) SHOWIF countBillLine(b)
+    FILTERS showPrevStatus(b, bs)
+
+    OBJECTS s = BillStatus
+    PROPERTIES (b, s) changeStatus COLUMNS (s) HEADER captionButton(s) SHOWIF countBillLine(b)
+    FILTERS showStatus(b, s)
+;
+
+DESIGN billCustom{
+    statusPane{
+        statusActions {
+            MOVE PROPERTY (changeToPrevStatus(b, bs));
+            MOVE PROPERTY (changeStatus(b, s));
         }
     }
 }
@@ -519,6 +596,14 @@ META billDashboardStatus(st, capt)
         PROPERTIES st##LE##Order 'Порядок' = VALUE(st##LE)
         ORDERS st##LE##Order DESC
 
+        OBJECTS bs##st##LE = BillStatus
+        PROPERTIES (st##LE, bs##st##LE) changeToPrevStatus COLUMNS (bs##st##LE) HEADER captionButton(bs##st##LE) SHOWIF countBillLine(st##LE)
+        FILTERS showPrevStatus(st##LE, bs##st##LE)
+
+        OBJECTS s##st##LE = BillStatus
+        PROPERTIES (st##LE, s##st##LE) changeStatus COLUMNS (s##st##LE) HEADER captionButton(s##st##LE) SHOWIF countBillLine(st##LE)
+        FILTERS showStatus(st##LE, s##st##LE)
+
         OBJECTS st##I = Bill BACKGROUND overBackgroundColor(st##I)
         PROPERTIES(st##I) READONLY number, date, overNameVendor, items, nameProjects, note, overNameRepresentative, amount
         PROPERTIES(st##I) 'Счет' = openFiles GRID
@@ -534,6 +619,14 @@ META billDashboardStatus(st, capt)
         
         PROPERTIES st##I##Order 'Порядок' = LONG(st##I) SHOWIF NULL
         ORDERS st##I##Order DESC
+
+        OBJECTS bs##st##I = BillStatus
+        PROPERTIES (st##I, bs##st##I) changeToPrevStatus COLUMNS (bs##st##I) HEADER captionButton(bs##st##I) SHOWIF countBillLine(st##I)
+        FILTERS showPrevStatus(st##I, bs##st##I)
+
+        OBJECTS s##st##I = BillStatus
+        PROPERTIES (st##I, s##st##I) changeStatus COLUMNS (s##st##I) HEADER captionButton(s##st##I) SHOWIF countBillLine(st##I)
+        FILTERS showStatus(st##I, s##st##I)
     ;
 
     filtered###st##LE(Bill b) = FILTER billDashboard.st##LE;
@@ -558,6 +651,8 @@ META billDashboardStatus(st, capt)
                             NEW st##LE##Mark {
                                 horizontal = TRUE;
                                 alignment = END;
+                                MOVE PROPERTY (changeToPrevStatus(st##LE, bs##st##LE));
+                                MOVE PROPERTY (changeStatus(st##LE, s##st##LE));
                             }
                         }
                     }
@@ -575,6 +670,8 @@ META billDashboardStatus(st, capt)
                             NEW st##I##Mark {
                                 horizontal = TRUE;
                                 alignment = END;
+                                MOVE PROPERTY (changeToPrevStatus(st##I, bs##st##I));
+                                MOVE PROPERTY (changeStatus(st##I, s##st##I));
                             }
                         }
                     }

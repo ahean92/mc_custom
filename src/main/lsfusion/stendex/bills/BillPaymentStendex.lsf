@@ -7,6 +7,8 @@ NAMESPACE Invoicing;
 //paid 'Оплачено' = DATA NUMERIC[16,3] (Bill); // пока как DATA свойство
 //toPay 'К оплате' (Bill b) = amount(b) (-) paid(b);
 
+status(Bill b) += WHEN useCustomStatus() AND dataStatus(b) THEN dataStatus(b);
+
 paidDone 'Оплачено' (Bill b) = GROUP SUM paid(b, OutgoingPayment p) IF active(p) AND done(p) MATERIALIZED;
 toPay 'К оплате' (Bill b) = GROUP SUM paid(b, OutgoingPayment p) IF active(p) AND NOT done(p) MATERIALIZED;
 
@@ -70,8 +72,11 @@ pay 'В оплату' (Bill b) {
     DIALOG dialogNewPayment OBJECTS n = (OVERRIDE prepayment(b) IF NOT paid(b), left(b)) INPUT DO {
         IF n > amount(b) OR n <= 0 THEN
             MESSAGE 'Неправильно введена сумма';
-        ELSE 
+        ELSE {
             createPayment(b, n);
+            IF ready(b) THEN dataStatus(b) <- BillStatus.ready;
+            APPLY;
+        }
     }
 }
 
@@ -145,6 +150,7 @@ FORM inputBillInvoiceFiles 'Добавление счетов'
                     type(uof) <- TypeFile.invoice;
                     lockChangeType(uof) <- TRUE;
                     onApproval(b) <- TRUE;
+                    dataStatus(b) <- BillStatus.onApproval;
                 }
     }
 ;
@@ -157,21 +163,70 @@ DESIGN inputBillInvoiceFiles {
     }
 }
 
-doApproval 'На утверждение' (Bill b) {
-    APPLY;
-    IF canceled() THEN RETURN;
+changeStatus (Bill b, BillStatus s) +{
+    IF s = BillStatus.ready THEN  NEWSESSION {
+        IF status(b) = BillStatus.onApproval THEN {
+            pay(b);
+        }
+    }
+}
 
-    NEWSESSION {
-        DIALOG inputBillInvoiceFiles OBJECTS b = b FLOAT;
+changeStatus (Bill b, BillStatus s) +{
+    IF s = BillStatus.ready THEN  NEWSESSION {
+        IF status(b) = BillStatus.partiallyPaid THEN {
+            pay(b);
+        }
+    }
+}
+
+changeStatus (Bill b, BillStatus s) +{
+    IF s = BillStatus.onApproval THEN  NEWSESSION {
+        IF status(b) = BillStatus.draft THEN {
+            DIALOG inputBillInvoiceFiles OBJECTS b = b FLOAT;
+        }
+
+        IF status(b) = BillStatus.ready THEN {
+            DELETE OutgoingPayment p WHERE type(p) == paymentType(type(b)) AND partner(p) == vendor(b) AND company(p) == company(b) AND ready(p) AND paid(b, p) AND NOT done(p);
+            dataStatus(b) <- s;
+        }
+        
         APPLY;
     }
 }
 
+changeStatus (Bill b, BillStatus s) +{
+    IF s = BillStatus.onApproval THEN  NEWSESSION {
+        IF status(b) = BillStatus.partiallyPaid THEN {
+            DIALOG inputBillInvoiceFiles OBJECTS b = b FLOAT;
+            status(b) <- BillStatus.partiallyPaid;
+            APPLY;
+        }        
+    }
+}
+
+changeStatus (Bill b, BillStatus s) +{
+    IF s = BillStatus.done THEN  NEWSESSION {
+        doPayment(b);
+        
+        IF done(b) THEN dataStatus(b) <- s;
+        IF partiallyPaid(b) THEN dataStatus(b) <- BillStatus.partiallyPaid;
+        APPLY;
+    }
+}
+
+showStatusRule(Bill b, BillStatus s) += WHEN status(b) = BillStatus.draft AND s = BillStatus.onApproval THEN TRUE;
+showStatusRule(Bill b, BillStatus s) += WHEN status(b) = BillStatus.onApproval AND s = BillStatus.ready THEN TRUE;
+showStatusRule(Bill b, BillStatus s) += WHEN status(b) = BillStatus.ready AND s = BillStatus.done THEN TRUE;
+showStatusRule(Bill b, BillStatus s) += WHEN status(b) = BillStatus.partiallyPaid AND s = BillStatus.onApproval THEN TRUE;
+showStatusRule(Bill b, BillStatus s) += WHEN status(b) = BillStatus.partiallyPaid AND s = BillStatus.ready THEN TRUE;
+showStatusRule(Bill b, BillStatus s) += WHEN status(b) = BillStatus.partiallyPaid AND s = BillStatus.canceled THEN TRUE;
+showStatusRule(Bill b, BillStatus s) += WHEN status(b) = BillStatus.done AND s = BillStatus.canceled THEN TRUE;
+
+hidePrevStatusRule(BillStatus s) += WHEN s = BillStatus.partiallyPaid THEN TRUE;
+hidePrevStatusRule(BillStatus s) += WHEN s = BillStatus.done THEN TRUE;
+
 EXTEND FORM billCustom
     PROPERTIES(b) READONLY paid, left
-    PROPERTIES(b) SHOWIF toReady(b) doApproval
-    PROPERTIES(b) SHOWIF onApproval(b) pay
-    PROPERTIES(b) SHOWIF toPay(b) doPayment
     PROPERTIES(b) prepayment
     
     OBJECTS p = OutgoingPayment
@@ -180,12 +235,7 @@ EXTEND FORM billCustom
 ;
 
 DESIGN billCustom {
-    header {
-        statusActions {
-            MOVE PROPERTY(doApproval(b));
-            MOVE PROPERTY(pay(b));
-            MOVE PROPERTY(doPayment(b));
-        }
+    header {        
         headerLeft {
             MOVE PROPERTY(prepayment(b)) { fontSize = 24; }
         }
@@ -227,61 +277,30 @@ DESIGN securityPolicy {
 }
 
 defaultFilter 'По умолчанию' (Bill b, User u) =
-    (showToReadyDefault(u) AND toReady(b)) OR (showToOnApprovalDefault(u) AND onApproval(b)) OR (showToPayDefault(u) AND toPay(b)) OR
-    (showDoneDefault(u) AND done(b)) OR NOT (showToReadyDefault(u) OR showToOnApprovalDefault(u) OR showToPayDefault(u) OR showDoneDefault(u));
+    (showToReadyDefault(u) AND status(b) = BillStatus.draft) OR 
+    (showToOnApprovalDefault(u) AND status(b) = BillStatus.onApproval) OR 
+    (showToPayDefault(u) AND status(b) = BillStatus.ready) OR
+    (showDoneDefault(u) AND status(b) = BillStatus.done) OR
+    NOT (showToReadyDefault(u) OR showToOnApprovalDefault(u) OR showToPayDefault(u) OR showDoneDefault(u));
 
 @billDashboardStatus(partiallyPaid, 'Частично оплачен');
 
 EXTEND FORM billDashboard
     PROPERTIES newLegalEntityBill() DRAW draftLE TOOLBAR
-    PROPERTIES(draftLE) cancel, doApproval
     PROPERTIES newIndividualBill() DRAW draftI TOOLBAR
-    PROPERTIES(draftI) cancel, doApproval
     
-    PROPERTIES(onApprovalLE) left, pay
-    PROPERTIES(onApprovalI) left, pay
+    PROPERTIES(onApprovalLE) left
+    PROPERTIES(onApprovalI) left
     
-    PROPERTIES(partiallyPaidLE) left, toPay, paidDone, pay
-    PROPERTIES(partiallyPaidI) left, toPay, paidDone, pay
+    PROPERTIES(partiallyPaidLE) left, toPay, paidDone
+    PROPERTIES(partiallyPaidI) left, toPay, paidDone
     
-    PROPERTIES(readyLE) left, toPay, paidDone, doPayment
-    PROPERTIES(readyI) left, toPay, paidDone, doPayment
+    PROPERTIES(readyLE) left, toPay, paidDone
+    PROPERTIES(readyI) left, toPay, paidDone
     
     PROPERTIES(doneLE) left, toPay, paidDone
     PROPERTIES(doneI) left, toPay, paidDone
 ;
-
-DESIGN billDashboard {
-    tab {
-        draftLEMark {
-            MOVE PROPERTY(cancel(draftLE));
-            MOVE PROPERTY(doApproval(draftLE));
-        }
-        draftIMark {
-            MOVE PROPERTY(cancel(draftI));
-            MOVE PROPERTY(doApproval(draftI));
-        }
-        onApprovalLEMark {
-            MOVE PROPERTY(pay(onApprovalLE));
-        }
-        onApprovalIMark {
-            MOVE PROPERTY(pay(onApprovalI));
-        }
-        MOVE partiallyPaid AFTER onApproval;
-        partiallyPaidLEMark {
-            MOVE PROPERTY(pay(partiallyPaidLE));
-        }
-        partiallyPaidIMark {
-            MOVE PROPERTY(pay(partiallyPaidI));
-        }
-        readyLEMark {
-            MOVE PROPERTY(doPayment(readyLE));
-        }
-        readyIMark {
-            MOVE PROPERTY(doPayment(readyI));
-        }
-    }
-}
 
 EXTEND FORM billDashboard
     PROPERTIES openBillPaymentOrder(partiallyPaidLE) GRID AFTER openFilesInvoice(partiallyPaidLE)
