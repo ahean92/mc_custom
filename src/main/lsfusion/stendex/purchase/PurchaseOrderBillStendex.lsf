@@ -393,7 +393,7 @@ FORM billOrderDashboard 'Счета на товары'
     FILTERS in(b, Invoicing.filterProject()) OR NOT Invoicing.filterProject(),
         representative(b) = Invoicing.filterRepresentative() OR NOT Invoicing.filterRepresentative(),
         status(b) = filterStatus() OR NOT filterStatus(),
-        isUrgent(b) OR NOT filterUrgent()
+        urgency(b) = filterUrgent() OR NOT filterUrgent()
 
     PROPERTIES order 'Порядок' = VALUE(b)
     ORDERS order DESC

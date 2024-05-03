@@ -151,6 +151,24 @@ DESIGN bills {
     }
 }
 
+CLASS Urgency 'Срочность' {
+    notUrgent 'Не срочный',
+    medium 'Средний',
+    urgent 'Срочный'
+}
+
+name '{Name}' (Urgency u) = staticCaption(u) IF u IS Urgency CHARWIDTH 10;
+
+FORM urgencies 'Срочность'
+    OBJECTS u = Urgency
+    PROPERTIES(u) READONLY name
+
+    LIST Urgency OBJECT u
+;
+
+urgency 'Срочность' =  DATA Urgency (Bill) NONULL;
+nameUrgency 'Срочность' (Bill b) = name(urgency(b));
+
 isUrgent 'Срочный' = DATA BOOLEAN (Bill);
 includeVAT 'С НДС' = DATA BOOLEAN (Bill);
 
@@ -296,7 +314,7 @@ FORM billCustom 'Счет'
                   note,
                   amount READONLY,
                   details,
-                  isUrgent, includeVAT
+                  nameUrgency, includeVAT
 
     PROPERTIES(b) onApproval, ready, done, canceled, cancel SHOWIF status(b) = BillStatus.draft
 
@@ -344,7 +362,7 @@ DESIGN billCustom {
                 MOVE PROPERTY(overNameVendor(b)) { charWidth = 40; fontSize = 24; }
                 MOVE PROPERTY(note(b)) { fontSize = 24; }
                 MOVE PROPERTY(amount(b)) { fontSize = 24; }
-                MOVE PROPERTY(isUrgent(b));
+                MOVE PROPERTY(nameUrgency(b));
                 MOVE PROPERTY(includeVAT(b));
             }
         }
@@ -466,14 +484,15 @@ filterRepresentative = DATA LOCAL NESTED Employee ();
 nameFilterRepresentative 'Наш представитель' = MasterData.overName(filterRepresentative());
 filterStatus = DATA BillStatus ();
 nameFilterStatus 'Статус оплаты' = name(filterStatus());
-filterUrgent 'Срочные' = DATA LOCAL BOOLEAN ();
+filterUrgent 'Срочность' = DATA LOCAL Urgency ();
+nameFilterUrgent 'Срочность' = name(filterUrgent());
 
 backgroundColor = ABSTRACT CASE COLOR (Bill);
-backgroundColor(Bill b) += WHEN isUrgent(b) THEN RGB(237,193,116);
+backgroundColor(Bill b) += WHEN urgency(b) == Urgency.urgent THEN RGB(237,193,116);
 overBackgroundColor (Bill b) = OVERRIDE backgroundColor(b), colorStatus(b);
 
 FORM billDashboard 'Счета на услуги'
-    PROPERTIES() nameFilterProject, nameFilterRepresentative, nameFilterStatus, filterUrgent
+    PROPERTIES() nameFilterProject, nameFilterRepresentative, nameFilterStatus, nameFilterUrgent
 ;
 
 DESIGN billDashboard {
@@ -488,7 +507,7 @@ DESIGN billDashboard {
             MOVE PROPERTY (nameFilterProject());
             MOVE PROPERTY (nameFilterRepresentative());
             MOVE PROPERTY (nameFilterStatus());
-            MOVE PROPERTY (filterUrgent());
+            MOVE PROPERTY (nameFilterUrgent());
             MOVE PROPERTY (formRefresh());
         }
         NEW tab {
@@ -591,7 +610,7 @@ META billDashboardStatus(st, capt)
         FILTERS in(st##LE, filterProject()) OR NOT filterProject(),
                 representative(st##LE) = filterRepresentative() OR NOT filterRepresentative(),
                 status(st##LE) = filterStatus() OR NOT filterStatus(),
-                isUrgent(st##LE) OR NOT filterUrgent()
+                urgency(st##LE) = filterUrgent() OR NOT filterUrgent()
         
         PROPERTIES st##LE##Order 'Порядок' = VALUE(st##LE)
         ORDERS st##LE##Order DESC
@@ -615,7 +634,7 @@ META billDashboardStatus(st, capt)
         FILTERS in(st##I, filterProject()) OR NOT filterProject(),
                 representative(st##I) = filterRepresentative() OR NOT filterRepresentative(),
                 status(st##I) = filterStatus() OR NOT filterStatus(),
-                isUrgent(st##I) OR NOT filterUrgent()
+                urgency(st##I) = filterUrgent() OR NOT filterUrgent()
         
         PROPERTIES st##I##Order 'Порядок' = LONG(st##I) SHOWIF NULL
         ORDERS st##I##Order DESC
@@ -712,4 +731,15 @@ openBillPaymentOrder 'ПП' (Bill i) {
         WHEN countBillPaymentOrders(i) > 1 THEN DIALOG listBillPaymentOrders OBJECTS i = i, bf INPUT bf DO open(bf);
         WHEN countBillPaymentOrders(i) = 1 THEN open(file(paymentOrder(i)), nameExtension(paymentOrder(i)));
         ELSE MESSAGE 'Отсутствует ПП, прикреплённое к счёту';
+}
+
+migratedUrgency = DATA BOOLEAN();
+onStarted() + {
+    IF NOT migratedUrgency() THEN {
+        NEWSESSION {
+            migratedUrgency() <- TRUE;
+            urgency(Bill b) <- Urgency.urgent WHERE isUrgent(b);
+            APPLY;
+        }
+    }
 }
