@@ -1,6 +1,6 @@
 MODULE ManufacturingOrderDashboardStendex;
 
-REQUIRE ProjectManufacturingOrderStendex, ItemImage, CategoryImage;
+REQUIRE ProjectManufacturingOrderStendex, ItemStendex;
 
 NAMESPACE Manufacturing;
 
@@ -42,7 +42,8 @@ EXTEND CLASS Item : TouchNode;
 
 name (TouchNode n) = MULTI name[Category](n), name[Item](n);
 parent (TouchNode n) = MULTI parent[Category](n), category[Item](n);
-image (TouchNode n) = MULTI image[Category](n), image[Item](n);
+image (TouchNode n) = MULTI overImagePickList[Category](n), overImagePickList[Item](n);
+hasImagePickList (TouchNode n) = MULTI TRUE IF countImagePickList[Category](n), TRUE IF imagePickList[Item](n);
 hide (TouchNode n) = MULTI hideTouch[Category](n), hideTouch[Item](n);
 active (TouchNode n) = MULTI active[Category](n), active[Item](n);
 
@@ -137,24 +138,29 @@ saveOrder 'Оформить заказ' (ManufacturingOrder i) {
     }
 }
 
+hasImagePickList 'С изображениями' = DATA LOCAL NESTED BOOLEAN ();
+
 EXTEND FORM manufacturingOrderDashboard
-    PROPERTIES newOrder(), saveOrder(i)
+    PROPERTIES newOrder(), saveOrder(i), hasImagePickList()
     
     OBJECTS tn1 = TouchNode
     FILTERS parent(tn1) = tn, mod(index(tn1),3) = 1, NOT hide(tn1)
     PROPERTIES NOWAIT select(i, tn1) COLUMNS (tn1) HEADER name(tn1) IMAGE image(tn1)
-    FILTERS active(tn1)
+    FILTERS active(tn1),
+            hasImagePickList(tn1) OR NOT hasImagePickList()
 
     OBJECTS tn2 = TouchNode
     FILTERS parent(tn2) = tn, mod(index(tn2),3) = 2, NOT hide(tn2)
     PROPERTIES NOWAIT select(i, tn2) COLUMNS (tn2) HEADER name(tn2) IMAGE image(tn2)
-    FILTERS active(tn2)
+    FILTERS active(tn2),
+            hasImagePickList(tn2) OR NOT hasImagePickList()
 
     OBJECTS tn3 = TouchNode
     FILTERS parent(tn3) = tn, mod(index(tn3),3) = 0, NOT hide(tn3)
     PROPERTIES NOWAIT select(i, tn3) COLUMNS (tn3) HEADER name(tn3) IMAGE image(tn3)
-    FILTERS active(tn3)
-    
+    FILTERS active(tn3),
+            hasImagePickList(tn3) OR NOT hasImagePickList()
+        
     EVENTS ON INIT createOrder()
 ;
 
@@ -236,6 +242,11 @@ DESIGN manufacturingOrderDashboard {
                         MOVE PROPERTY(canonicalName(tn)) { fill = 1; focusable = FALSE; }
                         MOVE PROPERTY(drop()) { fontSize = 16; focusable = FALSE; }
                         MOVE PROPERTY(back(tn)) { fontSize = 16; focusable = FALSE; }
+                    }
+                    NEW filters {
+                        alignment = STRETCH;
+                        horizontal = TRUE;
+                        MOVE PROPERTY (hasImagePickList());
                     }
                     NEW touchScroll {
                         fill = 1;

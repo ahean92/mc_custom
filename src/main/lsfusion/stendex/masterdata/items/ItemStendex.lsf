@@ -1,0 +1,83 @@
+MODULE ItemStendex;
+
+REQUIRE Item, ItemImage, CategoryImage, Image;
+
+NAMESPACE MasterData;
+
+maxImagePickListSize 'Максимальный размер изображения для пиклиста' = DATA INTEGER ();
+defaultImagePickList = DATA IMAGEFILE ();
+
+loadImage 'Upload' ()  { INPUT = defaultImagePickList() CHANGE; }
+openImage 'Open' ()  { open(defaultImagePickList()); }
+dropImage 'Reset' () { defaultImagePickList() <- NULL; }
+
+imagePickList = DATA IMAGEFILE (Item);
+imagePickList = DATA IMAGEFILE (Category);
+
+countImagePickListItems (Category c) = GROUP SUM 1 IF imagePickList(Item i) AND category(i) == c;
+countImagePickList (Category c) = GROUP SUM countImagePickListItems(Category cc) (+) (1 IF imagePickList(c)) IF level(cc, c);
+
+overImagePickList (Item i) = OVERRIDE imagePickList(i), defaultImagePickList();
+overImagePickList (Category i) = OVERRIDE imagePickList(i), defaultImagePickList();
+
+WHEN SETCHANGED(image(Item i)) AND maxImagePickListSize() DO {
+    TRY {
+        resizeImageMaxSize(image(i), maxImagePickListSize());
+        imagePickList(i) <- resizedImage();
+    }
+}
+
+WHEN SETCHANGED(image(Category i)) AND maxImagePickListSize() DO {
+    TRY {
+        resizeImageMaxSize(image(i), maxImagePickListSize());
+        imagePickList(i) <- resizedImage();
+    }
+}
+
+WHEN DROPPED(image(Item i)) DO imagePickList(i) <- NULL;
+WHEN DROPPED(image(Category i)) DO imagePickList(i) <- NULL;
+
+WHEN SETCHANGED(defaultImagePickList()) AND maxImagePickListSize() DO {
+    TRY {
+        resizeImageMaxSize(defaultImagePickList(), maxImagePickListSize());
+        defaultImagePickList() <- resizedImage();
+    }
+}
+
+resizeImages 'Изменить размер изображений' () {
+    IF maxImagePickListSize() THEN  NEWSESSION {
+        FOR image(Item i) DO TRY {
+            resizeImageMaxSize(image(i), maxImagePickListSize());
+            imagePickList(i) <- resizedImage();
+        }
+        FOR image(Category i) DO TRY {
+            resizeImageMaxSize(image(i), maxImagePickListSize());
+            imagePickList(i) <- resizedImage();
+        }
+        TRY {
+            resizeImageMaxSize(defaultImagePickList(), maxImagePickListSize());
+            defaultImagePickList() <- resizedImage();
+        }
+        APPLY;
+    } ELSE {
+        MESSAGE 'Не задан максимальный размер изображения для пиклиста';
+    }
+}
+
+EXTEND FORM options PROPERTIES() maxImagePickListSize, resizeImages, defaultImagePickList, loadImage, openImage, dropImage;
+DESIGN options {
+    items {
+        MOVE PROPERTY(maxImagePickListSize());
+        MOVE PROPERTY(resizeImages());
+        NEW imagePickList {
+            caption = 'Picture';
+            MOVE PROPERTY(defaultImagePickList()) { fill = 1; caption = ''; }
+            NEW imageActions {
+                horizontal = TRUE;
+                MOVE PROPERTY(loadImage());
+                MOVE PROPERTY(openImage());
+                MOVE PROPERTY(dropImage());
+            }
+        }
+    }
+}
