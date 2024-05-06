@@ -175,11 +175,12 @@ includeVAT 'С НДС' = DATA BOOLEAN (Bill);
 overNameRepresentative 'Our representative' (Bill o)= OVERRIDE MasterData.overName(representative(o)), MasterData.name(representative(o));
 
 EXTEND FORM bill
-    PROPERTIES(b) READONLYIF readonly(b) overNameRepresentative
+    PROPERTIES(b) READONLYIF readonly(b) overNameRepresentative,  nameUrgency
 ;
 DESIGN bill {
     billInformat {
         MOVE PROPERTY(overNameRepresentative(b)) AFTER PROPERTY(nameRepresentative(b));
+        MOVE PROPERTY(nameUrgency(b));
         REMOVE PROPERTY(nameRepresentative(b));
     }
 }
@@ -275,6 +276,7 @@ changeAmount(Bill b, NUMERIC[14,2] amount){
         untaxedAmount(BillLine l) <- amount WHERE bill(l) = b AND NOT item(l) IS Product;
 }
 
+WHEN SET(Bill b IS Bill) AND type(b) AND NOT billService(type(b)) DO urgency(b) <- Urgency.notUrgent;
 
 showAllInvoices 'Показывать все счета' = DATA BOOLEAN (UserRole);
 showAllInvoices (User u) = GROUP SUM 1 IF showAllInvoices(UserRole r) AND has(u, r);
