@@ -224,7 +224,7 @@ FORM inputOrderInvoices 'Добавление счетов'
                         type(nb) <- billType(type(o));
 
                         company(nb) <- company(o);
-
+                        urgency(nb) <- Urgency.notUrgent;
                         vendor(nb) <- vendor(o);
                         vendorReference(nb) <- vendorReference(o);
                         note(nb) <- CONCAT ' ', 'Счет по заказу', number(o), 'от  ' + date(o), 'поставщик' + nameVendor(o);

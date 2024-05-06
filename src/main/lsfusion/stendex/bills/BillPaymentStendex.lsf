@@ -124,6 +124,7 @@ doPayment 'Оплачено' (Bill b) {
         IF (GROUP SUM 1 IF bill(BillFile f) == b AND type(f) = TypeFile.paymentOrder) > count() THEN {
             done(OutgoingPayment p) <- TRUE WHERE paid(b, p) AND NOT done(p);
         }
+        IF paidDone(b) >= amount(b) THEN dataStatus(b) <- BillStatus.done;
         APPLY;
     }
 }
