@@ -553,8 +553,11 @@ showStatusRule(Bill b, BillStatus s) += WHEN status(b) = BillStatus.onApproval A
 showStatusRule(Bill b, BillStatus s) += WHEN status(b) = BillStatus.ready AND s = BillStatus.canceled THEN TRUE;
 showStatus (Bill b, BillStatus s) = showStatusRule(b, s);
 
+changePrevStatus ABSTRACT LIST (Bill, BillStatus);
+
 changeToPrevStatus (Bill b, BillStatus s) {
     dateTime(b,status(b)) <- NULL;
+    changePrevStatus(b, s);
     changeStatus(b,s);
 }
 hidePrevStatusRule = ABSTRACT CASE BOOLEAN (BillStatus);

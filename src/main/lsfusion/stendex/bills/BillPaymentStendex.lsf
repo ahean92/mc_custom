@@ -309,3 +309,8 @@ EXTEND FORM billDashboard
     PROPERTIES openBillPaymentOrder(canceledLE) GRID AFTER openFilesInvoice(canceledLE)
     PROPERTIES openBillPaymentOrder(doneLE) GRID AFTER openFilesInvoice(doneLE)
 ;
+
+//
+changePrevStatus(Bill b, BillStatus s) +{
+    FOR paid(b, OutgoingPayment p) IF active(p) AND s = BillStatus.onApproval AND NOT done(p) DO cancel(p);
+}
