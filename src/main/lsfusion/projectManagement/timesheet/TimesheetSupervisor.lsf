@@ -7,24 +7,14 @@ PRIORITY MasterData;
 
 NAMESPACE ProjectManagement;
 
-FORM timesheetSupervisorDateEmployee 'Time entries'
-    OBJECTS d = DATE PANEL
-    OBJECTS e = Employee PANEL
-
-    OBJECTS t = TimeEntry
-    PROPERTIES(t) READONLY nameProject SHOWIF NOT timesheetProject(), hours, nameType, description, nameTimeEntryHours
-    PROPERTIES(t) EDIT, DELETE
-    FILTERS date(t) = d,
-            employee(t) = e,
-            project(t) = timesheetProject() OR NOT timesheetProject()
-;
-
 FORM timesheetSupervisor 'Supervisor timesheet'
     OBJECTS dates = INTERVAL[DATE] PANEL NULL
     PROPERTIES dates '' = VALUE(dates)
     
     PROPERTIES() nameTimesheetProject, nameTimesheetTimeEntryType SELECT 'buttonGroup', 
-                 nameTimesheetTimeEntryHours SHOWIF timesheetTimeEntryType() AND countHours(timesheetTimeEntryType()) SELECT 'buttonGroup' 
+                 nameTimesheetTimeEntryHours SHOWIF timesheetTimeEntryType() AND countHours(timesheetTimeEntryType())SELECT 'buttonGroup' 
+    
+    PROPERTIES READONLY hoursTimesheet(dates)
     
     OBJECTS d = DATE
     FILTERS iterate(d, from(dates), to(dates))
@@ -41,9 +31,9 @@ FORM timesheetSupervisor 'Supervisor timesheet'
                        } ELSE
                            changeSaveTimesheetHours(d, e, et, hours(timesheetTimeEntryHours()), timesheetTimeEntryHours(), autoSaveTimesheetHours());
                    } ELSE
-                       SHOW timesheetSupervisorDateEmployee OBJECTS d = d, e = e FLOAT;
-               } ON CONTEXTMENU copy(d) ON CONTEXTMENU clear(d)
-    FILTERS assigned(timesheetProject(), e) OR (NOT countAssignments(timesheetProject()) AND NOT countAssignments(currentUser()))
+                       SHOW timesheetSupervisorDateEmployee OBJECTS i = interval(d, d), e = e FLOAT;
+               } ON CONTEXTMENU copyHours(d) ON CONTEXTMENU clearHours(d) FOOTER hours(d, timesheetProject())
+    FILTERS assigned(timesheetProject(), e, dates) OR (NOT countAssignments(timesheetProject()) AND NOT countAssignments(currentUser()))
 
     EVENTS ON INIT {
         timesheetProject() <- defaultProject(currentUser());
@@ -67,27 +57,32 @@ DESIGN timesheetSupervisor {
                 MOVE PROPERTY(dates);
                 MOVE PROPERTY(nextInterval);
             }
-            MOVE PROPERTY(nameTimesheetProject()) { fill = 1; }
-            NEW edit {
-                fill = 2;
-                NEW editRight {
-                    alignment = END;
+            MOVE PROPERTY(nameTimesheetProject());
+            MOVE PROPERTY(hoursTimesheet(dates));
+        }
+        NEW tabbedPane {
+            tabbed = TRUE;
+            fill = 1;
+            NEW timesheet {
+                caption = 'Timesheet';
+                NEW edit {
                     horizontal = TRUE;
-                    MOVE PROPERTY(nameTimesheetTimeEntryHours()) {
-                        caption = '';
-                        placeholder = 'Hours';
-                    }
                     MOVE PROPERTY(nameTimesheetTimeEntryType()) {
                         caption = '';
                         placeholder = 'Type';
                     }
+                    MOVE PROPERTY(nameTimesheetTimeEntryHours()) {
+                        caption = '';
+                        placeholder = 'Hours';
+                    }
                 }
-            }
-        }
-        MOVE BOX(e) {
-            PROPERTY(hoursTimesheet(d, e)) { 
-                charWidth = 2;
-//                valueTooltip = timeEntries(d, e);
+                MOVE BOX(e) {
+                    caption = '';
+                    PROPERTY(hoursTimesheet(d, e)) {
+                        charWidth = 2;
+                        //                valueTooltip = timeEntries(d, e);
+                    }
+                }
             }
         }
     }

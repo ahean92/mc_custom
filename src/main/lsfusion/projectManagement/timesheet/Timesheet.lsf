@@ -1,6 +1,6 @@
 MODULE Timesheet;
 
-REQUIRE ProjectAssignment, ProjectTimeEntry, TimeEntryHours;
+REQUIRE ProjectAssignment, ProjectTimeEntry, TimeEntryHours, Time;
 
 NAMESPACE ProjectManagement;
 
@@ -34,6 +34,8 @@ rolesTimesheet 'Roles' (Employee e) = roles(timesheetProject(), e);
 hoursTimesheet 'Hours' (DATE d, Employee e)=
     IF timesheetProject() THEN hours(d, e, timesheetProject())
     ELSE hours(d, e);
+
+hoursTimesheet 'Hours' (INTERVAL[DATE] i) = hours(timesheetProject(), i);
 
 backgroundHoursTimesheet 'Hours' (DATE d, Employee e)=
     IF countTimeEntryType(d, e) > 1 THEN RGB(255,192,0) ELSE
@@ -119,5 +121,33 @@ copyApply 'Copy' (DATE d) {
 }
 
 clearApply 'Clear' (DATE d) {
-    NEWSESSION APPLY { clear(d); }
-} CONFIRM;
+    ASK 'This action cannot be undone. Continue ?' DO
+        NEWSESSION APPLY { clear(d); }
+};
+
+copyHours 'Copy' (DATE d) {
+    IF NOT autoSaveTimesheetHours() THEN
+        copy(d);
+    ELSE
+        copyApply(d);
+}
+
+clearHours 'Clear' (DATE d) {
+    IF NOT autoSaveTimesheetHours() THEN
+        clear(d);
+    ELSE
+        clearApply(d);
+}
+
+FORM timesheetSupervisorDateEmployee 'Time entries'
+    OBJECTS i = INTERVAL[DATE] PANEL
+    OBJECTS e = Employee PANEL
+
+    OBJECTS t = TimeEntry
+    PROPERTIES(t) READONLY nameProject SHOWIF NOT timesheetProject(), date SHOWIF from(i) != to(i), hours, nameType, description, nameTimeEntryHours
+    PROPERTIES(t) EDIT, DELETE
+    ORDERS date(t)
+    FILTERS date(t) >= from(i) AND date(t) <= to(i),
+            employee(t) = e,
+            project(t) = timesheetProject() OR NOT timesheetProject()
+;

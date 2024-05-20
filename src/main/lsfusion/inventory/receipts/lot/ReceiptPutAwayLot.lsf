@@ -4,9 +4,29 @@ REQUIRE ReceiptPutAway, ReceiptLot;
 
 NAMESPACE Inventory;
 
-quantity = DATA NUMERIC[16,3] (ReceiptPutAway, Lot);
+quantity 'Qty' = DATA NUMERIC[16,3] (ReceiptPutAway, Lot);
 
 put 'Put away' (ReceiptLine rl, Lot l) = GROUP SUM quantity(ReceiptPutAway p, l) IF receiptLine(p) = rl;
 ledgerDone(ReceiptLine rl, Lot l) += put(rl, l);
 
+putLot 'Put away' (ReceiptLine rl) = GROUP SUM quantity(ReceiptPutAway p, Lot l) IF receiptLine(p) = rl;
+
 quantity(ReceiptPutAwayLedger rl, Lot l) += quantity(line(rl), l);
+
+select 'Select' (ReceiptPutAway rpw) {
+    quantity(rpw, Lot lt) <- done(receiptLine(rpw), lt);
+}
+
+EXTEND FORM receipt
+    PROPERTIES(p) select TOOLBAR
+
+    OBJECTS rpl = Lot
+    PROPERTIES id(rpl) READONLY, quantity(p, rpl)
+    FILTERS quantity(p, rpl)
+;
+
+DESIGN receipt {
+    receiptPutAway {
+        MOVE BOX(rpl) { fill = 2; }
+    }
+}
