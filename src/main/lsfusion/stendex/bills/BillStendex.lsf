@@ -207,7 +207,7 @@ CONSTRAINT SETCHANGED(vendor(Bill b)) AND vendor(b) IS LegalEntity AND NOT legal
     MESSAGE 'Запрещено выбирать не организацию для этого типа счета';
 CONSTRAINT SETCHANGED(vendor(Bill b)) AND vendor(b) IS Individual AND NOT individual(b) CHECKED BY vendor[Bill]
     MESSAGE 'Запрещено выбирать не физическое лицо для этого типа счета';
-CONSTRAINT SETCHANGED(vendor(Bill b)) AND vendor(b) IS Employee CHECKED BY vendor[Bill]
+CONSTRAINT SETCHANGED(vendor(Bill b)) AND vendor(b) IS Employee AND NOT isVendor(b) CHECKED BY vendor[Bill]
     MESSAGE 'Запрещено выбирать сотрудника для этого типа счета';
 
 WHEN LOCAL SETCHANGED(type(BillLine l)) AND NOT item(l) DO
