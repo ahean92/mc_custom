@@ -12,16 +12,20 @@ nameColor 'Color' (Workplace p) = name(color(p));
 idColor 'Color' (Workplace p) = id(color(p));
 rgbColor 'Color' (Workplace p) = rgb(color(p));
 
+dataSymbol 'Symbol' = DATA STRING[20] (Workplace) CHARWIDTH 2;
+firstSymbol 'Symbol' (Workplace p) = STRING[20](substr(name(p), 1, 1));
+symbol 'Symbol' (Workplace p) = OVERRIDE dataSymbol(p), firstSymbol(p);
+
 FORM location 'Место расположения'
     OBJECTS wp = Workplace PANEL
-    PROPERTIES(wp) name, nameColor
+    PROPERTIES(wp) name, nameColor, symbol
 
     EDIT Workplace OBJECT wp
 ;
 
 FORM locations 'Места расположения'
     OBJECTS wp = Workplace
-    PROPERTIES(wp) name, nameColor
+    PROPERTIES(wp) name, nameColor, symbol
 
     LIST Workplace OBJECT wp
 ;
@@ -29,7 +33,7 @@ FORM locations 'Места расположения'
 
 EXTEND FORM options
     OBJECTS wp = Workplace
-    PROPERTIES(wp) READONLY name, nameColor
+    PROPERTIES(wp) READONLY name, nameColor, symbol
     PROPERTIES(wp) NEWSESSION NEW, EDIT, DELETE
 ;
 

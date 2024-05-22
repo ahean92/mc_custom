@@ -1,6 +1,6 @@
 MODULE TimesheetSupervisorStendex;
 
-REQUIRE TimesheetSupervisor, EmployeeStendex;
+REQUIRE TimesheetSupervisor, EmployeeStendex, TimeEntryStendex;
 
 PRIORITY MasterData;
 
@@ -66,3 +66,220 @@ EXTEND FORM timesheetSupervisor
 DESIGN timesheetSupervisor {
     PROPERTY(firstName(e)) { hide = TRUE; }
 }
+
+trunc = FORMULA INTEGER 'trunc($1)';
+hoursTimesheet 'Часы' (DATE d, Employee e, Workplace w) = GROUP SUM hours(TimeEntry t) IF date(t) = d AND employee(t) = e AND workplace(t) = w;
+overtimeHours 'Часы переработки' (DATE d, Employee e) = GROUP SUM overtimeHours(TimeEntry t) IF date(t) = d AND employee(t) = e;
+descriptionWorkplaceTimesheet 'Время работы' (DATE d, Employee e) = 
+    GROUP CONCAT (CONCAT '', 
+        symbol(Workplace w), 
+        '(', IF hoursTimesheet(d, e, w) - trunc(hoursTimesheet(d, e, w)) < 0.001 THEN trunc(hoursTimesheet(d, e, w)) ELSE hoursTimesheet(d, e, w), ')') IF hoursTimesheet(d, e, w), '+' ORDER w; 
+
+descriptionTimesheet 'Время работы' (DATE d, Employee e) = 
+     OVERRIDE 
+        (CONCAT '+', descriptionWorkplaceTimesheet(d, e), IF overtimeHours(d, e) - trunc(overtimeHours(d, e)) < 0.001 THEN trunc(overtimeHours(d, e)) ELSE overtimeHours(d, e)), 
+        STRING(IF hoursTimesheet(d,e) - trunc(hoursTimesheet(d,e)) < 0.001 THEN trunc(hoursTimesheet(d,e)) ELSE hoursTimesheet(d,e));
+
+breakInterval 'Интервал перерыва' = DATA INTERVAL[TIME] ();
+
+EXTEND FORM options PROPERTIES() breakInterval;
+
+DESIGN options {
+    commons {
+        MOVE PROPERTY(breakInterval());
+    }
+}
+
+dataBreakInterval 'Интервал перерыва' = DATA LOCAL NESTED INTERVAL[TIME] ();
+calcBreakInterval 'Интервал перерыва' () = OVERRIDE dataBreakInterval(), breakInterval();
+
+workInterval 'Интервал работы' = DATA LOCAL NESTED INTERVAL[TIME] ();
+
+workplace 'Расположение' = DATA LOCAL NESTED Workplace ();
+nameWorkplace 'Расположение' () = name(workplace());
+
+timeEntryHours 'Смена' = DATA LOCAL NESTED TimeEntryHours ();
+nameTimeEntryHours 'Смена' () = name(timeEntryHours());
+
+hours 'Hours' (TIME from, TIME to) = NUMERIC[8,2](extractHour(to) (+) NUMERIC[8,2](extractMinute(to))/60  (-) extractHour(from) (-) NUMERIC[8,2](extractMinute(from))/60);
+
+workInterval 'Интервал работы' = DATA INTERVAL[TIME] (TimeEntry);
+breakInterval 'Интервал перерыва' = DATA INTERVAL[TIME] (TimeEntry);
+
+hoursInterval(TimeEntry te) = CASE
+        WHEN from(workInterval(te)) <= from(breakInterval(te)) AND to(workInterval(te)) >= to(breakInterval(te)) THEN hours(from(workInterval(te)), to(workInterval(te))) (-) hours(from(breakInterval(te)), to(breakInterval(te)))
+        WHEN from(workInterval(te)) > from(breakInterval(te)) AND from(workInterval(te)) < to(breakInterval(te)) THEN hours(to(breakInterval(te)), to(workInterval(te)))
+        WHEN to(workInterval(te)) < to(breakInterval(te)) AND from(breakInterval(te)) < to(workInterval(te)) THEN hours(from(workInterval(te)), from(breakInterval(te)))
+        WHEN to(breakInterval(te)) < to(workInterval(te)) AND from(breakInterval(te)) > to(workInterval(te)) THEN NULL
+        ELSE hours(from(workInterval(te)), to(workInterval(te)));
+
+WHEN LOCAL SETCHANGED(workInterval(TimeEntry te)) OR SETCHANGED(breakInterval(te)) DO {
+    hours(te) <- hoursInterval(te);
+}
+
+hoursInterval 'Hours' () = CASE
+    WHEN from(workInterval()) <= from(breakInterval()) AND to(workInterval()) >= to(breakInterval()) THEN hours(from(workInterval()), to(workInterval())) (-) hours(from(breakInterval()), to(breakInterval()))
+    WHEN from(workInterval()) > from(breakInterval()) AND from(workInterval()) < to(breakInterval()) THEN hours(to(breakInterval()), to(workInterval()))
+    WHEN to(workInterval()) < to(breakInterval()) AND from(breakInterval()) < to(workInterval()) THEN hours(from(workInterval()), from(breakInterval()))
+    WHEN to(breakInterval()) < to(workInterval()) AND from(breakInterval()) > to(workInterval()) THEN NULL
+    ELSE hours(from(workInterval()), to(workInterval()));
+
+FORM dialogWorkInterval 'Отметка времени'
+    OBJECTS d = DATE PANEL
+    OBJECTS e = Employee PANEL
+    OBJECTS et = TimeEntryType PANEL
+
+    PROPERTIES() PANEL
+        nameTimeEntryHours, breakInterval, workInterval, hoursInterval READONLY, nameWorkplace
+
+//    OBJECTS t = TimeEntry
+//    PROPERTIES(t) READONLY nameEmployee, date, hours, nameType, nameWorkplace, description
+//    FILTERS date(t) = d, employee(t) = e
+;
+
+DESIGN dialogWorkInterval {
+    OBJECTS {
+        NEW header {
+            horizontal = FALSE;
+
+            MOVE PROPERTY(nameTimeEntryHours());
+            NEW time {
+                horizontal = TRUE;
+                MOVE PROPERTY(workInterval());
+                MOVE PROPERTY(breakInterval());
+                MOVE PROPERTY(hoursInterval());
+            }
+            MOVE PROPERTY(nameWorkplace());         
+        }
+//        NEW timeEntry {
+//            fill = 1;
+//            MOVE BOX(t) {caption = 'Отмеченное время';};
+//        }
+    }
+}
+
+timeEntry (DATE d, Employee e, Project p, TimeEntryType et, Workplace w) = GROUP MIN TimeEntry t BY date(t), employee(t), project(t), type(t), workplace(t);
+timeEntry (DATE d, Employee e, TimeEntryType et, Workplace w) = GROUP MIN TimeEntry t BY date(t), employee(t), type(t), workplace(t);
+
+changeTimesheetHours (DATE d, Employee e, TimeEntryType et, Workplace w, NUMERIC[8,2] n, TimeEntryHours h) {
+    IF n THEN {
+        IF timesheetProject() THEN {
+            FOR TimeEntry t = timeEntry(d, e, timesheetProject(), et, w) DO {
+                IF hours(t) = n AND h THEN
+                    DELETE t;
+                ELSE {
+                    hours(t) <- n;
+                    timeEntryHours(t) <- h;
+                    workplace(t) <- w;
+                    workInterval(t) <- workInterval();
+                    breakInterval(t) <- breakInterval();
+                }
+            } ELSE {
+                DELETE TimeEntry te WHERE project(te) = timesheetProject() AND employee(te) = e AND date(te) = d AND workplace(te) = w;
+                IF NOT w THEN DELETE TimeEntry te WHERE project(te) = timesheetProject() AND employee(te) = e AND date(te) = d AND NOT workplace(te);
+                NEW t = TimeEntry {
+                    project(t) <- timesheetProject();
+                    type(t) <- et;
+                    employee(t) <- e;
+                    date(t) <- d;
+                    hours(t) <- n;
+                    timeEntryHours(t) <- h;
+                    workplace(t) <- w;
+                    workInterval(t) <- workInterval();
+                    breakInterval(t) <- breakInterval();
+                }
+            }
+        } ELSE {
+            FOR TimeEntry t = timeEntry(d, e, et, w) DO {
+                IF hours(t) = n AND h THEN
+                    DELETE t;
+                ELSE {
+                    hours(t) <- n;
+                    timeEntryHours(t) <- h;
+                    workplace(t) <- w;
+                    workInterval(t) <- workInterval();
+                    breakInterval(t) <- breakInterval();
+                }
+            } ELSE {
+                DELETE TimeEntry te WHERE NOT project(te) AND employee(te) = e AND date(te) = d AND workplace(te) = w;
+                IF NOT w THEN DELETE TimeEntry te WHERE NOT project(te) AND employee(te) = e AND date(te) = d AND NOT workplace(te);
+                NEW t = TimeEntry {
+                    type(t) <- et;
+                    employee(t) <- e;
+                    date(t) <- d;
+                    hours(t) <- n;
+                    timeEntryHours(t) <- h;
+                    workplace(t) <- w;
+                    workInterval(t) <- workInterval();
+                    breakInterval(t) <- breakInterval();
+                }
+            }
+        }
+    } ELSE {
+        DELETE TimeEntry t WHERE matchesProject(t) AND employee(t) = e AND date(t) = d AND workplace(t) = w;
+        IF NOT w THEN DELETE TimeEntry t WHERE matchesProject(t) AND employee(t) = e AND date(t) = d AND NOT workplace(t);
+    }
+}
+
+changeSaveTimesheetHours (DATE d, Employee e, TimeEntryType et, Workplace w, NUMERIC[8,2] n, TimeEntryHours h, BOOLEAN autoSave) {
+    IF NOT autoSave THEN {
+        changeTimesheetHours(d, e, et, w, n, h);
+    } ELSE
+        NEWSESSION APPLY {
+            changeTimesheetHours(d, e, et, w, n, h);
+        }
+}
+
+EXTEND FORM timesheetSupervisor
+    PROPERTIES descriptionTimesheet(d, e) WAIT COLUMNS (d) HEADER extractDay(d) BACKGROUND backgroundHoursTimesheet(d, e)
+    ON CHANGE {        
+        FOR TimeEntryType et = timesheetTimeEntryType() AND (timesheetProject() OR NOT project(timeEntry(d, e, timesheetTimeEntryType()))) DO {
+            timeEntryHours() <- timesheetTimeEntryHours();
+
+            DIALOG dialogWorkInterval OBJECTS d = d, e = e, et = et DO {
+                changeSaveTimesheetHours(d, e, et, workplace(), hoursInterval(), NULL, autoSaveTimesheetHours());
+            };
+        } ELSE
+        SHOW timesheetSupervisorDateEmployee OBJECTS i = interval(d, d), e = e FLOAT;
+    } ON CONTEXTMENU copyHours(d) ON CONTEXTMENU clearHours(d) FOOTER hours(d, timesheetProject())
+;
+
+DESIGN timesheetSupervisor {
+    OBJECTS {
+        tabbedPane {
+            timesheet {
+                MOVE BOX(e) {                    
+                    PROPERTY(hoursTimesheet(d, e)) {hide = TRUE;};
+                    PROPERTY(descriptionTimesheet(d, e)){
+                        charWidth = 7;
+                    }
+                }
+            }
+        }
+    }
+}
+
+EXTEND FORM timesheetSupervisorDateEmployee 
+    PROPERTIES(t) READONLY nameWorkplace
+;
+
+EXTEND FORM timeEntry
+    PROPERTIES(t) workInterval, breakInterval
+;
+
+DESIGN timeEntry {
+    OBJECTS {
+        pane {
+            time {
+                MOVE PROPERTY(workInterval(t));
+                MOVE PROPERTY(breakInterval(t));
+                MOVE PROPERTY(hours(t));
+                
+            }
+        }
+    }
+}
+
+EXTEND FORM timesheetSupervisorDateEmployee
+    PROPERTIES(t) READONLY BEFORE hours(t) workInterval, breakInterval 
+;
