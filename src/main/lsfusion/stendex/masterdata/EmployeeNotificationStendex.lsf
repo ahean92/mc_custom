@@ -1,0 +1,70 @@
+MODULE EmployeeNotificationStendex;
+
+REQUIRE EmployeeStendex, PurchaseOrderStendex, BillStendex;
+
+NAMESPACE Notifications;
+
+createOrderNotification 'Уведомлять о создании заказа' = DATA BOOLEAN (Employee);
+createBillNotification 'Уведомлять о создании счета' = DATA BOOLEAN (Employee);
+
+EXTEND FORM employee
+    PROPERTIES (e) createOrderNotification, createBillNotification
+;
+
+DESIGN employee {
+    details {
+        tabbed = TRUE;
+        fill = 3;
+        NEW notifications {
+            caption = 'Уведомления';
+            MOVE PROPERTY(createOrderNotification(e));
+            MOVE PROPERTY(createBillNotification(e));
+        }
+    }
+}
+
+sentDateTime 'Отправлено уведомление'  = DATA DATETIME (Order);
+sentDateTime 'Отправлено уведомление'  = DATA DATETIME (Bill);
+
+nameAuthor (Order o) = nameUser(GROUP MIN OrderHistory h IF nameUser(h) AND order(h) = o);
+nameAuthor (Bill b) = nameUser(GROUP MIN BillHistory h IF nameUser(h) AND bill(h) = b);
+
+bodyNotification (Order o) = CONCAT '\n', 'Создан заказ', '№' + number(o), 'Поставщик ' + nameVendor(o), 'Автор ' + nameAuthor(o), 'Сумма ' + amount(o);
+bodyNotification (Bill b) = CONCAT '\n', 'Создан счет', '№' + number(b), 'Поставщик ' + nameVendor(b), 'Автор ' + nameAuthor(b), 'Сумма ' + amount(b);
+
+createOrderNotificationEmails () = GROUP CONCAT email[Partner](Employee e) IF createOrderNotification(e), ',' ORDER e;
+createBillNotificationEmails () = GROUP CONCAT email[Partner](Employee e) IF createBillNotification(e), ',' ORDER e;
+
+attachFile(Order o) = GROUP MAX OrderFile of  IF type(of) == Purchase.TypeFile.invoice BY order(of);
+attachFile(Bill b) = GROUP MAX BillFile of IF type(of) == Invoicing.TypeFile.invoice BY bill(of);
+
+sendEmailNotification 'Отправить' (Order o) {
+    EMAIL
+        SUBJECT (CONCAT  ' ', 'Создан заказ', '№' + number(o), toChar(date(o), 'dd.MM.yyyy'))
+        TO createOrderNotificationEmails()
+        BODY bodyNotification(o)
+        ATTACH file(attachFile(o)) NAME CONCAT '.', name(attachFile(o)), extension(attachFile(o));
+    APPLY;
+    IF canceled() THEN RETURN;
+    
+    sentDateTime(o) <- currentDateTime();
+    APPLY;
+}
+
+sendEmailNotification 'Отправить' (Bill b) {
+    EMAIL
+        SUBJECT (CONCAT  ' ', 'Создан счет', '№' + number(b), toChar(date(b), 'dd.MM.yyyy'))
+        TO createBillNotificationEmails()
+        BODY bodyNotification(b)
+        ATTACH file(attachFile(b)) NAME CONCAT '.', name(attachFile(b)), extension(attachFile(b));
+    APPLY;
+    IF canceled() THEN RETURN;
+
+    sentDateTime(b) <- currentDateTime();
+    APPLY;
+}
+
+sendEmailNotification(DATE dFrom) {
+    FOR date(Order o) >= dFrom AND NOT sentDateTime(o) DO sendEmailNotification(o);
+    FOR date(Bill b) >= dFrom AND NOT sentDateTime(b) DO sendEmailNotification(b);
+}

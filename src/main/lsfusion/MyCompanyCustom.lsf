@@ -39,6 +39,7 @@ REQUIRE Eval, ProcessMonitor, Backup,
         ProjectManufacturingOrder, EmployeeStendex,
         ProjectKanbanStendex, ProjectExhibition, ProjectStendex, TimesheetSupervisorMobile, TimesheetSupervisor, TimesheetSupervisorStendex,
         ProjectCarouselStendex, ExhibitionSettings, NotificationsStendex, Whatsapp,
+        EmployeeNotificationStendex,
 
         BillStendex, BillPaymentStendex, ProjectBillStendex, PurchaseOrderBillStendex,
 
