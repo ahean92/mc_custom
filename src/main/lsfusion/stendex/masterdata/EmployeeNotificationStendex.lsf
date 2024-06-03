@@ -56,7 +56,7 @@ sendEmailNotification 'Отправить' (Bill b) {
         SUBJECT (CONCAT  ' ', 'Создан счет', '№' + number(b), toChar(date(b), 'dd.MM.yyyy'))
         TO createBillNotificationEmails()
         BODY bodyNotification(b)
-        ATTACH file(attachFile(b)) NAME CONCAT '.', name(attachFile(b)), extension(attachFile(b));
+        ATTACH file(file(attachFile(b)), extension(attachFile(b))) NAME name(attachFile(b));
     APPLY;
     IF canceled() THEN RETURN;
 
