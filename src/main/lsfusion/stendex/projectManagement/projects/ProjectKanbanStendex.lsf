@@ -35,7 +35,7 @@ dateDemolition (Project p) = toChar(demolitionStartDate(p), 'dd.mm.YY');
 
 EXTEND FORM projects
     OBJECTS pp = Project CUSTOM 'projectKanban'
-    OPTIONS JSON FROM employees = projectEmployees(), statuses = projectStatuses()
+    HEADER JSON FROM employees = projectEmployees(), statuses = projectStatuses()
     
     PROPERTIES(pp)
         readonly = readonlyCurrentUser,
