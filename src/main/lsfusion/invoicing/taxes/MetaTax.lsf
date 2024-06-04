@@ -10,7 +10,7 @@ META defineTaxCalc(doc, let, prefix, price)
     // taxes for line
     in 'On' = DATA BOOLEAN (###doc##Line, Tax);
     WHEN LOCAL CHANGED(item(###doc##Line l)) DO
-        in(l, Tax t) <- prefix##In(item(l), t);
+        in(l, Tax t) <- prefix##In(item(l), t) WHERE prefix##CountIn(item(l), taxGroup(t));
 
     WHEN LOCAL SET(in(###doc##Line l, Tax t)) DO {
         in(l, Tax tx) <- NULL WHERE taxGroup(t) = taxGroup(tx) AND NOT t = tx;
@@ -20,7 +20,7 @@ META defineTaxCalc(doc, let, prefix, price)
     taxAmount 'Taxes' (Tax t, ###doc##Line l) = DATA NUMERIC[14,2] (Tax, ###doc##Line);
     
     taxIncluded = ABSTRACT BOOLEAN (###doc##Line);
-    WHEN LOCAL CHANGED(untaxedAmount(###doc##Line l) IF in(l, Tax t)) DO
+    WHEN LOCAL CHANGED(untaxedAmount(###doc##Line l) IF in(l, Tax t)) AND value(t) DO
         taxAmount (t, l) <- NUMERIC[14,2] (value(t) / (100 (+) (value(t) IF taxIncluded(l))) * untaxedAmount(l));
     
     CONSTRAINT (DROPPED(Tax t IS Tax) AND PREV(taxAmount(t, ###doc##Line l))) 

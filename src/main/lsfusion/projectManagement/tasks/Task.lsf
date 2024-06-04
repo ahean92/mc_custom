@@ -34,6 +34,7 @@ opened 'Opened' (Task t) = t IS Task AND NOT closed(t);
 priority 'Priority' = DATA TaskPriority (Task);
 namePriority 'Priority' (Task t) = name(priority(t));
 idColorPriority (Task t) = idColor(priority(t));
+rgbColorPriority (Task t) = rgbColor(priority(t));
 
 in 'Incl.' = DATA BOOLEAN (Task, TaskTag);
 tags 'Tags' (Task t) = GROUP CONCAT name(TaskTag tg) IF in(t, tg), ', ' ORDER name(tg), tg;
@@ -81,7 +82,8 @@ DESIGN task {
 
 FORM tasks '{Tasks}'
     OBJECTS t = Task
-    PROPERTIES(t) READONLY name, nameAuthor, nameAssignedTo, nameStatus, namePriority, tags, deadline, closed
+    PROPERTIES(t) BACKGROUND rgbColorPriority(t) READONLY 
+                  name, nameAuthor, nameAssignedTo, nameStatus, namePriority, tags, deadline, closed
     PROPERTIES(t) NEWSESSION NEW, EDIT, DELETE
 
     FILTERGROUP active
