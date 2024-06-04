@@ -1,6 +1,6 @@
 MODULE TimesheetSupervisorStendex;
 
-REQUIRE TimesheetSupervisor, EmployeeStendex, TimeEntryStendex;
+REQUIRE TimesheetSupervisor, EmployeeStendex, TimeEntryStendex, TimeEntryHoursStendex, UtilsStendex;
 
 PRIORITY MasterData;
 
@@ -118,8 +118,11 @@ toWorkTime 'по' = DATA TIME (TimeEntry);
 fromBreakTime 'с' = DATA TIME (TimeEntry);
 toBreakTime 'по' = DATA TIME (TimeEntry);
 
-fromWorkTime 'с' = DATA LOCAL NESTED TIME ();
-toWorkTime 'по' = DATA LOCAL NESTED TIME ();
+dataFromWorkTime 'с' = DATA LOCAL NESTED TIME ();
+dataToWorkTime 'по' = DATA LOCAL NESTED TIME ();
+
+fromWorkTime 'с' = OVERRIDE dataFromWorkTime(), fromWorkTime(timeEntryHours()); 
+toWorkTime 'по' = OVERRIDE dataToWorkTime(), toWorkTime(timeEntryHours());
 
 dataFromBreakTime 'с' = DATA LOCAL NESTED TIME ();
 dataToBreakTime 'по' = DATA LOCAL NESTED TIME ();
@@ -268,7 +271,26 @@ changeSaveTimesheetHours (DATE d, Employee e, TimeEntryType et, Workplace w, NUM
         }
 }
 
+clear 'Очистить ячейку' (DATE d, Employee e) {
+    DELETE TimeEntry t WHERE date(t) = d AND matchesProject(t) AND employee(t) = e;
+}
+
+clearApply 'Очисть ячейку' (DATE d, Employee e) {
+    ASK 'This action cannot be undone. Continue ?' DO
+        NEWSESSION APPLY { clear(d, e); }
+};
+
+clearHours 'Очистить ячейку' (DATE d, Employee e) {
+    IF NOT autoSaveTimesheetHours() THEN
+        clear(d, e);
+    ELSE
+        clearApply(d, e);
+}
+
 EXTEND FORM timesheetSupervisor
+    PROPERTIES() nameEmoloyeeType SELECT 'buttonGroup'
+    FILTERS employeeType() == type(e) OR NOT employeeType()
+    
     PROPERTIES descriptionTimesheet(d, e) WAIT COLUMNS (d) HEADER extractDay(d) BACKGROUND backgroundHoursTimesheet(d, e)
     ON CHANGE {        
         FOR TimeEntryType et = timesheetTimeEntryType() AND (timesheetProject() OR NOT project(timeEntry(d, e, timesheetTimeEntryType()))) DO {
@@ -279,11 +301,16 @@ EXTEND FORM timesheetSupervisor
             };
         } ELSE
         SHOW timesheetSupervisorDateEmployee OBJECTS i = interval(d, d), e = e FLOAT;
-    } ON CONTEXTMENU copyHours(d) ON CONTEXTMENU clearHours(d) FOOTER hours(d, timesheetProject())
+    } ON CONTEXTMENU copyHours(d) ON CONTEXTMENU 'Очистить столбец' clearHours(d) ON CONTEXTMENU 'Очистить ячейку' clearHours(d, e)  FOOTER hours(d, timesheetProject())
 ;
 
 DESIGN timesheetSupervisor {
     OBJECTS {
+        REMOVE PROPERTY (nameTimesheetTimeEntryType());
+        REMOVE PROPERTY (nameTimesheetTimeEntryHours());
+        header {
+            MOVE PROPERTY(nameEmoloyeeType());
+        }
         tabbedPane {
             timesheet {
                 MOVE BOX(e) {                    
@@ -341,5 +368,11 @@ onStarted() + {
         toBreakTime (TimeEntry t) <- to(breakInterval(t)) WHERE breakInterval(t);
 
         migrateTimeWorking() <- TRUE;
+    }
+}
+
+NAVIGATOR {
+    dashboard {
+        MOVE timesheetSupervisor;
     }
 }

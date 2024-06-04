@@ -1,0 +1,16 @@
+MODULE TimeEntryHoursStendex;
+
+REQUIRE TimeEntryHours;
+
+NAMESPACE ProjectManagement;
+
+fromWorkTime 'с' = DATA TIME (TimeEntryHours);
+toWorkTime 'по' = DATA TIME (TimeEntryHours);
+
+EXTEND FORM timeEntryHours
+    PROPERTIES(t) READONLY AFTER name(t) fromWorkTime, toWorkTime
+;
+
+EXTEND FORM timeEntryType
+    PROPERTIES(h) AFTER name(h) fromWorkTime, toWorkTime
+;

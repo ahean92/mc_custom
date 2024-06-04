@@ -21,7 +21,7 @@ CONSTRAINT timesheetProject() AND countAssignments(currentUser()) AND NOT assign
 
 matchesProject (TimeEntry t) = project(t) = timesheetProject() OR (NOT timesheetProject() AND NOT project(t));
 
-timesheetTimeEntryType = DATA LOCAL TimeEntryType ();
+timesheetTimeEntryType = DATA LOCAL NESTED TimeEntryType ();
 nameTimesheetTimeEntryType 'Time entry type' = name(timesheetTimeEntryType());
 
 timesheetTimeEntryHours = DATA LOCAL TimeEntryHours ();
