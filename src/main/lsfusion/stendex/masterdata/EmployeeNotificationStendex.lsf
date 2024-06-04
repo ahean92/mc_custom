@@ -40,10 +40,10 @@ attachFile(Bill b) = GROUP MAX BillFile of IF type(of) == Invoicing.TypeFile.inv
 
 sendEmailNotification 'Отправить' (Order o) {
     EMAIL
-        SUBJECT (CONCAT  ' ', 'Создан заказ', '№' + number(o), toChar(date(o), 'dd.MM.yyyy'))
+        SUBJECT (CONCAT  ' ', 'Добавлен новый заказ на утверждение', '№' + number(o), toChar(date(o), 'dd.MM.yyyy'))
         TO createOrderNotificationEmails()
         BODY bodyNotification(o)
-        ATTACH file(attachFile(o)) NAME CONCAT '.', name(attachFile(o)), extension(attachFile(o));
+        ATTACH file(file(attachFile(o)), extension(attachFile(o))) NAME name(attachFile(o));
     APPLY;
     IF canceled() THEN RETURN;
     
@@ -53,7 +53,7 @@ sendEmailNotification 'Отправить' (Order o) {
 
 sendEmailNotification 'Отправить' (Bill b) {
     EMAIL
-        SUBJECT (CONCAT  ' ', 'Создан счет', '№' + number(b), toChar(date(b), 'dd.MM.yyyy'))
+        SUBJECT (CONCAT  ' ', 'Добавлен новый счет на утверждение', 'Тип ' + nameType(b), '№' + number(b), toChar(date(b), 'dd.MM.yyyy'))
         TO createBillNotificationEmails()
         BODY bodyNotification(b)
         ATTACH file(file(attachFile(b)), extension(attachFile(b))) NAME name(attachFile(b));
@@ -66,5 +66,5 @@ sendEmailNotification 'Отправить' (Bill b) {
 
 sendEmailNotification(DATE dFrom) {
     FOR date(Order o) >= dFrom AND NOT sentDateTime(o) DO sendEmailNotification(o);
-    FOR date(Bill b) >= dFrom AND NOT sentDateTime(b) DO sendEmailNotification(b);
+    FOR date(Bill b) >= dFrom AND NOT sentDateTime(b) AND billService(type(b)) DO sendEmailNotification(b);
 }
