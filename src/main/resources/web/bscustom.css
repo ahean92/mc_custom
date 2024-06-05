@@ -73,3 +73,6 @@ h6.caption-panel-header.collapsible {
 div[lsfusion-form="ProjectManagement.exhibitionReport"] td.dataGridCell {
     border-right-width: 1px;
 }
+div[lsfusion-form="ProjectManagement.timesheetSupervisor"] td.dataGridCell {
+    border-right-width: 1px;
+}

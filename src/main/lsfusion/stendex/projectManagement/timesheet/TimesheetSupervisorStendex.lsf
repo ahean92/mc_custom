@@ -1,6 +1,6 @@
 MODULE TimesheetSupervisorStendex;
 
-REQUIRE TimesheetSupervisor, EmployeeStendex, TimeEntryStendex, TimeEntryHoursStendex, UtilsStendex;
+REQUIRE TimesheetSupervisor, EmployeeStendex, TimeEntryStendex, TimeEntryHoursStendex, UtilsStendex, Image;
 
 PRIORITY MasterData;
 
@@ -12,10 +12,33 @@ hours (Employee e, TimeEntryHours h, DATE dFrom, DATE dTo) =
 
 hours 'Hours' (Employee e, TimeEntryHours h, INTERVAL[DATE] dates) = hours(e, h, from(dates), to(dates));
 
-FORM dialogEmployeeTimeEntryHours 'Employee'
+smallPhoto = DATA IMAGEFILE (Employee);
+dataSmallEmployeePhotoSize 'Размер уменьшенного фото сотрудника по горизонтали' = DATA INTEGER () PREREAD;
+smallEmployeePhotoSize 'Размер уменьшенного фото сотрудника по горизонтали' () = OVERRIDE dataSmallEmployeePhotoSize(), 100;
+
+WHEN SETCHANGED (photo(Employee e)) AND smallEmployeePhotoSize() OR SETCHANGED (smallEmployeePhotoSize()) AND photo(e) DO {
+    TRY {
+        resizeImage(photo(e), smallEmployeePhotoSize(), NULL);
+        smallPhoto(e) <- resizedImage();
+    }
+}
+
+WHEN DROPPED (photo(Employee e)) DO {
+    smallPhoto(e) <- NULL;
+}
+
+EXTEND FORM options PROPERTIES() smallEmployeePhotoSize;
+
+DESIGN options {
+    commons {
+        MOVE PROPERTY(smallEmployeePhotoSize());
+    }
+}
+
+FORM dialogEmployeeTimeEntryHours 'Employee'    
     OBJECTS dates = INTERVAL[DATE] PANEL NULL    
     OBJECTS e = Employee PANEL
-    PROPERTIES (e) READONLY lastName, firstName, middleName, photo, passportInformation, tariff
+    PROPERTIES (e) READONLY lastName, firstName, middleName, smallPhoto, passportInformation, tariff
     PROPERTIES (e) openScanFile
        
     OBJECTS h = TimeEntryHours
@@ -30,10 +53,8 @@ DESIGN dialogEmployeeTimeEntryHours {
             alignment = STRETCH;
             horizontal = TRUE;
             fill = 1;
-
-            MOVE PROPERTY(photo(e)) {
+            MOVE PROPERTY(smallPhoto(e)) {
                 fill = 1;
-                width = 100;
                 caption = '';
             }
 
@@ -59,7 +80,7 @@ DESIGN dialogEmployeeTimeEntryHours {
 }
 
 EXTEND FORM timesheetSupervisor
-    PROPERTIES photo(e) ON CHANGE { SHOW dialogEmployeeTimeEntryHours OBJECTS dates = dates, e = e  FLOAT;} FIRST
+    PROPERTIES 'Фото' = photo(e) ON CHANGE { SHOW dialogEmployeeTimeEntryHours OBJECTS dates = dates, e = e  FLOAT;} FIRST
     PROPERTIES firstName '{First_name}' = firstName(e) ON CHANGE { SHOW dialogEmployeeTimeEntryHours OBJECTS dates = dates, e = e  FLOAT;} AFTER photo(e)
 ;
 
@@ -133,14 +154,15 @@ fromBreakTime 'с' () = OVERRIDE dataFromBreakTime(), fromBreakTimeDefault(), ti
 toBreakTime 'по' () = OVERRIDE dataToBreakTime(), toBreakTimeDefault(), time('14:00');
 
 hoursIntervalSipmple(TIME fromWorkTime, TIME toWorkTime, TIME fromBreakTime, TIME toBreakTime) = CASE
+        WHEN fromWorkTime = toWorkTime THEN NUMERIC[8,2](24.00) (-) hours(fromBreakTime, toBreakTime)
         WHEN fromWorkTime <= fromBreakTime AND toWorkTime >= toBreakTime THEN hours(fromWorkTime, toWorkTime) (-) hours(fromBreakTime, toBreakTime)
         WHEN fromWorkTime > fromBreakTime AND fromWorkTime < toBreakTime THEN hours(toBreakTime, toWorkTime)
         WHEN toWorkTime < toBreakTime AND fromBreakTime < toWorkTime THEN hours(fromWorkTime, fromBreakTime)
         WHEN toBreakTime < toWorkTime AND fromBreakTime > toWorkTime THEN NULL
         ELSE hours(fromWorkTime, toWorkTime);
 
-hoursInterval(TIME fromWorkTime, TIME toWorkTime, TIME fromBreakTime, TIME toBreakTime) = CASE                                                                                              
-    WHEN fromWorkTime > toWorkTime THEN hoursIntervalSipmple(fromWorkTime, time('23:59'), fromBreakTime, toBreakTime) + 0.02 (+) hoursIntervalSipmple(time('00:00'), toWorkTime, fromBreakTime, toBreakTime) 
+hoursInterval(TIME fromWorkTime, TIME toWorkTime, TIME fromBreakTime, TIME toBreakTime) = CASE     
+    WHEN fromWorkTime > toWorkTime THEN hoursIntervalSipmple(fromWorkTime, time('23:59'), fromBreakTime, toBreakTime) + 0.02 (+) (hoursIntervalSipmple(time('00:00'), toWorkTime, fromBreakTime, toBreakTime) IF toWorkTime > time('00:00')) 
     ELSE hoursIntervalSipmple(fromWorkTime, toWorkTime, fromBreakTime, toBreakTime);
 
 hoursInterval(TimeEntry te) = hoursInterval(fromWorkTime(te), toWorkTime(te), fromBreakTime(te), toBreakTime(te));
@@ -287,6 +309,16 @@ clearHours 'Очистить ячейку' (DATE d, Employee e) {
         clearApply(d, e);
 }
 
+overCopy(TimeEntry tn, TimeEntry t) + {
+    timeEntryHours(tn) <- timeEntryHours(t);
+    workplace(tn) <- workplace(t);
+    fromWorkTime(tn) <- fromWorkTime(t);
+    toWorkTime(tn) <- toWorkTime(t);
+    fromBreakTime(tn) <- fromBreakTime(t);
+    toBreakTime(tn) <- toBreakTime(t);
+    overtimeHours(tn) <- overtimeHours(t);
+}
+
 EXTEND FORM timesheetSupervisor
     PROPERTIES() nameEmoloyeeType SELECT 'buttonGroup'
     FILTERS employeeType() == type(e) OR NOT employeeType()
@@ -301,13 +333,13 @@ EXTEND FORM timesheetSupervisor
             };
         } ELSE
         SHOW timesheetSupervisorDateEmployee OBJECTS i = interval(d, d), e = e FLOAT;
-    } ON CONTEXTMENU copyHours(d) ON CONTEXTMENU 'Очистить столбец' clearHours(d) ON CONTEXTMENU 'Очистить ячейку' clearHours(d, e)  FOOTER hours(d, timesheetProject())
+    } ON CONTEXTMENU copyHours(d) ON CONTEXTMENU clearHours(d, e) FOOTER hours(d, timesheetProject())
 ;
 
 DESIGN timesheetSupervisor {
     OBJECTS {
         REMOVE PROPERTY (nameTimesheetTimeEntryType());
-        REMOVE PROPERTY (nameTimesheetTimeEntryHours());
+        REMOVE PROPERTY (nameTimesheetTimeEntryHours());        
         header {
             MOVE PROPERTY(nameEmoloyeeType());
         }
