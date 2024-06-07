@@ -28,8 +28,8 @@ DESIGN partner {
 codeName 'Кодовое название' = DATA ISTRING[50] (Partner) CHARWIDTH 15;
 overName '{Name}' (Partner p) = OVERRIDE codeName(p), overName[Individual](p), name(p) CHARWIDTH 15;
 
-partnerByAnyName(STRING s) = GROUP MIN Partner v IF s == name(v) OR s == fullName(v) OR s == codeName(v);
-anyNamePartner(STRING anyNamePartner) = anyNamePartner IF GROUP MIN Partner p IF anyNamePartner == name(p) OR anyNamePartner == fullName(p) OR anyNamePartner == codeName(p);
+partnerByAnyName(STRING s) = GROUP MIN Partner p IF s == name(p) OR s == fullName(p) OR s == codeName(p);
+anyNamePartner(STRING anyNamePartner) = anyNamePartner IF partnerByAnyName(anyNamePartner);
 
 EXTEND FORM partner
     PROPERTIES(p) codeName
