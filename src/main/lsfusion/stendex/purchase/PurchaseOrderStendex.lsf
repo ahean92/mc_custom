@@ -1,6 +1,6 @@
 MODULE PurchaseOrderStendex;
 
-REQUIRE PurchaseOrderSearch, ProjectPurchaseOrder, PurchaseOrderConfirmed, PurchaseOrderLocked, EmployeeStendex;
+REQUIRE PurchaseOrderSearch, ProjectPurchaseOrder, PurchaseOrderConfirmed, PurchaseOrderLocked, EmployeeStendex, PartnerStendex;
 
 NAMESPACE Purchase;
 
@@ -420,3 +420,27 @@ openPaymentOrder 'ПП' (Order o) {
 
 dataUom = DATA Uom (OrderLine); 
 overUom(OrderLine l) += dataUom(l);
+
+nameVendorStendEx 'Vendor' (Order o) = OVERRIDE name(vendor(o));
+
+EXTEND FORM order
+    OBJECTS anyNamePartner = STRING 
+    FILTERS anyNamePartner(anyNamePartner)
+    
+    PROPERTIES (o)
+    nameVendorStendEx  ON CHANGE {
+        INPUT ss = anyNamePartner(anyNamePartner) DO
+            vendor(o) <- partnerByAnyName(ss);
+        }
+;
+
+DESIGN order {
+    OBJECTS {
+        header {            
+            headerRight {
+                REMOVE PROPERTY(nameVendor(o));
+                MOVE PROPERTY(nameVendorStendEx(o)) { notNull = TRUE; }
+            }
+        }
+    }
+}

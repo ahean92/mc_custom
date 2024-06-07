@@ -306,13 +306,19 @@ WHEN LOCAL SET(Bill b IS Bill) DO editingOn(b) <- TRUE;
 readonly(Bill b) += WHEN b IS Bill AND NOT editingOn(b) THEN TRUE;
 
 FORM billCustom 'Счет'
+    OBJECTS anyNamePartner = STRING
+    FILTERS anyNamePartner(anyNamePartner)  
+    
     OBJECTS b = Bill PANEL
     PROPERTIES(b) READONLYIF readonly(b)
                   imagedNameStatus,
                   'Услуга' = items ON CHANGE changeItems(b),
                   nameCompany,
                   nameProjects READONLY,
-                  overNameVendor,
+                  overNameVendor ON CHANGE {
+                      INPUT ss = anyNamePartner(anyNamePartner) DO
+                          vendor(b) <- partnerByAnyName(ss);
+                    },
                   note,
                   amount READONLY,
                   details,
