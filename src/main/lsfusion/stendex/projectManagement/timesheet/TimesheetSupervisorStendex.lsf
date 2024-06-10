@@ -35,6 +35,8 @@ DESIGN options {
     }
 }
 
+hours 'Часов' (INTERVAL[DATE] dates, Employee e) = GROUP SUM hours(e, TimeEntryHours h, dates);
+
 FORM dialogEmployeeTimeEntryHours 'Employee'    
     OBJECTS dates = INTERVAL[DATE] PANEL NULL    
     OBJECTS e = Employee PANEL
@@ -45,6 +47,8 @@ FORM dialogEmployeeTimeEntryHours 'Employee'
     PROPERTIES(h) name
     PROPERTIES(e, h, dates) hours
     FILTERS hours(e, h, dates)
+
+    PROPERTIES (dates, e) READONLY hours DRAW h TOOLBAR
 ;
 
 DESIGN dialogEmployeeTimeEntryHours {
@@ -53,12 +57,15 @@ DESIGN dialogEmployeeTimeEntryHours {
             alignment = STRETCH;
             horizontal = TRUE;
             fill = 1;
-            MOVE PROPERTY(smallPhoto(e)) {
+
+            NEW photo {
                 fill = 1;
-                caption = '';
+                MOVE PROPERTY(smallPhoto(e)) {
+                    caption = '';
+                }
             }
 
-            NEW info {
+            NEW info {                
                 fill = 2;
                 MOVE PROPERTY(lastName(e));
                 MOVE PROPERTY(firstName(e));
