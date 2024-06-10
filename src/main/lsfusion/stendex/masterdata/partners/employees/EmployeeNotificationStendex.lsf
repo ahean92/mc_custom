@@ -1,0 +1,35 @@
+MODULE EmployeeNotificationStendex;
+
+REQUIRE EmployeeStendex;
+
+NAMESPACE Notifications;
+
+CLASS TypeEmailNotification;
+
+notifite 'Уведомлять' = DATA BOOLEAN (TypeEmailNotification, Employee);
+name 'Наименование' (TypeEmailNotification en) = staticCaption(en);
+
+dataEmail 'Email' = DATA ISTRING[400] (TypeEmailNotification, Employee) CHARWIDTH 20 REGEXP '[-!#-\'*+/-9=?A-Z^-~]+(\\.[-!#-\'*+/-9=?A-Z^-~]+)*@[0-9A-Za-z]([0-9A-Za-z-]{0,61}[0-9A-Za-z])?(\\.[0-9A-Za-z]([0-9A-Za-z-]{0,61}[0-9A-Za-z])?)+' '<html>{authentication.email.contact.incorrect}</html>';
+email 'Email' (TypeEmailNotification en, Employee e) = OVERRIDE dataEmail(en, e), email[Partner](e) IF en IS TypeEmailNotification;
+
+EXTEND FORM employee
+    OBJECTS en = TypeEmailNotification
+    PROPERTIES (en) READONLY name
+    PROPERTIES (en, e) notifite FIRST, email
+    ORDERS name(en)
+;
+
+DESIGN employee {
+    details {
+        tabbed = TRUE;
+        fill = 3;
+        NEW notifications {
+            fill = 1;
+            tabbed = TRUE;
+            caption = 'Уведомления';
+            MOVE BOX(en) { caption = 'Email'; }
+        }
+    }
+}
+
+sendEmailNotification(DATE dFrom) ABSTRACT LIST;

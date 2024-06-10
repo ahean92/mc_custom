@@ -1,0 +1,69 @@
+MODULE EmployeeNotificationBillStendex;
+
+REQUIRE EmployeeNotificationStendex, BillStendex;
+
+NAMESPACE Notifications;
+
+EXTEND CLASS TypeEmailNotification {
+    createBill 'Cоздание счета',
+    paidBill 'Оплата счета'
+}
+
+sentDateTime 'Отправлено уведомление'  = DATA DATETIME (TypeEmailNotification, Bill);
+
+condionSendEmail 'Отправить' = ABSTRACT VALUE BOOLEAN (TypeEmailNotification, Bill, Employee);
+
+condionSendEmail(TypeEmailNotification en, Bill b, Employee e) += e IS Employee AND b IS Bill AND en == TypeEmailNotification.createBill;
+condionSendEmail(TypeEmailNotification en, Bill b, Employee e) += representative(b) == e AND NOT sentDateTime(en, b) AND en == TypeEmailNotification.paidBill;
+
+notificationEmails (TypeEmailNotification en, Bill b) = GROUP CONCAT email(en, Employee e) IF notifite(en, e) AND condionSendEmail(en, b, e), ',' ORDER e;
+
+bodyNotificationCreate (Bill b) = CONCAT '\n', 'Создан счет', '№' + number(b), 'Поставщик ' + nameVendor(b), 'Автор ' + nameRepresentative(b), 'Сумма ' + amount(b);
+attachFileCreate(Bill b) = GROUP MAX BillFile of IF type(of) == Invoicing.TypeFile.invoice BY bill(of);
+
+sendEmailNotificationCreate 'Отправить' (TypeEmailNotification en, Bill b) {
+    EMAIL
+        SUBJECT (CONCAT  ' ', 'Добавлен новый счет на утверждение', 'Тип ' + nameType(b), '№' + number(b), toChar(date(b), 'dd.MM.yyyy'))
+        TO notificationEmails(en, b)
+        BODY bodyNotificationCreate(b)
+        ATTACH file(file(attachFileCreate(b)), extension(attachFileCreate(b))) NAME name(attachFileCreate(b));
+    APPLY;
+    IF canceled() THEN RETURN;
+
+    sentDateTime(en, b) <- currentDateTime();
+    APPLY;
+}
+
+bodyNotificationPaid (Bill b) = CONCAT '\n', 'Оплачен счет', '№' + number(b), 'Поставщик ' + nameVendor(b), 'Автор ' + nameRepresentative(b), 'Сумма ' + amount(b);
+attachFilePaid(Bill b) = GROUP MAX BillFile of IF type(of) == Invoicing.TypeFile.paymentOrder BY bill(of);
+
+sendEmailNotificationPaid 'Отправить' (TypeEmailNotification en, Bill b) {
+    EMAIL
+        SUBJECT (CONCAT  ' ', 'Оплачен счет на утверждение', 'Тип ' + nameType(b), '№' + number(b), toChar(date(b), 'dd.MM.yyyy'))
+        TO notificationEmails(en, b)
+        BODY bodyNotificationPaid(b)
+        ATTACH file(file(attachFilePaid(b)), extension(attachFilePaid(b))) NAME name(attachFilePaid(b));
+    APPLY;
+    IF canceled() THEN RETURN;
+
+    sentDateTime(en, b) <- currentDateTime();
+    APPLY;
+}
+
+needSendEmail = DATA BOOLEAN(TypeEmailNotification, Bill);
+
+WHEN SETCHANGED(Bill b IS Bill)
+    DO needSendEmail(TypeEmailNotification.createBill, b) <- TRUE;
+
+WHEN SETCHANGED(status(Bill b)) AND (status(b) == BillStatus.done) // status(b) == BillStatus.partiallyPaid
+    DO needSendEmail(TypeEmailNotification.paidBill, b) <- TRUE;
+
+condionSendEmail 'Отправить' = ABSTRACT VALUE BOOLEAN (TypeEmailNotification, Bill);
+
+condionSendEmail(TypeEmailNotification en, Bill b) += needSendEmail(en, b) AND billService(type(b)) AND NOT sentDateTime(en, b) AND en == TypeEmailNotification.createBill;
+condionSendEmail(TypeEmailNotification en, Bill b) += needSendEmail(en, b) AND billService(type(b)) AND NOT sentDateTime(en, b) AND en == TypeEmailNotification.paidBill;
+
+sendEmailNotification(DATE dFrom) + {
+    FOR date(Bill b) >= dFrom AND condionSendEmail(TypeEmailNotification.createBill, b) DO sendEmailNotificationCreate(TypeEmailNotification.createBill, b);
+    FOR date(Bill b) >= dFrom AND condionSendEmail(TypeEmailNotification.paidBill, b) AND billService(type(b)) DO sendEmailNotificationPaid(TypeEmailNotification.paidBill, b);
+}

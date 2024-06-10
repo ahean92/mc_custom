@@ -1,0 +1,75 @@
+MODULE EmployeeNotificationManufacturingOrderStendex;
+
+REQUIRE EmployeeNotificationStendex, PurchaseManufacturingOrderStendex;
+
+NAMESPACE Notifications;
+
+EXTEND CLASS TypeEmailNotification {
+    createManufacturingOrder 'Cоздание заявки',
+    placingManufacturingOrderIntoOrder 'Помещение заявки в заказ'
+}
+
+sentDateTime 'Отправлено уведомление'  = DATA DATETIME (TypeEmailNotification, ManufacturingOrder);
+
+condionSendEmail 'Отправить' = ABSTRACT VALUE BOOLEAN (TypeEmailNotification, ManufacturingOrder, Employee);
+notificationEmails (TypeEmailNotification en, ManufacturingOrder mo) = GROUP CONCAT email(en, Employee e) IF notifite(en, e) AND condionSendEmail(en, mo, e), ',' ORDER e;
+
+condionSendEmail(TypeEmailNotification en, ManufacturingOrder mo, Employee e) += e IS Employee AND mo IS ManufacturingOrder AND en == TypeEmailNotification.createManufacturingOrder;
+bodyNotificationCreate (ManufacturingOrder mo) = CONCAT '\n', 'Создан заказ', '№' + number(mo), 'Автор ' + overNameResponsible(mo);
+
+sendEmailNotificationCreate 'Отправить' (TypeEmailNotification en, ManufacturingOrder mo) {
+    EMAIL
+        SUBJECT (CONCAT  ' ', 'Добавлен новый заказ', '№' + number(mo), toChar(scheduledDateTime(mo), 'dd.MM.yyyy'))
+        TO notificationEmails(en, mo)
+        BODY bodyNotificationCreate(mo);
+    APPLY;
+    IF canceled() THEN RETURN;
+
+    sentDateTime(en, mo) <- currentDateTime();
+    APPLY;
+}
+
+sentDateTime 'Отправлено уведомление'  = DATA DATETIME (TypeEmailNotification, ConsumedLine);
+
+dataNeedSendEmail = DATA BOOLEAN(TypeEmailNotification, ManufacturingOrder);
+needSendEmail = DATA BOOLEAN(TypeEmailNotification, ConsumedLine);
+needSendEmail(TypeEmailNotification tn, ManufacturingOrder mo) = OVERRIDE dataNeedSendEmail(tn, mo),
+    GROUP MAX TRUE IF needSendEmail(tn, ConsumedLine cl) AND manufacturingOrder(cl) == mo AND NOT sentDateTime(tn, cl);
+
+in (TypeEmailNotification tn, Order o, ManufacturingOrder mo) = GROUP MAX TRUE IF needSendEmail(tn, ConsumedLine cl) AND NOT sentDateTime(tn, cl) BY order(orderLine(cl)),  manufacturingOrder(cl);
+
+condionSendEmail(TypeEmailNotification en, ManufacturingOrder mo, Employee e) += responsible(mo) == e AND en == TypeEmailNotification.placingManufacturingOrderIntoOrder;
+
+bodyNotificationPlacing (TypeEmailNotification en, ManufacturingOrder mo) = CONCAT '\n',
+    (CONCAT ', ', 'Заявка №' + number(mo), 'Автор: ' + overNameResponsible(mo)),
+    'помещена в:',
+    GROUP CONCAT (CONCAT ', ', '- заказ', '№' + number(Order o), 'Поставщик: ' + nameVendor(o), 'Автор: ' + nameRepresentative(o)) IF in(en, o, mo), '\n' ORDER number(o), o;
+
+
+sendEmailNotificationPlacing 'Отправить' (TypeEmailNotification en, ManufacturingOrder mo) {
+    EMAIL
+        SUBJECT (CONCAT  ' ', 'Заявка', '№' + number(mo), 'от ' + toChar(scheduledDateTime(mo), 'dd.MM.yyyy'), 'помещена в заказ(ы)')
+        TO notificationEmails(en, mo)
+        BODY bodyNotificationPlacing(en, mo);
+    APPLY;
+    IF canceled() THEN RETURN;
+
+    sentDateTime(en, ConsumedLine cl) <- currentDateTime() WHERE manufacturingOrder(cl) == mo;
+    APPLY;
+}
+
+WHEN SETCHANGED(ManufacturingOrder mo IS ManufacturingOrder)
+    DO dataNeedSendEmail(TypeEmailNotification.createManufacturingOrder, mo) <- TRUE;
+
+WHEN SETCHANGED(orderLine(ConsumedLine cl))
+    DO needSendEmail(TypeEmailNotification.placingManufacturingOrderIntoOrder, cl) <- TRUE;
+
+condionSendEmail 'Отправить' = ABSTRACT VALUE BOOLEAN (TypeEmailNotification, ManufacturingOrder);
+
+condionSendEmail(TypeEmailNotification en, ManufacturingOrder mo) += needSendEmail(en, mo) AND NOT sentDateTime(en, mo) AND en == TypeEmailNotification.createManufacturingOrder;
+condionSendEmail(TypeEmailNotification en, ManufacturingOrder mo) += needSendEmail(en, mo) AND NOT sentDateTime(en, mo) AND en == TypeEmailNotification.placingManufacturingOrderIntoOrder;
+
+sendEmailNotification(DATE dFrom) + {
+    FOR DATE(scheduledDateTime(ManufacturingOrder mo)) >= dFrom AND condionSendEmail(TypeEmailNotification.createManufacturingOrder, mo) DO sendEmailNotificationCreate(TypeEmailNotification.createManufacturingOrder, mo);
+    FOR DATE(scheduledDateTime(ManufacturingOrder mo)) >= dFrom AND condionSendEmail(TypeEmailNotification.placingManufacturingOrderIntoOrder, mo) DO sendEmailNotificationPlacing(TypeEmailNotification.placingManufacturingOrderIntoOrder, mo);
+}
