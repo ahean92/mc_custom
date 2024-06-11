@@ -421,14 +421,14 @@ openPaymentOrder 'ПП' (Order o) {
 dataUom = DATA Uom (OrderLine); 
 overUom(OrderLine l) += dataUom(l);
 
-nameVendorStendEx 'Vendor' (Order o) = OVERRIDE name(vendor(o));
+nameVendorStendEx 'Vendor' (Order o) = name(vendor(o));
 
 EXTEND FORM order
     OBJECTS anyNamePartner = STRING 
-    FILTERS anyNamePartner(anyNamePartner)
+    FILTERS anyNamePartner(anyNamePartner) == nameVendorStendEx(o)
     
     PROPERTIES (o)
-    nameVendorStendEx  ON CHANGE {
+    nameVendorStendEx ON CHANGE {
         INPUT ss = anyNamePartner(anyNamePartner) DO
             vendor(o) <- partnerByAnyName(ss);
         }
