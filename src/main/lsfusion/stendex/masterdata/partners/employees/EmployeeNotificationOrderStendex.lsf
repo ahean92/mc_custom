@@ -39,7 +39,7 @@ attachFilePaid(Order o) = GROUP MAX OrderFile of  IF type(of) == Purchase.TypeFi
 
 sendEmailNotificationPaid 'Отправить' (TypeEmailNotification en, Order o) {
     EMAIL
-        SUBJECT (CONCAT  ' ', 'Оплачен заказ на утверждение', '№' + number(o), toChar(date(o), 'dd.MM.yyyy'))
+        SUBJECT (CONCAT  ' ', 'Оплачен заказ', '№' + number(o), toChar(date(o), 'dd.MM.yyyy'))
         TO notificationEmails(en, o)
         BODY bodyNotificationPaid(o)
         ATTACH file(file(attachFilePaid(o)), extension(attachFilePaid(o))) NAME name(attachFilePaid(o));

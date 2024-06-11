@@ -39,7 +39,7 @@ attachFilePaid(Bill b) = GROUP MAX BillFile of IF type(of) == Invoicing.TypeFile
 
 sendEmailNotificationPaid 'Отправить' (TypeEmailNotification en, Bill b) {
     EMAIL
-        SUBJECT (CONCAT  ' ', 'Оплачен счет на утверждение', 'Тип ' + nameType(b), '№' + number(b), toChar(date(b), 'dd.MM.yyyy'))
+        SUBJECT (CONCAT  ' ', 'Оплачен счет', 'Тип ' + nameType(b), '№' + number(b), toChar(date(b), 'dd.MM.yyyy'))
         TO notificationEmails(en, b)
         BODY bodyNotificationPaid(b)
         ATTACH file(file(attachFilePaid(b)), extension(attachFilePaid(b))) NAME name(attachFilePaid(b));
