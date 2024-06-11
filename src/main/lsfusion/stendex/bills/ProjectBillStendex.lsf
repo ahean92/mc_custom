@@ -14,7 +14,7 @@ EXTEND FORM billCustom
     PROPERTIES(pr) READONLY overNameManager BEFORE amount(b,pr)
 ;
 
-newLegalEntityBill 'Добавить' (Project p) {
+newLegalEntityBill 'Добавить для организаций' (Project p) {
     NEWSESSION {
         NEW b = Bill {
             type(b) <- legalEntityType();
@@ -24,7 +24,7 @@ newLegalEntityBill 'Добавить' (Project p) {
     }
 }
 
-newIndividualBill 'Добавить' (Project p) {
+newIndividualBill 'Добавить для freelance' (Project p) {
     NEWSESSION {
         NEW b = Bill {
             type(b) <- individualType();
@@ -43,20 +43,13 @@ EXTEND FORM project
     FILTERS in(bb,p)
     
     OBJECTS bl 'Счета на оплату' = Bill BACKGROUND backgroundColor(bl)
-    PROPERTIES(bl) READONLY number, date, items, nameProjects, note, overNameRepresentative, amount, left, toPay, paidDone
+    PROPERTIES(bl) READONLY number, date, items, nameType, nameProjects, note, overNameRepresentative, amount, left, toPay, paidDone
     PROPERTIES(bl,p) READONLY amount
     PROPERTIES(bl) 'Счет' = openFiles GRID
     PROPERTIES READONLYIF readonly(p) newLegalEntityBill(p) DRAW bl TOOLBAR
+    PROPERTIES READONLYIF readonly(p) newIndividualBill(p) DRAW bl TOOLBAR
     PROPERTIES(bl) READONLYIF readonly(p) NEWSESSION editBillCustom, DELETE
-    FILTERS legalEntity(bl), in(bl,p), billService(type(bl))
-
-    OBJECTS bi 'Оплата freelance' = Bill BACKGROUND backgroundColor(bi)
-    PROPERTIES(bi) READONLY number, date, items, nameProjects, note, overNameRepresentative, amount, left, toPay, paidDone
-    PROPERTIES(bi,p) READONLY amount
-    PROPERTIES(bi) 'Счет' = openFiles GRID
-    PROPERTIES READONLYIF readonly(p) newIndividualBill(p) DRAW bi TOOLBAR
-    PROPERTIES(bi) READONLYIF readonly(p) NEWSESSION editBillCustom, DELETE
-    FILTERS individual(bi), in(bi,p), billService(type(bi))
+    FILTERS legalEntity(bl) OR individual(bl), in(bl,p), billService(type(bl))   
 ;
 
 countBillsProject 'Bills' (Project p) = GROUP SUM 1 IF in(Bill b, p);
@@ -71,7 +64,6 @@ DESIGN project {
         NEW bills {
             caption = badged('Счета', countBillsStendex(p));
             MOVE BOX(bl);
-            MOVE BOX(bi);
         }
     }
 }
