@@ -136,8 +136,6 @@ nameWorkplace 'Расположение' () = name(workplace());
 timeEntryHours 'Смена' = DATA LOCAL NESTED TimeEntryHours ();
 nameTimeEntryHours 'Смена' () = name(timeEntryHours());
 
-hours 'Hours' (TIME from, TIME to) = NUMERIC[8,2](extractHour(to) (+) NUMERIC[8,2](extractMinute(to))/60  (-) extractHour(from) (-) NUMERIC[8,2](extractMinute(from))/60);
-
 workInterval 'Интервал работы' = DATA INTERVAL[TIME] (TimeEntry);
 breakInterval 'Интервал перерыва' = DATA INTERVAL[TIME] (TimeEntry);
 
@@ -156,29 +154,34 @@ dataFromBreakTime 'с' = DATA LOCAL NESTED TIME ();
 dataToBreakTime 'по' = DATA LOCAL NESTED TIME ();
 
 time(STRING time) = TIME(toDateTimeFormat(time,'hh24:mi'));
-//timeFromHours (INTEGER hour) = TIME(toDateTimeFormat(lpad(STRING(hour),2,'0')+'00','HH24MI'));
+dateTime(DATE d, TIME t) = toDateTimeFormat((CONCAT ' ', toChar(d, 'DD.MM.YYYY'), toChar(t, 'hh24:mi')),'DD.MM.YYYY hh24:mi');
 fromBreakTime 'с' () = OVERRIDE dataFromBreakTime(), fromBreakTimeDefault(), time('13:00');
 toBreakTime 'по' () = OVERRIDE dataToBreakTime(), toBreakTimeDefault(), time('14:00');
 
-hoursIntervalSipmple(TIME fromWorkTime, TIME toWorkTime, TIME fromBreakTime, TIME toBreakTime) = CASE
-        WHEN fromWorkTime = toWorkTime THEN NUMERIC[8,2](24.00) (-) hours(fromBreakTime, toBreakTime)
-        WHEN fromWorkTime <= fromBreakTime AND toWorkTime >= toBreakTime THEN hours(fromWorkTime, toWorkTime) (-) hours(fromBreakTime, toBreakTime)
-        WHEN fromWorkTime > fromBreakTime AND fromWorkTime < toBreakTime THEN hours(toBreakTime, toWorkTime)
-        WHEN toWorkTime < toBreakTime AND fromBreakTime < toWorkTime THEN hours(fromWorkTime, fromBreakTime)
+hoursBetweenDates(DATETIME dateFrom, DATETIME dateTo) = NUMERIC[8,2](NUMERIC[8,2](secondsBetweenDates(dateTo, dateFrom))/3600);
+
+hoursInterval(DATETIME fromWorkTime, DATETIME toWorkTime, DATETIME fromBreakTime, DATETIME toBreakTime) = 
+    CASE        
+        WHEN fromWorkTime <= fromBreakTime AND toWorkTime >= toBreakTime THEN hoursBetweenDates(fromWorkTime, toWorkTime) (-) hoursBetweenDates(fromBreakTime, toBreakTime)
+        WHEN fromWorkTime > fromBreakTime AND fromWorkTime < toBreakTime THEN hoursBetweenDates(toBreakTime, toWorkTime)
+        WHEN toWorkTime < toBreakTime AND fromBreakTime < toWorkTime THEN hoursBetweenDates(fromWorkTime, fromBreakTime)
         WHEN toBreakTime < toWorkTime AND fromBreakTime > toWorkTime THEN NULL
-        ELSE hours(fromWorkTime, toWorkTime);
+        ELSE hoursBetweenDates(fromWorkTime, toWorkTime);
 
-hoursInterval(TIME fromWorkTime, TIME toWorkTime, TIME fromBreakTime, TIME toBreakTime) = CASE     
-    WHEN fromWorkTime > toWorkTime THEN hoursIntervalSipmple(fromWorkTime, time('23:59'), fromBreakTime, toBreakTime) + 0.02 (+) (hoursIntervalSipmple(time('00:00'), toWorkTime, fromBreakTime, toBreakTime) IF toWorkTime > time('00:00')) 
-    ELSE hoursIntervalSipmple(fromWorkTime, toWorkTime, fromBreakTime, toBreakTime);
+hoursInterval(DATE d, TIME fromWorkTime, TIME toWorkTime, TIME fromBreakTime, TIME toBreakTime) = CASE
+    WHEN fromWorkTime = toWorkTime THEN 24 (-) hoursBetweenDates(dateTime(d, fromBreakTime), dateTime(d, toBreakTime))
+    WHEN fromWorkTime > toWorkTime THEN 
+        hoursInterval(dateTime(d, fromWorkTime), dateTime(sum(d, 1), time('00:00')), dateTime(d, fromBreakTime), dateTime(d, toBreakTime)) (+)
+        hoursInterval(dateTime(sum(d, 1), time('00:00')), dateTime(sum(d, 1), toWorkTime), dateTime(sum(d, 1), fromBreakTime), dateTime(sum(d, 1), toBreakTime))
+    ELSE hoursInterval(dateTime(d, fromWorkTime), dateTime(d, toWorkTime), dateTime(d, fromBreakTime), dateTime(d, toBreakTime));
 
-hoursInterval(TimeEntry te) = hoursInterval(fromWorkTime(te), toWorkTime(te), fromBreakTime(te), toBreakTime(te));
+hoursInterval(TimeEntry te) = hoursInterval(date(te), fromWorkTime(te), toWorkTime(te), fromBreakTime(te), toBreakTime(te)) IF te IS TimeEntry;
 
-WHEN LOCAL SETCHANGED(fromWorkTime(TimeEntry te)) OR SETCHANGED(toWorkTime(te)) OR SETCHANGED(fromBreakTime(te)) OR SETCHANGED(toBreakTime(te)) DO {
+WHEN LOCAL FORMS timeEntry, timesheetSupervisorDateEmployee SETCHANGED(fromWorkTime(TimeEntry te)) OR SETCHANGED(toWorkTime(te)) OR SETCHANGED(fromBreakTime(te)) OR SETCHANGED(toBreakTime(te)) DO {
     hours(te) <- hoursInterval(te);
 }
 
-hoursInterval 'Hours' () = hoursInterval(fromWorkTime(), toWorkTime(), fromBreakTime(), toBreakTime());
+hoursInterval 'Hours' () = hoursInterval(currentDate(),fromWorkTime(), toWorkTime(), fromBreakTime(), toBreakTime());
 
 FORM dialogWorkInterval 'Отметка времени'
     OBJECTS d = DATE PANEL
