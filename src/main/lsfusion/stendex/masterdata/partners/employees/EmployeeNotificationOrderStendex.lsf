@@ -6,14 +6,18 @@ NAMESPACE Notifications;
 
 EXTEND CLASS TypeEmailNotification {
     createOrder 'Cоздание заказа',
+    inPayment 'В оплате заказ',
     paidOrder 'Оплата заказа'
 }
+
+//status(o) = OrderStatus.inPayment
 
 sentDateTime 'Отправлено уведомление'  = DATA DATETIME (TypeEmailNotification, Order);
 
 condionSendEmail 'Отправить' = ABSTRACT VALUE BOOLEAN (TypeEmailNotification, Order, Employee);
 
 condionSendEmail(TypeEmailNotification en, Order o, Employee e) += e IS Employee AND o IS Order AND en == TypeEmailNotification.createOrder;
+condionSendEmail(TypeEmailNotification en, Order o, Employee e) += e IS Employee AND o IS Order AND en == TypeEmailNotification.inPayment;
 condionSendEmail(TypeEmailNotification en, Order o, Employee e) += representative(o) == e AND en == TypeEmailNotification.paidOrder;
 
 notificationEmails (TypeEmailNotification en, Order o) = GROUP CONCAT email(en, Employee e) IF notifite(en, e) AND condionSendEmail(en, o, e), ',' ORDER e;
@@ -27,6 +31,20 @@ sendEmailNotificationCreate 'Отправить' (TypeEmailNotification en, Orde
         TO notificationEmails(en, o)
         BODY bodyNotificationCreate(o)
         ATTACH file(file(attachFileCreate(o)), extension(attachFileCreate(o))) NAME name(attachFileCreate(o));
+    APPLY;
+    IF canceled() THEN RETURN;
+
+    sentDateTime(en, o) <- currentDateTime();
+    APPLY;
+}
+
+bodyNotificationInPayment (Order o) = CONCAT '\n', 'Поступил на оплату заказ', '№' + number(o), 'Поставщик ' + nameVendor(o), 'Сумма ' + amount(o);
+
+sendEmailNotificationInPayment 'Отправить' (TypeEmailNotification en, Order o) {
+    EMAIL
+        SUBJECT (CONCAT  ' ', 'Поступил на оплату заказ', '№' + number(o), toChar(date(o), 'dd.MM.yyyy'))
+        TO notificationEmails(en, o)
+        BODY bodyNotificationInPayment(o);
     APPLY;
     IF canceled() THEN RETURN;
 
@@ -55,6 +73,9 @@ needSendEmail = DATA BOOLEAN(TypeEmailNotification, Order);
 WHEN SETCHANGED(Order o IS Order)
     DO needSendEmail(TypeEmailNotification.createOrder, o) <- TRUE;
 
+WHEN SETCHANGED(status(Order o)) AND (status(o) == OrderStatus.inPayment)
+    DO needSendEmail(TypeEmailNotification.inPayment, o) <- TRUE;
+
 WHEN SETCHANGED(status(Order o)) AND (status(o) == OrderStatus.awaitingDelivery) // status(o) == OrderStatus.partiallyPaid OR
     DO needSendEmail(TypeEmailNotification.paidOrder, o) <- TRUE;
 
@@ -62,9 +83,11 @@ WHEN SETCHANGED(status(Order o)) AND (status(o) == OrderStatus.awaitingDelivery)
 condionSendEmail 'Отправить' = ABSTRACT VALUE BOOLEAN (TypeEmailNotification, Order);
 
 condionSendEmail(TypeEmailNotification en, Order o) += needSendEmail(en, o) AND NOT sentDateTime(en, o) AND en == TypeEmailNotification.createOrder;
+condionSendEmail(TypeEmailNotification en, Order o) += needSendEmail(en, o) AND NOT sentDateTime(en, o) AND en == TypeEmailNotification.inPayment;
 condionSendEmail(TypeEmailNotification en, Order o) += needSendEmail(en, o) AND NOT sentDateTime(en, o) AND en == TypeEmailNotification.paidOrder;
 
 sendEmailNotification(DATE dFrom) + {
     FOR date(Order o) >= dFrom AND condionSendEmail(TypeEmailNotification.createOrder, o) DO sendEmailNotificationCreate(TypeEmailNotification.createOrder, o);
+    FOR date(Order o) >= dFrom AND condionSendEmail(TypeEmailNotification.inPayment, o) DO sendEmailNotificationInPayment(TypeEmailNotification.inPayment, o);
     FOR date(Order o) >= dFrom AND condionSendEmail(TypeEmailNotification.paidOrder, o) DO sendEmailNotificationPaid(TypeEmailNotification.paidOrder, o);
 }

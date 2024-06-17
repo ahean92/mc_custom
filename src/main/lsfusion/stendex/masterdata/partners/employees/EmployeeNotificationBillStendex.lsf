@@ -1,11 +1,12 @@
 MODULE EmployeeNotificationBillStendex;
 
-REQUIRE EmployeeNotificationStendex, BillStendex;
+REQUIRE EmployeeNotificationStendex, BillStendex, PurchaseOrderBillStendex;
 
 NAMESPACE Notifications;
 
 EXTEND CLASS TypeEmailNotification {
     createBill 'Cоздание счета',
+    readyBill 'К оплате счета',
     paidBill 'Оплата счета'
 }
 
@@ -14,6 +15,7 @@ sentDateTime 'Отправлено уведомление'  = DATA DATETIME (Typ
 condionSendEmail 'Отправить' = ABSTRACT VALUE BOOLEAN (TypeEmailNotification, Bill, Employee);
 
 condionSendEmail(TypeEmailNotification en, Bill b, Employee e) += e IS Employee AND b IS Bill AND en == TypeEmailNotification.createBill;
+condionSendEmail(TypeEmailNotification en, Bill b, Employee e) += e IS Employee AND b IS Bill AND en == TypeEmailNotification.readyBill;
 condionSendEmail(TypeEmailNotification en, Bill b, Employee e) += representative(b) == e AND NOT sentDateTime(en, b) AND en == TypeEmailNotification.paidBill;
 
 notificationEmails (TypeEmailNotification en, Bill b) = GROUP CONCAT email(en, Employee e) IF notifite(en, e) AND condionSendEmail(en, b, e), ',' ORDER e;
@@ -34,12 +36,26 @@ sendEmailNotificationCreate 'Отправить' (TypeEmailNotification en, Bill
     APPLY;
 }
 
+bodyNotificationReady (Bill b) = CONCAT '\n', 'Поступил на оплату счет', '№' + number(b), 'Поставщик ' + nameVendor(b), 'Тип ' + nameType(b), 'На основании заказа №' + number(order(b)) , 'Сумма ' + amount(b);
+
+sendEmailNotificationReady 'Отправить' (TypeEmailNotification en, Bill b) {
+    EMAIL
+        SUBJECT (CONCAT  ' ', 'Поступил на оплату счет', '№' + number(b), 'Тип ' + nameType(b), toChar(date(b), 'dd.MM.yyyy'))
+        TO notificationEmails(en, b)
+        BODY bodyNotificationReady(b);
+    APPLY;
+    IF canceled() THEN RETURN;
+
+    sentDateTime(en, b) <- currentDateTime();
+    APPLY;
+}
+
 bodyNotificationPaid (Bill b) = CONCAT '\n', 'Оплачен счет', '№' + number(b), 'Поставщик ' + nameVendor(b), 'Автор ' + nameRepresentative(b), 'Сумма ' + amount(b);
 attachFilePaid(Bill b) = GROUP MAX BillFile of IF type(of) == Invoicing.TypeFile.paymentOrder BY bill(of);
 
 sendEmailNotificationPaid 'Отправить' (TypeEmailNotification en, Bill b) {
     EMAIL
-        SUBJECT (CONCAT  ' ', 'Оплачен счет', 'Тип ' + nameType(b), '№' + number(b), toChar(date(b), 'dd.MM.yyyy'))
+        SUBJECT (CONCAT  ' ', 'Оплачен счет', 'Тип: ' + nameType(b), '№' + number(b), toChar(date(b), 'dd.MM.yyyy'))
         TO notificationEmails(en, b)
         BODY bodyNotificationPaid(b)
         ATTACH file(file(attachFilePaid(b)), extension(attachFilePaid(b))) NAME name(attachFilePaid(b));
@@ -55,15 +71,20 @@ needSendEmail = DATA BOOLEAN(TypeEmailNotification, Bill);
 WHEN SETCHANGED(Bill b IS Bill)
     DO needSendEmail(TypeEmailNotification.createBill, b) <- TRUE;
 
+WHEN SETCHANGED(status(Bill b)) AND (status(b) == BillStatus.ready)
+    DO needSendEmail(TypeEmailNotification.readyBill, b) <- TRUE;
+
 WHEN SETCHANGED(status(Bill b)) AND (status(b) == BillStatus.done) // status(b) == BillStatus.partiallyPaid
     DO needSendEmail(TypeEmailNotification.paidBill, b) <- TRUE;
 
 condionSendEmail 'Отправить' = ABSTRACT VALUE BOOLEAN (TypeEmailNotification, Bill);
 
 condionSendEmail(TypeEmailNotification en, Bill b) += needSendEmail(en, b) AND billService(type(b)) AND NOT sentDateTime(en, b) AND en == TypeEmailNotification.createBill;
+condionSendEmail(TypeEmailNotification en, Bill b) += needSendEmail(en, b) AND billService(type(b)) AND NOT sentDateTime(en, b) AND en == TypeEmailNotification.readyBill;
 condionSendEmail(TypeEmailNotification en, Bill b) += needSendEmail(en, b) AND billService(type(b)) AND NOT sentDateTime(en, b) AND en == TypeEmailNotification.paidBill;
 
 sendEmailNotification(DATE dFrom) + {
     FOR date(Bill b) >= dFrom AND condionSendEmail(TypeEmailNotification.createBill, b) DO sendEmailNotificationCreate(TypeEmailNotification.createBill, b);
+    FOR date(Bill b) >= dFrom AND condionSendEmail(TypeEmailNotification.readyBill, b) AND billService(type(b)) DO sendEmailNotificationReady(TypeEmailNotification.readyBill, b);
     FOR date(Bill b) >= dFrom AND condionSendEmail(TypeEmailNotification.paidBill, b) AND billService(type(b)) DO sendEmailNotificationPaid(TypeEmailNotification.paidBill, b);
 }
