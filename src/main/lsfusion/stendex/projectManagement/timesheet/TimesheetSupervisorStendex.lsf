@@ -6,11 +6,16 @@ PRIORITY MasterData;
 
 NAMESPACE ProjectManagement;
 
-hours (Employee e, TimeEntryHours h, DATE dFrom, DATE dTo) = 
-    GROUP SUM hours(TimeEntry te) IF h == timeEntryHours(te) AND NOT date(te) < dFrom AND NOT date(te) > dTo AND employee(te) == e AND 
+fromWorkTime 'с' = DATA TIME (TimeEntry);
+toWorkTime 'по' = DATA TIME (TimeEntry);
+fromBreakTime 'с' = DATA TIME (TimeEntry);
+toBreakTime 'по' = DATA TIME (TimeEntry);
+
+hours (Employee e, TIME from, TIME to, DATE dFrom, DATE dTo) = 
+    GROUP SUM hours(TimeEntry te) IF from == fromWorkTime(te) AND to == toWorkTime(te) AND NOT date(te) < dFrom AND NOT date(te) > dTo AND employee(te) == e AND 
         (project(te) = timesheetProject() OR NOT timesheetProject());
 
-hours 'Hours' (Employee e, TimeEntryHours h, INTERVAL[DATE] dates) = hours(e, h, from(dates), to(dates));
+hours 'Hours' (Employee e, TIME from, TIME to, INTERVAL[DATE] dates) = hours(e, from, to, from(dates), to(dates));
 
 smallPhoto = DATA IMAGEFILE (Employee);
 dataSmallEmployeePhotoSize 'Размер уменьшенного фото сотрудника по горизонтали' = DATA INTEGER () PREREAD;
@@ -35,20 +40,21 @@ DESIGN options {
     }
 }
 
-hours 'Часов' (INTERVAL[DATE] dates, Employee e) = GROUP SUM hours(e, TimeEntryHours h, dates);
+hours 'Часов' (INTERVAL[DATE] dates, Employee e) = GROUP SUM hours(e, TIME from, TIME to, dates);
+timeInterval 'Интервал' (TIME from, TIME to)  = STRING[11] (CONCAT '-', toChar(from, 'HH24:MI'), toChar(to, 'HH24:MI'));
 
 FORM dialogEmployeeTimeEntryHours 'Employee'    
     OBJECTS dates = INTERVAL[DATE] PANEL NULL    
     OBJECTS e = Employee PANEL
     PROPERTIES (e) READONLY lastName, firstName, middleName, smallPhoto, passportInformation, tariff
     PROPERTIES (e) openScanFile
-       
-    OBJECTS h = TimeEntryHours
-    PROPERTIES(h) name
-    PROPERTIES(e, h, dates) hours
-    FILTERS hours(e, h, dates)
+   
+    OBJECTS iTime = (from = TIME, to = TIME)    
+    PROPERTIES READONLY timeInterval(from, to)
+    PROPERTIES(e, from, to, dates) READONLY hours
+    FILTERS hours(e, from, to, dates)
 
-    PROPERTIES (dates, e) READONLY hours DRAW h TOOLBAR
+    PROPERTIES (dates, e) READONLY hours DRAW iTime TOOLBAR
 ;
 
 DESIGN dialogEmployeeTimeEntryHours {
@@ -78,7 +84,7 @@ DESIGN dialogEmployeeTimeEntryHours {
         }
         NEW hours {
             fill = 1;
-            MOVE BOX(h) {
+            MOVE BOX(iTime) {
                 fill = 2; 
                 caption = '';
             } 
@@ -138,11 +144,6 @@ nameTimeEntryHours 'Смена' () = name(timeEntryHours());
 
 workInterval 'Интервал работы' = DATA INTERVAL[TIME] (TimeEntry);
 breakInterval 'Интервал перерыва' = DATA INTERVAL[TIME] (TimeEntry);
-
-fromWorkTime 'с' = DATA TIME (TimeEntry);
-toWorkTime 'по' = DATA TIME (TimeEntry);
-fromBreakTime 'с' = DATA TIME (TimeEntry);
-toBreakTime 'по' = DATA TIME (TimeEntry);
 
 dataFromWorkTime 'с' = DATA LOCAL NESTED TIME ();
 dataToWorkTime 'по' = DATA LOCAL NESTED TIME ();
