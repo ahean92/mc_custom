@@ -148,8 +148,8 @@ breakInterval 'Интервал перерыва' = DATA INTERVAL[TIME] (TimeEnt
 dataFromWorkTime 'с' = DATA LOCAL NESTED TIME ();
 dataToWorkTime 'по' = DATA LOCAL NESTED TIME ();
 
-fromWorkTime 'с' = OVERRIDE dataFromWorkTime(), fromWorkTime(timeEntryHours()); 
-toWorkTime 'по' = OVERRIDE dataToWorkTime(), toWorkTime(timeEntryHours());
+//fromWorkTime 'с' = OVERRIDE dataFromWorkTime(), fromWorkTime(timeEntryHours()); 
+//toWorkTime 'по' = OVERRIDE dataToWorkTime(), toWorkTime(timeEntryHours());
 
 dataFromBreakTime 'с' = DATA LOCAL NESTED TIME ();
 dataToBreakTime 'по' = DATA LOCAL NESTED TIME ();
@@ -182,7 +182,7 @@ WHEN LOCAL FORMS timeEntry, timesheetSupervisorDateEmployee SETCHANGED(fromWorkT
     hours(te) <- hoursInterval(te);
 }
 
-hoursInterval 'Hours' () = hoursInterval(currentDate(),fromWorkTime(), toWorkTime(), fromBreakTime(), toBreakTime());
+hoursInterval 'Hours' () = hoursInterval(currentDate(),dataFromWorkTime(), dataToWorkTime(), fromBreakTime(), toBreakTime());
 
 FORM dialogWorkInterval 'Отметка времени'
     OBJECTS d = DATE PANEL
@@ -190,7 +190,7 @@ FORM dialogWorkInterval 'Отметка времени'
     OBJECTS et = TimeEntryType PANEL
 
     PROPERTIES() PANEL
-        nameTimeEntryHours, fromBreakTime, toBreakTime, fromWorkTime, toWorkTime, hoursInterval READONLY, overtimeHours, nameWorkplace
+        nameTimeEntryHours, fromBreakTime, toBreakTime, dataFromWorkTime, dataToWorkTime, hoursInterval READONLY, overtimeHours, nameWorkplace
 ;
 
 DESIGN dialogWorkInterval {
@@ -209,8 +209,8 @@ DESIGN dialogWorkInterval {
                 NEW workInterval {
                     horizontal = TRUE;
                     caption = 'Интервал работы';
-                    MOVE PROPERTY(fromWorkTime());
-                    MOVE PROPERTY(toWorkTime());
+                    MOVE PROPERTY(dataFromWorkTime());
+                    MOVE PROPERTY(dataToWorkTime());
                     MOVE PROPERTY(hoursInterval());
                 }
             }
@@ -218,6 +218,16 @@ DESIGN dialogWorkInterval {
             MOVE PROPERTY(nameWorkplace());         
         }
     }
+}
+
+WHEN LOCAL FORMS dialogWorkInterval SETCHANGED(timeEntryHours()) DO {
+    dataFromWorkTime() <- fromWorkTime(timeEntryHours());
+    dataToWorkTime() <- toWorkTime(timeEntryHours());
+}
+
+WHEN LOCAL FORMS dialogWorkInterval DROPPED(timeEntryHours()) DO {
+    dataFromWorkTime() <- NULL;
+    dataToWorkTime() <- NULL;
 }
 
 timeEntry (DATE d, Employee e, Project p, TimeEntryType et, Workplace w) = GROUP MIN TimeEntry t BY date(t), employee(t), project(t), type(t), workplace(t);
@@ -233,8 +243,8 @@ changeTimesheetHours (DATE d, Employee e, TimeEntryType et, Workplace w, NUMERIC
                     hours(t) <- n;
                     timeEntryHours(t) <- h;
                     workplace(t) <- w;
-                    fromWorkTime(t) <- fromWorkTime();
-                    toWorkTime(t) <- toWorkTime();
+                    fromWorkTime(t) <- dataFromWorkTime();
+                    toWorkTime(t) <- dataToWorkTime();
                     fromBreakTime(t) <- fromBreakTime();
                     toBreakTime(t) <- toBreakTime();
                     overtimeHours(t) <- overtimeHours();
@@ -250,8 +260,8 @@ changeTimesheetHours (DATE d, Employee e, TimeEntryType et, Workplace w, NUMERIC
                     hours(t) <- n;
                     timeEntryHours(t) <- h;
                     workplace(t) <- w;
-                    fromWorkTime(t) <- fromWorkTime();
-                    toWorkTime(t) <- toWorkTime();
+                    fromWorkTime(t) <- dataFromWorkTime();
+                    toWorkTime(t) <- dataToWorkTime();
                     fromBreakTime(t) <- fromBreakTime();
                     toBreakTime(t) <- toBreakTime();
                     overtimeHours(t) <- overtimeHours();
@@ -265,8 +275,8 @@ changeTimesheetHours (DATE d, Employee e, TimeEntryType et, Workplace w, NUMERIC
                     hours(t) <- n;
                     timeEntryHours(t) <- h;
                     workplace(t) <- w;
-                    fromWorkTime(t) <- fromWorkTime();
-                    toWorkTime(t) <- toWorkTime();
+                    fromWorkTime(t) <- dataFromWorkTime();
+                    toWorkTime(t) <- dataToWorkTime();
                     fromBreakTime(t) <- fromBreakTime();
                     toBreakTime(t) <- toBreakTime();
                     overtimeHours(t) <- overtimeHours();
@@ -281,8 +291,8 @@ changeTimesheetHours (DATE d, Employee e, TimeEntryType et, Workplace w, NUMERIC
                     hours(t) <- n;
                     timeEntryHours(t) <- h;
                     workplace(t) <- w;
-                    fromWorkTime(t) <- fromWorkTime();
-                    toWorkTime(t) <- toWorkTime();
+                    fromWorkTime(t) <- dataFromWorkTime();
+                    toWorkTime(t) <- dataToWorkTime();
                     fromBreakTime(t) <- fromBreakTime();
                     toBreakTime(t) <- toBreakTime();
                     overtimeHours(t) <- overtimeHours();
