@@ -6,7 +6,6 @@ NAMESPACE Invoicing;
 
 //paid 'Оплачено' = DATA NUMERIC[16,3] (Bill); // пока как DATA свойство
 //toPay 'К оплате' (Bill b) = amount(b) (-) paid(b);
-
 status(Bill b) += WHEN useCustomStatus() AND dataStatus(b) THEN dataStatus(b);
 
 paidDone 'Оплачено' (Bill b) = GROUP SUM paid(b, OutgoingPayment p) IF active(p) AND done(p) MATERIALIZED;
@@ -308,6 +307,10 @@ EXTEND FORM billDashboard
     PROPERTIES openBillPaymentOrder(readyLE) GRID AFTER openFilesInvoice(readyLE)
     PROPERTIES openBillPaymentOrder(canceledLE) GRID AFTER openFilesInvoice(canceledLE)
     PROPERTIES openBillPaymentOrder(doneLE) GRID AFTER openFilesInvoice(doneLE)
+    PROPERTIES openBillPaymentOrder(partiallyPaidI) GRID AFTER openFilesInvoice(partiallyPaidI)
+    PROPERTIES openBillPaymentOrder(readyI) GRID AFTER openFilesInvoice(readyI)
+    PROPERTIES openBillPaymentOrder(canceledI) GRID AFTER openFilesInvoice(canceledI)
+    PROPERTIES openBillPaymentOrder(doneI) GRID AFTER openFilesInvoice(doneI)
 ;
 
 //

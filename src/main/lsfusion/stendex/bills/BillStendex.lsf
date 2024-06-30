@@ -636,7 +636,7 @@ META billDashboardStatus(st, capt)
 
         OBJECTS st##I = Bill BACKGROUND overBackgroundColor(st##I)
         PROPERTIES(st##I) READONLY number, date, overNameVendor, items, nameProjects, note, overNameRepresentative, amount
-        PROPERTIES(st##I) 'Счет' = openFiles GRID
+        PROPERTIES(st##I) 'Счет' = openFilesInvoice GRID
         PROPERTIES(st##I) NEWSESSION editBillCustom
         PROPERTIES(st##I) NEWSESSION DELETE
         FILTERS status(st##I) = BillStatus.st
