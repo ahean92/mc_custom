@@ -23,6 +23,10 @@ overFillAmountProjects (Bill b) + {
     }
 }
 
+billFile = DATA BillFile (OrderFile);
+billine = DATA BillLine (OrderLine);
+billline = GROUP AGGR OrderLine l BY billine(l);
+
 fill (Bill b, Order o) + {
     order(b) <- o;
 
@@ -33,6 +37,7 @@ fill (Bill b, Order o) + {
         extension(bf) <- extension(f);
         type(bf) <- Invoicing.TypeFile.invoice;
         lockChangeType(bf) <- TRUE;
+        billFile(f) <- bf;
     }
 }
 
@@ -62,6 +67,7 @@ newBill 'Добавить' (Order o) {
                 quantity(bl) <- toBillOrdered(ol);
                 price(bl) <- price(ol);
                 orderLine(bl) <- ol;
+                billine(ol) <- bl;
 
                 fill(bl, ol);
             }
@@ -157,42 +163,15 @@ uploadInvoice 'Счет' (Purchase.Order o){
         extension(uof) <- extension(uf);
         autoUploaded(uof) <- TRUE;
         type(uof) <- TypeFile.invoice;
-        IF NOT lastBill(o) THEN NEW nb = Bill{
-            ready(nb) <- TRUE;
-            onApproval(nb) <- TRUE;
-            dataStatus(nb) <- BillStatus.onApproval;
-            type(nb) <- billType(type(o));
 
-            company(nb) <- company(o);
-
-            vendor(nb) <- vendor(o);
-            vendorReference(nb) <- vendorReference(o);
-            note(nb) <- CONCAT ' ', 'Счет по заказу', number(o), 'от  ' + date(o), 'поставщик' + nameVendor(o);
-            in(nb, Project p) <- TRUE IF inOrder(p, o);
-            amount(nb, Project p) <- GROUP SUM amount(OrderLine l) IF order(l) = o AND project(l) == p;
-            currency(nb) <- currency(o);
-
-            paymentTerms(nb) <- paymentTerms(o);
-
-            FOR order(OrderLine ol) = o AND toBillOrdered(ol) > 0
-                NEW bl = BillLine DO {
-                bill(bl) <- nb;
-                item(bl) <- item(ol);
-                description(bl) <- description(ol);
-                quantity(bl) <- toBillOrdered(ol);
-                price(bl) <- price(ol);
-                orderLine(bl) <- ol;
-
-                fill(bl, ol);
-            }
-
-            fill(nb, o);
-
-            executeLocalEvents();
-            FOR bill(BillLine bl) = nb DO {
-                in(bl, Tax t) <- in(orderLine(bl), t);
-            }
-            changeStatus(o, OrderStatus.review);
+        FOR order(uof) == o AND order(Bill b) = o NEW bf = BillFile DO {
+            bill(bf) <- b;
+            file(bf) <- file(uof);
+            name(bf) <- name(uof);
+            extension(bf) <- extension(uof);
+            type(bf) <- Invoicing.TypeFile.invoice;
+            lockChangeType(bf) <- TRUE;
+            billFile(uof) <- bf;
         }
     }
 } IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE;
@@ -218,7 +197,7 @@ FORM inputOrderInvoices 'Добавление счетов'
                     extension(uof) <- extension;
                     autoUploaded(uof) <- TRUE;
                     type(uof) <- TypeFile.invoice;
-                    IF NOT lastBill(o) THEN NEW nb = Bill{
+                    IF NOT lastBill(o) THEN NEW nb = Bill {
                         ready(nb) <- TRUE;
                         onApproval(nb) <- TRUE;
                         type(nb) <- billType(type(o));
@@ -242,6 +221,7 @@ FORM inputOrderInvoices 'Добавление счетов'
                             quantity(bl) <- toBillOrdered(ol);
                             price(bl) <- price(ol);
                             orderLine(bl) <- ol;
+                            billine(ol) <- bl;
 
                             fill(bl, ol);
                         }
@@ -471,9 +451,10 @@ WHEN SETCHANGED (BillFile f IS BillFile) AND type(f) = Invoicing.TypeFile.paymen
     file(of) <- RAWFILE(file(f));
     name(of) <- name(f);
     extension(of) <- extension(f);
+    billFile(of) <- f;
 }
 
-leftDaysToPay (Order o) = daysBetweenDates(payBeforeDate(o),currentDate()) IF NOT done(lastBill(o));
+leftDaysToPay (Order o) = daysBetweenDates(payBeforeDate(o), currentDate()) IF NOT done(lastBill(o));
 urgency 'Срочность' (Order o) = CASE
     WHEN leftDaysToPay(o) < 0 THEN 'просрочен'
     WHEN leftDaysToPay(o) == 0 OR leftDaysToPay(o) == 1 THEN 'срочный'
@@ -509,3 +490,113 @@ EXTEND FORM projectDashboard
 ;
 
 WHEN LOCAL SETCHANGED (type(Order o)) AND lastBill(o) DO type(lastBill(o)) <- billType(type(o));
+
+currentBill (Order o) = GROUP MAX Bill b IF order(b) = o;
+
+EXTEND FORM order
+    EVENTS ON APPLY AFTER {
+        IF NOT lastBill(o) THEN NEW nb = Bill {
+            ready(nb) <- TRUE;
+            onApproval(nb) <- TRUE;
+            type(nb) <- billType(type(o));
+            company(nb) <- company(o);
+            vendor(nb) <- vendor(o);
+            vendorReference(nb) <- vendorReference(o);
+            note(nb) <- CONCAT ' ', 'Счет по заказу', number(o), 'от  ' + date(o), 'поставщик ' + nameVendor(o);
+            in(nb, Project p) <- TRUE IF inOrder(p, o);
+            amount(nb, Project p) <- GROUP SUM amount(OrderLine ol) IF order(ol) = o AND project(ol) == p;
+            currency(nb) <- currency(o);
+            paymentTerms(nb) <- paymentTerms(o);
+
+            FOR order(OrderLine ol) = o AND toBillOrdered(ol) > 0
+                NEW bl = BillLine DO {
+                bill(bl) <- nb;
+                item(bl) <- item(ol);
+                description(bl) <- description(ol);
+                quantity(bl) <- toBillOrdered(ol);
+                price(bl) <- price(ol);
+                orderLine(bl) <- ol;
+                billine(ol) <- bl;
+
+                fill(bl, ol);
+            }
+
+            fill(nb, o);
+
+            executeLocalEvents();
+            FOR bill(BillLine bl) = nb DO {
+                in(bl, Tax t) <- in(orderLine(bl), t);
+            }
+            changeStatus(o, OrderStatus.draft);
+        }
+    };
+
+fillBill(Order o){
+    FOR order(OrderLine ol) = o AND currentBill(o) AND NOT billine(ol) NEW bl = BillLine DO {
+        in(currentBill(order(ol)), Project p) <- TRUE IF inOrder(p, o);
+
+        bill(bl) <- currentBill(o);
+
+        item(bl) <- item(ol);
+        description(bl) <- description(ol);
+        quantity(bl) <- toBillOrdered(ol);
+        price(bl) <- price(ol);
+        orderLine(bl) <- ol;
+        billine(ol) <- bl;
+
+        fill(bl, ol);
+        fill(currentBill(order(ol)), order(ol));
+    }
+
+    FOR order(OrderLine ol) = o AND currentBill(o) AND BillLine bl = billine(ol) AND bill(bl) = currentBill(o) DO {
+        in(currentBill(order(ol)), Project p) <- TRUE IF inOrder(p, o);
+
+        item(bl) <- item(ol);
+        description(bl) <- description(ol);
+        quantity(bl) <- toBillOrdered(ol);
+        price(bl) <- price(ol);
+        orderLine(bl) <- ol;
+        billine(ol) <- bl;
+
+        fill(bl, ol);
+        fill(currentBill(order(ol)), order(ol));
+    }
+
+    FOR bill(BillLine bl) = currentBill(o) DO {
+        in(bl, Tax t) <- in(orderLine(bl), t);
+    }
+
+    APPLY;
+}
+
+WHEN [GROUP SUM 1 IF SETCHANGED(item(OrderLine l)) OR CHANGED(quantity(l)) OR CHANGED(price(l)) OR CHANGED(description(l))
+    OR CHANGED(nameProject(l)) OR CHANGED(taxes(l)) BY order(l)](Order o) DO {
+    amount(currentBill(o), Project p) <- GROUP SUM amount(OrderLine l) IF order(l) == o AND project(l) == p;
+    fillBill(o);
+}
+
+WHEN [GROUP SUM 1 IF CHANGED(paymentTerms(Order o)) OR CHANGED(representative(o)) OR CHANGED(vendorReference(o)) OR CHANGED(vendor(o))
+    OR CHANGED(type(o)) OR CHANGED(company(o)) OR CHANGED(currency(o)) OR CHANGED(dateTime(o)) OR CHANGED(payBeforeDate(o)) BY o](Order o) DO {
+    FOR Bill b = currentBill(o) DO {
+        type(b) <- billType(type(o));
+        company(b) <- company(o);
+        vendor(b) <- vendor(o);
+        vendorReference(b) <- vendorReference(o);
+        note(b) <- CONCAT ' ', 'Счет по заказу', number(o), 'от  ' + date(o), 'поставщик ' + nameVendor(o);
+        currency(b) <- currency(o);
+        paymentTerms(b) <- paymentTerms(o);
+        representative(b) <- representative(o);
+        currency(b) <- currency(o);
+        dateTime(b) <- dateTime(o);
+        dueDateTime(b) <- DATETIME (payBeforeDate(o));
+    }
+}
+
+WHEN DROPPED(OrderLine ol IS OrderLine) AND PREV(billine(ol)) DO {
+    amount(currentBill(PREV(order(ol))), Project p) <- GROUP SUM amount(OrderLine l) IF order(l) == PREV(order(ol)) AND project(l) == p;
+    DELETE PREV(billine(ol));
+}
+
+WHEN DROPPED(OrderFile of IS OrderFile) AND PREV(billFile(of)) DO DELETE PREV(billFile(of));
+
+WHEN DROPPED(Order o IS Order) DO DELETE Bill b WHERE PREV(currentBill(o)) = b;

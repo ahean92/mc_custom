@@ -6,11 +6,16 @@ PRIORITY MasterData;
 
 NAMESPACE ProjectManagement;
 
-hours (Employee e, TimeEntryHours h, DATE dFrom, DATE dTo) = 
-    GROUP SUM hours(TimeEntry te) IF h == timeEntryHours(te) AND NOT date(te) < dFrom AND NOT date(te) > dTo AND employee(te) == e AND 
+fromWorkTime 'с' = DATA TIME (TimeEntry);
+toWorkTime 'по' = DATA TIME (TimeEntry);
+fromBreakTime 'с' = DATA TIME (TimeEntry);
+toBreakTime 'по' = DATA TIME (TimeEntry);
+
+hours (Employee e, TIME from, TIME to, DATE dFrom, DATE dTo) = 
+    GROUP SUM hours(TimeEntry te) IF from == fromWorkTime(te) AND to == toWorkTime(te) AND NOT date(te) < dFrom AND NOT date(te) > dTo AND employee(te) == e AND 
         (project(te) = timesheetProject() OR NOT timesheetProject());
 
-hours 'Hours' (Employee e, TimeEntryHours h, INTERVAL[DATE] dates) = hours(e, h, from(dates), to(dates));
+hours 'Hours' (Employee e, TIME from, TIME to, INTERVAL[DATE] dates) = hours(e, from, to, from(dates), to(dates));
 
 smallPhoto = DATA IMAGEFILE (Employee);
 dataSmallEmployeePhotoSize 'Размер уменьшенного фото сотрудника по горизонтали' = DATA INTEGER () PREREAD;
@@ -35,20 +40,21 @@ DESIGN options {
     }
 }
 
-hours 'Часов' (INTERVAL[DATE] dates, Employee e) = GROUP SUM hours(e, TimeEntryHours h, dates);
+hours 'Часов' (INTERVAL[DATE] dates, Employee e) = GROUP SUM hours(e, TIME from, TIME to, dates);
+timeInterval 'Интервал' (TIME from, TIME to)  = STRING[11] (CONCAT '-', toChar(from, 'HH24:MI'), toChar(to, 'HH24:MI'));
 
 FORM dialogEmployeeTimeEntryHours 'Employee'    
     OBJECTS dates = INTERVAL[DATE] PANEL NULL    
     OBJECTS e = Employee PANEL
     PROPERTIES (e) READONLY lastName, firstName, middleName, smallPhoto, passportInformation, tariff
     PROPERTIES (e) openScanFile
-       
-    OBJECTS h = TimeEntryHours
-    PROPERTIES(h) name
-    PROPERTIES(e, h, dates) hours
-    FILTERS hours(e, h, dates)
+   
+    OBJECTS iTime = (from = TIME, to = TIME)    
+    PROPERTIES READONLY timeInterval(from, to)
+    PROPERTIES(e, from, to, dates) READONLY hours
+    FILTERS hours(e, from, to, dates)
 
-    PROPERTIES (dates, e) READONLY hours DRAW h TOOLBAR
+    PROPERTIES (dates, e) READONLY hours DRAW iTime TOOLBAR
 ;
 
 DESIGN dialogEmployeeTimeEntryHours {
@@ -78,7 +84,7 @@ DESIGN dialogEmployeeTimeEntryHours {
         }
         NEW hours {
             fill = 1;
-            MOVE BOX(h) {
+            MOVE BOX(iTime) {
                 fill = 2; 
                 caption = '';
             } 
@@ -136,49 +142,47 @@ nameWorkplace 'Расположение' () = name(workplace());
 timeEntryHours 'Смена' = DATA LOCAL NESTED TimeEntryHours ();
 nameTimeEntryHours 'Смена' () = name(timeEntryHours());
 
-hours 'Hours' (TIME from, TIME to) = NUMERIC[8,2](extractHour(to) (+) NUMERIC[8,2](extractMinute(to))/60  (-) extractHour(from) (-) NUMERIC[8,2](extractMinute(from))/60);
-
 workInterval 'Интервал работы' = DATA INTERVAL[TIME] (TimeEntry);
 breakInterval 'Интервал перерыва' = DATA INTERVAL[TIME] (TimeEntry);
-
-fromWorkTime 'с' = DATA TIME (TimeEntry);
-toWorkTime 'по' = DATA TIME (TimeEntry);
-fromBreakTime 'с' = DATA TIME (TimeEntry);
-toBreakTime 'по' = DATA TIME (TimeEntry);
 
 dataFromWorkTime 'с' = DATA LOCAL NESTED TIME ();
 dataToWorkTime 'по' = DATA LOCAL NESTED TIME ();
 
-fromWorkTime 'с' = OVERRIDE dataFromWorkTime(), fromWorkTime(timeEntryHours()); 
-toWorkTime 'по' = OVERRIDE dataToWorkTime(), toWorkTime(timeEntryHours());
+//fromWorkTime 'с' = OVERRIDE dataFromWorkTime(), fromWorkTime(timeEntryHours()); 
+//toWorkTime 'по' = OVERRIDE dataToWorkTime(), toWorkTime(timeEntryHours());
 
 dataFromBreakTime 'с' = DATA LOCAL NESTED TIME ();
 dataToBreakTime 'по' = DATA LOCAL NESTED TIME ();
 
 time(STRING time) = TIME(toDateTimeFormat(time,'hh24:mi'));
-//timeFromHours (INTEGER hour) = TIME(toDateTimeFormat(lpad(STRING(hour),2,'0')+'00','HH24MI'));
+dateTime(DATE d, TIME t) = toDateTimeFormat((CONCAT ' ', toChar(d, 'DD.MM.YYYY'), toChar(t, 'hh24:mi')),'DD.MM.YYYY hh24:mi');
 fromBreakTime 'с' () = OVERRIDE dataFromBreakTime(), fromBreakTimeDefault(), time('13:00');
 toBreakTime 'по' () = OVERRIDE dataToBreakTime(), toBreakTimeDefault(), time('14:00');
 
-hoursIntervalSipmple(TIME fromWorkTime, TIME toWorkTime, TIME fromBreakTime, TIME toBreakTime) = CASE
-        WHEN fromWorkTime = toWorkTime THEN NUMERIC[8,2](24.00) (-) hours(fromBreakTime, toBreakTime)
-        WHEN fromWorkTime <= fromBreakTime AND toWorkTime >= toBreakTime THEN hours(fromWorkTime, toWorkTime) (-) hours(fromBreakTime, toBreakTime)
-        WHEN fromWorkTime > fromBreakTime AND fromWorkTime < toBreakTime THEN hours(toBreakTime, toWorkTime)
-        WHEN toWorkTime < toBreakTime AND fromBreakTime < toWorkTime THEN hours(fromWorkTime, fromBreakTime)
+hoursBetweenDates(DATETIME dateFrom, DATETIME dateTo) = NUMERIC[8,2](NUMERIC[8,2](secondsBetweenDates(dateTo, dateFrom))/3600);
+
+hoursInterval(DATETIME fromWorkTime, DATETIME toWorkTime, DATETIME fromBreakTime, DATETIME toBreakTime) = 
+    CASE        
+        WHEN fromWorkTime <= fromBreakTime AND toWorkTime >= toBreakTime THEN hoursBetweenDates(fromWorkTime, toWorkTime) (-) hoursBetweenDates(fromBreakTime, toBreakTime)
+        WHEN fromWorkTime > fromBreakTime AND fromWorkTime < toBreakTime THEN hoursBetweenDates(toBreakTime, toWorkTime)
+        WHEN toWorkTime < toBreakTime AND fromBreakTime < toWorkTime THEN hoursBetweenDates(fromWorkTime, fromBreakTime)
         WHEN toBreakTime < toWorkTime AND fromBreakTime > toWorkTime THEN NULL
-        ELSE hours(fromWorkTime, toWorkTime);
+        ELSE hoursBetweenDates(fromWorkTime, toWorkTime);
 
-hoursInterval(TIME fromWorkTime, TIME toWorkTime, TIME fromBreakTime, TIME toBreakTime) = CASE     
-    WHEN fromWorkTime > toWorkTime THEN hoursIntervalSipmple(fromWorkTime, time('23:59'), fromBreakTime, toBreakTime) + 0.02 (+) (hoursIntervalSipmple(time('00:00'), toWorkTime, fromBreakTime, toBreakTime) IF toWorkTime > time('00:00')) 
-    ELSE hoursIntervalSipmple(fromWorkTime, toWorkTime, fromBreakTime, toBreakTime);
+hoursInterval(DATE d, TIME fromWorkTime, TIME toWorkTime, TIME fromBreakTime, TIME toBreakTime) = CASE
+    WHEN fromWorkTime = toWorkTime THEN 24 (-) hoursBetweenDates(dateTime(d, fromBreakTime), dateTime(d, toBreakTime))
+    WHEN fromWorkTime > toWorkTime THEN 
+        hoursInterval(dateTime(d, fromWorkTime), dateTime(sum(d, 1), time('00:00')), dateTime(d, fromBreakTime), dateTime(d, toBreakTime)) (+)
+        hoursInterval(dateTime(sum(d, 1), time('00:00')), dateTime(sum(d, 1), toWorkTime), dateTime(sum(d, 1), fromBreakTime), dateTime(sum(d, 1), toBreakTime))
+    ELSE hoursInterval(dateTime(d, fromWorkTime), dateTime(d, toWorkTime), dateTime(d, fromBreakTime), dateTime(d, toBreakTime));
 
-hoursInterval(TimeEntry te) = hoursInterval(fromWorkTime(te), toWorkTime(te), fromBreakTime(te), toBreakTime(te));
+hoursInterval(TimeEntry te) = hoursInterval(date(te), fromWorkTime(te), toWorkTime(te), fromBreakTime(te), toBreakTime(te)) IF te IS TimeEntry;
 
-WHEN LOCAL SETCHANGED(fromWorkTime(TimeEntry te)) OR SETCHANGED(toWorkTime(te)) OR SETCHANGED(fromBreakTime(te)) OR SETCHANGED(toBreakTime(te)) DO {
+WHEN LOCAL FORMS timeEntry, timesheetSupervisorDateEmployee SETCHANGED(fromWorkTime(TimeEntry te)) OR SETCHANGED(toWorkTime(te)) OR SETCHANGED(fromBreakTime(te)) OR SETCHANGED(toBreakTime(te)) DO {
     hours(te) <- hoursInterval(te);
 }
 
-hoursInterval 'Hours' () = hoursInterval(fromWorkTime(), toWorkTime(), fromBreakTime(), toBreakTime());
+hoursInterval 'Hours' () = hoursInterval(currentDate(),dataFromWorkTime(), dataToWorkTime(), fromBreakTime(), toBreakTime());
 
 FORM dialogWorkInterval 'Отметка времени'
     OBJECTS d = DATE PANEL
@@ -186,7 +190,7 @@ FORM dialogWorkInterval 'Отметка времени'
     OBJECTS et = TimeEntryType PANEL
 
     PROPERTIES() PANEL
-        nameTimeEntryHours, fromBreakTime, toBreakTime, fromWorkTime, toWorkTime, hoursInterval READONLY, overtimeHours, nameWorkplace
+        nameTimeEntryHours, fromBreakTime, toBreakTime, dataFromWorkTime, dataToWorkTime, hoursInterval READONLY, overtimeHours, nameWorkplace
 ;
 
 DESIGN dialogWorkInterval {
@@ -205,8 +209,8 @@ DESIGN dialogWorkInterval {
                 NEW workInterval {
                     horizontal = TRUE;
                     caption = 'Интервал работы';
-                    MOVE PROPERTY(fromWorkTime());
-                    MOVE PROPERTY(toWorkTime());
+                    MOVE PROPERTY(dataFromWorkTime());
+                    MOVE PROPERTY(dataToWorkTime());
                     MOVE PROPERTY(hoursInterval());
                 }
             }
@@ -214,6 +218,16 @@ DESIGN dialogWorkInterval {
             MOVE PROPERTY(nameWorkplace());         
         }
     }
+}
+
+WHEN LOCAL FORMS dialogWorkInterval SETCHANGED(timeEntryHours()) DO {
+    dataFromWorkTime() <- fromWorkTime(timeEntryHours());
+    dataToWorkTime() <- toWorkTime(timeEntryHours());
+}
+
+WHEN LOCAL FORMS dialogWorkInterval DROPPED(timeEntryHours()) DO {
+    dataFromWorkTime() <- NULL;
+    dataToWorkTime() <- NULL;
 }
 
 timeEntry (DATE d, Employee e, Project p, TimeEntryType et, Workplace w) = GROUP MIN TimeEntry t BY date(t), employee(t), project(t), type(t), workplace(t);
@@ -229,8 +243,8 @@ changeTimesheetHours (DATE d, Employee e, TimeEntryType et, Workplace w, NUMERIC
                     hours(t) <- n;
                     timeEntryHours(t) <- h;
                     workplace(t) <- w;
-                    fromWorkTime(t) <- fromWorkTime();
-                    toWorkTime(t) <- toWorkTime();
+                    fromWorkTime(t) <- dataFromWorkTime();
+                    toWorkTime(t) <- dataToWorkTime();
                     fromBreakTime(t) <- fromBreakTime();
                     toBreakTime(t) <- toBreakTime();
                     overtimeHours(t) <- overtimeHours();
@@ -246,8 +260,8 @@ changeTimesheetHours (DATE d, Employee e, TimeEntryType et, Workplace w, NUMERIC
                     hours(t) <- n;
                     timeEntryHours(t) <- h;
                     workplace(t) <- w;
-                    fromWorkTime(t) <- fromWorkTime();
-                    toWorkTime(t) <- toWorkTime();
+                    fromWorkTime(t) <- dataFromWorkTime();
+                    toWorkTime(t) <- dataToWorkTime();
                     fromBreakTime(t) <- fromBreakTime();
                     toBreakTime(t) <- toBreakTime();
                     overtimeHours(t) <- overtimeHours();
@@ -261,8 +275,8 @@ changeTimesheetHours (DATE d, Employee e, TimeEntryType et, Workplace w, NUMERIC
                     hours(t) <- n;
                     timeEntryHours(t) <- h;
                     workplace(t) <- w;
-                    fromWorkTime(t) <- fromWorkTime();
-                    toWorkTime(t) <- toWorkTime();
+                    fromWorkTime(t) <- dataFromWorkTime();
+                    toWorkTime(t) <- dataToWorkTime();
                     fromBreakTime(t) <- fromBreakTime();
                     toBreakTime(t) <- toBreakTime();
                     overtimeHours(t) <- overtimeHours();
@@ -277,8 +291,8 @@ changeTimesheetHours (DATE d, Employee e, TimeEntryType et, Workplace w, NUMERIC
                     hours(t) <- n;
                     timeEntryHours(t) <- h;
                     workplace(t) <- w;
-                    fromWorkTime(t) <- fromWorkTime();
-                    toWorkTime(t) <- toWorkTime();
+                    fromWorkTime(t) <- dataFromWorkTime();
+                    toWorkTime(t) <- dataToWorkTime();
                     fromBreakTime(t) <- fromBreakTime();
                     toBreakTime(t) <- toBreakTime();
                     overtimeHours(t) <- overtimeHours();
