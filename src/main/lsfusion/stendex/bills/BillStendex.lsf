@@ -501,7 +501,7 @@ backgroundColor(Bill b) += WHEN urgency(b) == Urgency.urgent THEN RGB(237,193,11
 overBackgroundColor (Bill b) = OVERRIDE backgroundColor(b), colorStatus(b);
 
 FORM billDashboard 'Счета на услуги'
-    PROPERTIES() nameFilterProject, nameFilterRepresentative, nameFilterStatus, nameFilterUrgent
+    PROPERTIES() nameFilterProject, nameFilterRepresentative, nameFilterUrgent
 ;
 
 DESIGN billDashboard {
@@ -515,7 +515,6 @@ DESIGN billDashboard {
             horizontal = TRUE;
             MOVE PROPERTY (nameFilterProject());
             MOVE PROPERTY (nameFilterRepresentative());
-            MOVE PROPERTY (nameFilterStatus());
             MOVE PROPERTY (nameFilterUrgent());
             MOVE PROPERTY (formRefresh());
         }
