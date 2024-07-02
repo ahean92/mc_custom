@@ -600,3 +600,25 @@ WHEN DROPPED(OrderLine ol IS OrderLine) AND PREV(billine(ol)) DO {
 WHEN DROPPED(OrderFile of IS OrderFile) AND PREV(billFile(of)) DO DELETE PREV(billFile(of));
 
 WHEN DROPPED(Order o IS Order) DO DELETE Bill b WHERE PREV(currentBill(o)) = b;
+
+EXTEND FORM projectDashboard
+    PROPERTIES reviewLeft 'Left' = GROUP SUM left(Purchase.Order o) IF [FILTER projectDashboard.review](o)
+    PROPERTIES inPaymentToPay 'К оплате' = GROUP SUM toPay(Purchase.Order o) IF [FILTER projectDashboard.inPayment](o)
+;
+
+DESIGN projectDashboard{
+    tab{
+        review{
+            NEW reviewHeaderProps FIRST {
+                alignment = START;
+                MOVE PROPERTY (reviewLeft) {fontStyle = 'bold';};
+            }
+        }
+        inPayment{
+            NEW inPaymentHeaderProps FIRST {
+                alignment = START;
+                MOVE PROPERTY (inPaymentToPay) {fontStyle = 'bold';};
+            }
+        }        
+    }
+}

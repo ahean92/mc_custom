@@ -285,15 +285,23 @@ defaultFilter 'По умолчанию' (Bill b, User u) =
 
 @billDashboardStatus(partiallyPaid, 'Частично оплачен');
 
+approvalLeft() = GROUP SUM left(Bill b) IF [FILTER billDashboard.onApprovalLE](b);
+
 EXTEND FORM billDashboard
     PROPERTIES newLegalEntityBill() DRAW draftLE TOOLBAR
     PROPERTIES newIndividualBill() DRAW draftI TOOLBAR
     
+    PROPERTIES approvalLELeft 'Left' = GROUP SUM left(Bill b) IF [FILTER billDashboard.onApprovalLE](b)
+    PROPERTIES approvalILeft 'Left' = GROUP SUM left(Bill b) IF [FILTER billDashboard.onApprovalI](b)
+
     PROPERTIES(onApprovalLE) left
     PROPERTIES(onApprovalI) left
     
     PROPERTIES(partiallyPaidLE) left, toPay, paidDone
     PROPERTIES(partiallyPaidI) left, toPay, paidDone
+
+    PROPERTIES readyLEToPay 'К оплате' = GROUP SUM toPay(Bill b) IF [FILTER billDashboard.readyLE](b)
+    PROPERTIES readyIToPay 'К оплате' = GROUP SUM toPay(Bill b) IF [FILTER billDashboard.readyI](b)
     
     PROPERTIES(readyLE) left, toPay, paidDone
     PROPERTIES(readyI) left, toPay, paidDone
@@ -301,6 +309,48 @@ EXTEND FORM billDashboard
     PROPERTIES(doneLE) left, toPay, paidDone
     PROPERTIES(doneI) left, toPay, paidDone
 ;
+
+DESIGN billDashboard{
+    tab {
+        onApproval {
+            onApprovalLE {
+                onApprovalLEHeader {
+                    NEW onApprovalLEHeaderProps FIRST {
+                        alignment = START;
+                        MOVE PROPERTY (approvalLELeft) {fontStyle = 'bold';};
+                    }
+                }
+            }
+            onApprovalI {
+                onApprovalIHeader {
+                    NEW onApprovalIHeaderProps FIRST {
+                        alignment = START;
+                        MOVE PROPERTY (approvalILeft) {fontStyle = 'bold';};
+                    }
+                }
+            }
+        }
+
+        ready {
+            readyLE {
+                readyLEHeader {
+                    NEW readyLEHeaderProps FIRST{
+                        alignment = START;
+                        MOVE PROPERTY (readyLEToPay) {fontStyle = 'bold';};
+                    }
+                }
+            }
+            
+            readyI {
+                readyIHeader {
+                    NEW readyIHeaderProps FIRST{
+                        MOVE PROPERTY (readyIToPay) {fontStyle = 'bold';};
+                    }
+                }
+            }
+        }
+    }
+}
 
 EXTEND FORM billDashboard
     PROPERTIES openBillPaymentOrder(partiallyPaidLE) GRID AFTER openFilesInvoice(partiallyPaidLE)
