@@ -1,0 +1,44 @@
+MODULE BillClosedStendex;
+
+REQUIRE BillCanceled;
+
+NAMESPACE Invoicing;
+
+EXTEND CLASS BillStatus {
+    closed 'Закрыт'
+}
+closed 'Закрыт' = DATA BOOLEAN (Bill);
+
+status(Bill b) += WHEN closed(b) THEN BillStatus.closed;
+color(BillStatus b) += WHEN b = BillStatus.closed THEN RGB(255,200,216);
+
+close 'Закрыть' (Bill b) {
+    APPLY;
+    IF canceled() THEN RETURN;
+
+    NEWSESSION {
+        closed(b) <- TRUE;
+        APPLY;
+    }
+}
+
+EXTEND FORM bill
+    PROPERTIES(b) close SHOWIF NOT (status(b) = BillStatus.closed), closed
+;
+
+DESIGN bill {
+    secondaryActions {
+        MOVE PROPERTY(close(b)) { valueClass = 'btn-danger'; }
+    }
+    status {
+        MOVE PROPERTY(closed(b));
+    }
+}
+
+EXTEND FORM bills
+    EXTEND FILTERGROUP status
+        FILTER 'Закрыт' status(b) = BillStatus.closed
+;
+
+@defineSelectionAction(bills, Bill, close, 'Закрыть', statuses);
+

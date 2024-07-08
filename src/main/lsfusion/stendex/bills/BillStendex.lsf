@@ -1,6 +1,6 @@
 MODULE BillStendex;
 
-REQUIRE BillDone, BillCanceled, ProjectBill, ServiceP, UtilsStendex, EmployeeStendex, PartnerStendex;
+REQUIRE BillDone, BillCanceled, ProjectBill, ServiceP, UtilsStendex, EmployeeStendex, PartnerStendex, BillClosedStendex;
 
 NAMESPACE Invoicing;
 
@@ -393,6 +393,7 @@ CLASS TypeFile{
     paymentOrder 'Платежное поручение',
     invoice 'Счет',
     receipt 'Чек на оплату',
+    closingDocument 'Закрывающиий документ',
     other 'Другое'
 }
 lockChangeType = DATA BOOLEAN (BillFile);
@@ -435,9 +436,20 @@ uploadPaymentOrder 'Платежное поручение' (Bill b){
     }
 } IMAGE 'add.png';
 
+uploadClosingDocument 'Закрывающиий документ' (Bill b){
+    INPUT uf = NAMEDFILE DO NEW uof = BillFile {
+        bill(uof) <- b;
+        file(uof) <- RAWFILE(uf);
+        name(uof) <- name(uf);
+        extension(uof) <- extension(uf);
+        type(uof) <- TypeFile.closingDocument;
+        lockChangeType(uof) <- TRUE;
+    }
+} IMAGE 'add.png';
 
 countPaymentOrders(Bill b) = GROUP SUM 1 IF type(BillFile f) = TypeFile.paymentOrder AND bill(f) = b;
 countInvoices(Bill b) = GROUP SUM 1 IF type(BillFile f) = TypeFile.invoice AND bill(f) = b;
+countClosingDocuments(Bill b) = GROUP SUM 1 IF type(BillFile f) = TypeFile.closingDocument AND bill(f) = b;
 
 CONSTRAINT SETCHANGED (status(Bill b)) AND status(b) = BillStatus.ready AND NOT countInvoices(b)
     MESSAGE 'Для перевода в статус "К оплате" необходимо прикрепить счет!';
@@ -445,9 +457,12 @@ CONSTRAINT SETCHANGED (status(Bill b)) AND status(b) = BillStatus.ready AND NOT 
 CONSTRAINT SETCHANGED (status(Bill b)) AND status(b) = BillStatus.done AND NOT countPaymentOrders(b)
     MESSAGE 'Для перевода в статус "Оплачено" необходимо прикрепить платежное поручение!';
 
+CONSTRAINT SETCHANGED (status(Bill b)) AND status(b) = BillStatus.closed AND NOT countClosingDocuments(b)
+    MESSAGE 'Для перевода в статус "Закрыт" необходимо прикрепить закрывающий документ!';
 
 EXTEND FORM billCustom
-    PROPERTIES TOOLBAR DRAW of uploadInvoice(b) READONLYIF readonly(b), uploadPaymentOrder(b) SHOWIF status(b) != BillStatus.draft
+    PROPERTIES TOOLBAR DRAW of uploadInvoice(b) READONLYIF readonly(b), uploadPaymentOrder(b) SHOWIF status(b) != BillStatus.draft,
+        uploadClosingDocument(b) SHOWIF status(b) != BillStatus.closed
     PROPERTIES nameType(of) FIRST READONLYIF lockChangeType(of) OR readonly(b)
 ;
 
@@ -553,10 +568,19 @@ changeStatus (Bill b, BillStatus s) +{
     }
 }
 
+changeStatus (Bill b, BillStatus s) +{
+    IF s = BillStatus.closed THEN  NEWSESSION {
+        dataStatus(b) <- s;
+        APPLY;
+    }
+}
+
 showStatusRule = ABSTRACT CASE BOOLEAN (Bill, BillStatus);
 showStatusRule(Bill b, BillStatus s) += WHEN status(b) = BillStatus.draft AND s = BillStatus.canceled THEN TRUE;
 showStatusRule(Bill b, BillStatus s) += WHEN status(b) = BillStatus.onApproval AND s = BillStatus.canceled THEN TRUE;
 showStatusRule(Bill b, BillStatus s) += WHEN status(b) = BillStatus.ready AND s = BillStatus.canceled THEN TRUE;
+
+showStatusRule(Bill b, BillStatus s) += WHEN s = BillStatus.closed AND countClosingDocuments(b) AND NOT status(b) = BillStatus.closed THEN TRUE;
 showStatus (Bill b, BillStatus s) = showStatusRule(b, s);
 
 changePrevStatus ABSTRACT LIST (Bill, BillStatus);
@@ -571,6 +595,8 @@ prevStatus (Bill b) = GROUP LAST BillStatus s IF dateTime(b,s) < dateTime(b,stat
 showPrevStatus (Bill b, BillStatus s) = prevStatus(b) == s AND allowPrevStatusSetBill(currentUser()) AND NOT hidePrevStatusRule(s);
 
 EXTEND FORM billCustom
+    PROPERTIES(b) nameRepresentative
+    
     OBJECTS bs = BillStatus
     PROPERTIES (b, bs) changeToPrevStatus COLUMNS (bs) HEADER (captionButton(bs) + '(возврат)') SHOWIF countBillLine(b)
     FILTERS showPrevStatus(b, bs)
@@ -581,11 +607,26 @@ EXTEND FORM billCustom
 ;
 
 DESIGN billCustom{
+    headerLeft {
+        MOVE PROPERTY(nameRepresentative(b)) { fontSize = 24; }
+    }
+    
     statusPane{
         statusActions {
             MOVE PROPERTY (changeToPrevStatus(b, bs));
             MOVE PROPERTY (changeStatus(b, s));
         }
+    }
+}
+
+WHEN SETCHANGED(representative(Bill b)) AND NOT disableHistory() DO {
+    NEW l = BillHistory {
+        bill(l) <- b;
+        dateTime(l) <- currentDateTime();
+        user(l) <- currentUser();
+        computer(l) <- currentComputer();
+        type(l) <- 'Изменен наш представитель';
+        description (l) <- 'Изменен наш представитель на' + ' ' + nameRepresentative(b);
     }
 }
 
@@ -717,7 +758,7 @@ END
 @billDashboardStatus(ready, 'К оплате');
 @billDashboardStatus(done, 'Оплачено');
 @billDashboardStatus(canceled, 'Отменен');
-
+@billDashboardStatus(closed, 'Закрыт');
 countBillPaymentOrders 'Кол-во платёжных поручений' (Bill i) = GROUP SUM 1 IF bill(BillFile bf) = i AND type(bf) = TypeFile.paymentOrder;
 
 paymentOrder 'ПП' (Bill i) = GROUP MAX BillFile bf IF bill(bf) = i AND type(bf) = TypeFile.paymentOrder;
