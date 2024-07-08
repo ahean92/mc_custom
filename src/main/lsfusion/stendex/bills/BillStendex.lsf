@@ -572,7 +572,7 @@ showPrevStatus (Bill b, BillStatus s) = prevStatus(b) == s AND allowPrevStatusSe
 
 EXTEND FORM billCustom
     OBJECTS bs = BillStatus
-    PROPERTIES (b, bs) changeToPrevStatus COLUMNS (bs) HEADER captionButton(bs) SHOWIF countBillLine(b)
+    PROPERTIES (b, bs) changeToPrevStatus COLUMNS (bs) HEADER (captionButton(bs) + '(возврат)') SHOWIF countBillLine(b)
     FILTERS showPrevStatus(b, bs)
 
     OBJECTS s = BillStatus
@@ -627,7 +627,7 @@ META billDashboardStatus(st, capt)
         ORDERS st##LE##Order DESC
 
         OBJECTS bs##st##LE = BillStatus
-        PROPERTIES (st##LE, bs##st##LE) changeToPrevStatus COLUMNS (bs##st##LE) HEADER captionButton(bs##st##LE) SHOWIF countBillLine(st##LE)
+        PROPERTIES (st##LE, bs##st##LE) changeToPrevStatus COLUMNS (bs##st##LE) HEADER (captionButton(bs##st##LE) + '(возврат)') SHOWIF countBillLine(st##LE)
         FILTERS showPrevStatus(st##LE, bs##st##LE)
 
         OBJECTS s##st##LE = BillStatus
@@ -651,7 +651,7 @@ META billDashboardStatus(st, capt)
         ORDERS st##I##Order DESC
 
         OBJECTS bs##st##I = BillStatus
-        PROPERTIES (st##I, bs##st##I) changeToPrevStatus COLUMNS (bs##st##I) HEADER captionButton(bs##st##I) SHOWIF countBillLine(st##I)
+        PROPERTIES (st##I, bs##st##I) changeToPrevStatus COLUMNS (bs##st##I) HEADER (captionButton(bs##st##I) + '(возврат)') SHOWIF countBillLine(st##I)
         FILTERS showPrevStatus(st##I, bs##st##I)
 
         OBJECTS s##st##I = BillStatus
