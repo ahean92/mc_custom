@@ -6,11 +6,6 @@ NAMESPACE MasterData;
 
 isOrganizer 'Организатор' = DATA BOOLEAN (Partner);
 
-WHEN SET(isOrganizer(Partner p)) DO {
-    isVendor(p) <- NULL;
-    isCustomer(p) <- NULL;
-}
-
 EXTEND FORM partners
     PROPERTIES(p) READONLYIF isReadonly() isOrganizer
 ;
@@ -28,7 +23,7 @@ DESIGN partner {
 codeName 'Кодовое название' = DATA ISTRING[50] (Partner) CHARWIDTH 15;
 overName '{Name}' (Partner p) = OVERRIDE codeName(p), overName[Individual](p), name(p) CHARWIDTH 15;
 
-partnerByAnyName(STRING s) = GROUP MIN Partner p IF NOT p IS Contact AND (s == name(p) OR s == fullName(p) OR s == codeName(p));
+partnerByAnyName(STRING s) = GROUP MIN Partner p IF p IS Partner AND NOT p IS Contact AND (s == name(p) OR s == fullName(p) OR s == codeName(p));
 anyNamePartner(STRING anyNamePartner) = anyNamePartner IF partnerByAnyName(anyNamePartner);
 
 EXTEND FORM partner
