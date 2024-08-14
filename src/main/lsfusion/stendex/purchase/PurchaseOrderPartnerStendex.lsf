@@ -1,0 +1,21 @@
+MODULE PurchaseOrderPartnerStendex;
+
+REQUIRE PurchaseOrder;
+
+NAMESPACE Purchase;
+
+EXTEND FORM partner
+    OBJECTS pl = Order
+    PROPERTIES(pl) READONLY number, dateTime, imagedNameStatus BACKGROUND colorStatus(pl), scheduledDateTime, nameLocation
+    PROPERTIES(pl) READONLY untaxedAmount, taxAmount, amount
+    PROPERTIES(pl) NEWSESSION EDIT
+    FILTERS vendor(pl) = p
+;
+
+countOrders (Partner p) = GROUP SUM 1 IF vendor(Order o) = p;
+
+DESIGN partner {
+    tabs {
+        MOVE BOX(pl) { caption = badged('Orders', countOrders(p)); }
+    }
+}

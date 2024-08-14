@@ -14,11 +14,11 @@ WHEN LOCAL (SETCHANGED(amount(Bill b, Project p)) OR DROPCHANGED(amount(b, p))) 
 overFillAmountProjects (Bill b) + {
     IF order(b) THEN {
         FOR in(b, Project p) DO {
-            amount(b,p) <- GROUP SUM amount(OrderLine l) IF order(l) = order(b) AND project(l) == p;
+            amount(b, p) <- GROUP SUM amount(OrderLine l) IF order(l) = order(b) AND project(l) == p;
         }
     } ELSE {
-        FOR Project p == (GROUP MAX Project pp IF in(b,pp)) DO {
-            amount(b,p) <- amount(b);
+        FOR Project p == (GROUP MAX Project pp IF in(b, pp)) DO {
+            amount(b, p) <- amount(b);
         }
     }
 }
@@ -92,7 +92,6 @@ DESIGN bill {
         MOVE PROPERTY(numberOrder(b));
     }
 }
-
 
 EXTEND FORM bills
     PROPERTIES(b) READONLY numberOrder
@@ -259,7 +258,7 @@ EXTEND FORM Purchase.order
 ;
 
 DESIGN Purchase.order {
-    details  {
+    details {
         MOVE BOX(bi) {
             caption = badged('Bills', countBills(o));
         }
@@ -335,7 +334,6 @@ END;
 @dashboardActionPayment(review);
 @dashboardActionPayment(inPayment);
 @dashboardActionPayment(partiallyPaid);
-
 
 WHEN (SETCHANGED(lastBill(Purchase.Order o)) OR SETCHANGED(status(lastBill(o)))) AND status(lastBill(o)) == BillStatus.ready
     DO changeStatus(o, OrderStatus.inPayment);
@@ -619,6 +617,20 @@ DESIGN projectDashboard{
                 alignment = START;
                 MOVE PROPERTY (inPaymentToPay) {fontStyle = 'bold';};
             }
-        }        
+        }
+    }
+}
+
+EXTEND FORM partner
+    OBJECTS b = Bill
+    PROPERTIES(b) READONLY number, dateTime, imagedNameStatus, nameType, dueDateTime, note, untaxedAmount, taxAmount, amount, paid
+    PROPERTIES(b) NEWSESSION EDIT
+    FILTERS vendor(b) = p
+;
+
+DESIGN partner {
+    tabs {
+        REMOVE BOX (a);
+        MOVE BOX (b) { caption = 'Счета'; }
     }
 }

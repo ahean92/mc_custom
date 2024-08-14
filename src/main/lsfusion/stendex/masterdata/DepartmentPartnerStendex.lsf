@@ -10,7 +10,7 @@ EXTEND FORM partner
 
 DESIGN partner {
     tabs {
-        MOVE BOX(ad) LAST { 
+        MOVE BOX(ad) { 
             caption = badged('Склады', countDepartment(p)); 
             PROPERTY (name(ad)) {hide = TRUE;};
             PROPERTY (city(ad)) {hide = TRUE;};
