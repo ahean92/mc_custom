@@ -45,6 +45,8 @@ REQUIRE Eval, ProcessMonitor, Backup,
 
         ExhibitionReport,
 
+        TaskWorkflow, TaskKanban,
+    
         WorkplaceStendex,
         TimeEntryStendex;
 
