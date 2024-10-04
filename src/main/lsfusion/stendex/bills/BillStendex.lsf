@@ -68,7 +68,7 @@ fillAmountProjects 'Расписать по проектам' (Bill b) {
 }
 
 EXTEND FORM bill
-    PROPERTIES (b) READONLY nameProjects
+    PROPERTIES (b) READONLY nameProjects ON CHANGE changeBillProjects(b)
     
     OBJECTS p = Project
     PROPERTIES(p) READONLY number, startDate, endDate, namePartner, nameType, name, nameCompany
