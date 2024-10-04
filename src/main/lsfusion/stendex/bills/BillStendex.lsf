@@ -68,7 +68,7 @@ fillAmountProjects 'Расписать по проектам' (Bill b) {
 }
 
 EXTEND FORM bill
-    PROPERTIES (b) READONLY nameProjects ON CHANGE changeBillProjects(b)
+    PROPERTIES (b) READONLY nameProjects
     
     OBJECTS p = Project
     PROPERTIES(p) READONLY number, startDate, endDate, namePartner, nameType, name, nameCompany
@@ -315,7 +315,9 @@ FORM billCustom 'Счет'
                   imagedNameStatus,
                   'Услуга' = items ON CHANGE changeItems(b),
                   nameCompany,
-                  nameProjects READONLY,
+                  nameProjects ON CHANGE {
+                      IF NOT readonly(b) THEN changeBillProjects(b);
+                  },
                   overNameVendor ON CHANGE {
                       INPUT ss = anyNamePartner(anyNamePartner) DO
                           vendor(b) <- partnerByAnyName(ss);
