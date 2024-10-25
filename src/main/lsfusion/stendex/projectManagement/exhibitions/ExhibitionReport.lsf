@@ -200,3 +200,7 @@ DESIGN exhibitionReport {
     }
 }
 comp = FORMULA INTEGER '$1 % $2';
+
+EXTEND FORM exhibitionReport
+    PROPERTIES 'Project' = name(p1) FIRST
+;

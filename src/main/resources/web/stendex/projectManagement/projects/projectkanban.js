@@ -85,7 +85,7 @@ function projectKanban() {
                         let projectHeader = document.createElement("li");
                         projectHeader.classList.add("project-kanban-card-header");
                         projectHeader.classList.add("list-group-item");
-                        projectHeader.innerHTML = "<div><b>" + (project.namePartner ? project.namePartner : "") + "</b></div>" + (project.budget ? project.budget : "");
+                        projectHeader.innerHTML = "<div><b>" + (project.nameExhibition ? project.nameExhibition : "") + "</b></div>" + (project.budget ? project.budget : "");
                         projectContent.appendChild(projectHeader);
 
                         let projectDates = document.createElement("li");
@@ -97,13 +97,13 @@ function projectKanban() {
                                                  (project.runDate ? ("<div class=\"text-secondary\">Дата проведения</div>" + "<div>" + project.runDate + "</div>") : "");
                         projectContent.appendChild(projectDates);
 
-                        if (project.nameExhibition) {
+                         if (project.namePartner) {
                             let projectType = document.createElement("li");
-                            projectType.classList.add("project-kanban-card-exhibition");
+                            projectType.classList.add("project-kanban-card-partner");
                             projectType.classList.add("list-group-item");
-                            projectType.innerHTML = project.nameExhibition;
+                            projectType.innerHTML = project.namePartner;
                             projectContent.appendChild(projectType);
-                        }
+                         }
                         if (project.nameManager) {
                             let projectType = document.createElement("li");
                             projectType.classList.add("project-kanban-card-manager");
