@@ -18,10 +18,8 @@ DESIGN project {
 
 EXTEND FORM projects
     PROPERTIES(p) READONLYIF isReadonly() overNameManager AFTER nameManager(p)
-
-    PROPERTIES order 'Порядок' = VALUE(p)
-    ORDERS order DESC
 ;
+
 DESIGN projects {
     PROPERTY(nameManager(p)) { showIf = NULL; }
 }
@@ -302,18 +300,18 @@ META defineProjectHistoryAttr(attr, name, caption)
     }
 END
 
-@defineProjectHistoryAttr(type,nameType,'Изменен тип');
-@defineProjectHistoryAttr(number,number,'Изменен номер');
-@defineProjectHistoryAttr(name,name,'Изменено имя');
-@defineProjectHistoryAttr(partner,namePartner,'Изменен клиент');
-@defineProjectHistoryAttr(exhibition,nameExhibition,'Изменена выставка');
-@defineProjectHistoryAttr(standType,nameStandType,'Изменен тип стенда');
-@defineProjectHistoryAttr(designer,nameDesigner,'Изменен дизайнер');
-@defineProjectHistoryAttr(status,nameStatus,'Изменен статус');
-@defineProjectHistoryAttr(company,nameCompany,'Изменена компания');
-@defineProjectHistoryAttr(manager,overNameManager,'Изменен менеджер');
-@defineProjectHistoryAttr(length,length,'Изменена длина, м');
-@defineProjectHistoryAttr(width,width,'Изменена ширина, м');
+@defineProjectHistoryAttr(type, nameType, 'Изменен тип');
+@defineProjectHistoryAttr(number, number, 'Изменен номер');
+@defineProjectHistoryAttr(name, name, 'Изменено имя');
+@defineProjectHistoryAttr(partner, namePartner, 'Изменен клиент');
+@defineProjectHistoryAttr(exhibition, nameExhibition, 'Изменена выставка');
+@defineProjectHistoryAttr(standType, nameStandType, 'Изменен тип стенда');
+@defineProjectHistoryAttr(designer, nameDesigner, 'Изменен дизайнер');
+@defineProjectHistoryAttr(status, nameStatus, 'Изменен статус');
+@defineProjectHistoryAttr(company, nameCompany, 'Изменена компания');
+@defineProjectHistoryAttr(manager, overNameManager, 'Изменен менеджер');
+@defineProjectHistoryAttr(length, length, 'Изменена длина, м');
+@defineProjectHistoryAttr(width, width, 'Изменена ширина, м');
 WHEN SET(upstairs(Project p)) AND NOT disableHistory() DO {
     NEW l = ProjectHistory {
         project(l) <- p;
@@ -334,9 +332,26 @@ WHEN DROPPED(upstairs(Project p)) AND NOT disableHistory() DO {
         description (l) <- 'Сброшен признак второй этаж';
     }
 }
-@defineProjectHistoryAttr(lengthUpstairs,lengthUpstairs,'Изменена длина(второй этаж), м');
-@defineProjectHistoryAttr(widthUpstairs,widthUpstairs,'Изменена ширина(второй этаж), м');
-
+@defineProjectHistoryAttr(lengthUpstairs, lengthUpstairs, 'Изменена длина(второй этаж), м');
+@defineProjectHistoryAttr(widthUpstairs, widthUpstairs, 'Изменена ширина(второй этаж), м');
 
 @defineDocHistoryForm(project, project, p);
 
+inner 'Внутренний' = DATA BOOLEAN (ProjectType) CHARWIDTH 10;
+inner 'Внутренний' (Project p) = inner(type(p));
+
+EXTEND FORM options
+    PROPERTIES (pt) inner
+;
+
+EXTEND FORM projects
+    PROPERTIES (p) inner
+    ORDERS inner(p) DESC
+;
+
+EXTEND FORM dialogProjects
+    PROPERTIES (p) inner
+    ORDERS inner(p) DESC
+;
+
+DESIGN dialogProjects { PROPERTY (inner(p)) { hide = TRUE; } }

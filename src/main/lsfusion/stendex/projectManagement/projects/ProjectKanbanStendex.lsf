@@ -1,6 +1,6 @@
 MODULE ProjectKanbanStendex;
 
-REQUIRE Project, ProjectDashboardStendex, ProjectExhibition;
+REQUIRE Project, ProjectDashboardStendex, ProjectExhibition, ProjectStendex;
 
 PRIORITY MasterData;
 
@@ -99,3 +99,7 @@ DESIGN projects {
     }
     rightPane { showIf = projectFilters(); }
 }
+
+EXTEND FORM projects
+    FILTERS NOT inner(type(pp))
+;
