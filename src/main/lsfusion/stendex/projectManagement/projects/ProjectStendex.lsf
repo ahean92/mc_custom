@@ -340,18 +340,20 @@ WHEN DROPPED(upstairs(Project p)) AND NOT disableHistory() DO {
 inner 'Внутренний' = DATA BOOLEAN (ProjectType) CHARWIDTH 10;
 inner 'Внутренний' (Project p) = inner(type(p));
 
+order (Project p) = IF inner(p) THEN 1 ELSE 2;
+
 EXTEND FORM options
     PROPERTIES (pt) inner
 ;
 
 EXTEND FORM projects
-    PROPERTIES (p) inner ORDER
-//    ORDERS inner(p) DESC
+    PROPERTIES (p) inner, order SHOWIF NULL
+    ORDERS order(p)
 ;
 
 EXTEND FORM dialogProjects
-    PROPERTIES (p) inner ORDER
-//    ORDERS inner(p) DESC
+    PROPERTIES (p) inner, order SHOWIF NULL
+    ORDERS order(p) 
 ;
 
 DESIGN dialogProjects { PROPERTY (inner(p)) { hide = TRUE; } }
