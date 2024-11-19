@@ -345,13 +345,13 @@ EXTEND FORM options
 ;
 
 EXTEND FORM projects
-    PROPERTIES (p) inner
-    ORDERS inner(p) DESC
+    PROPERTIES (p) inner ORDER
+//    ORDERS inner(p) DESC
 ;
 
 EXTEND FORM dialogProjects
-    PROPERTIES (p) inner
-    ORDERS inner(p) DESC
+    PROPERTIES (p) inner ORDER
+//    ORDERS inner(p) DESC
 ;
 
 DESIGN dialogProjects { PROPERTY (inner(p)) { hide = TRUE; } }
