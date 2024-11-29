@@ -49,11 +49,12 @@ EXTEND FORM project
     PROPERTIES READONLYIF readonly(p) newLegalEntityBill(p) DRAW bl TOOLBAR
     PROPERTIES READONLYIF readonly(p) newIndividualBill(p) DRAW bl TOOLBAR
     PROPERTIES(bl) READONLYIF readonly(p) NEWSESSION editBillCustom, DELETE
-    FILTERS legalEntity(bl) OR individual(bl), in(bl,p), billService(type(bl)), NOT canceled(bl)   
+    FILTERS legalEntity(bl) OR individual(bl), in(bl,p), billService(type(bl)) 
+    FILTERS NOT status(bl) = BillStatus.canceled
 ;
 
-countBillsProject 'Bills' (Project p) = GROUP SUM 1 IF in(Bill b, p);
-countBillsStendex 'Bills' (Project p) = GROUP SUM 1 IF in(Bill b, p) AND billService(type(b));
+countBillsProject 'Bills' (Project p) = GROUP SUM 1 IF in(Bill b, p) AND NOT status(b) = BillStatus.canceled;
+countBillsStendex 'Bills' (Project p) = GROUP SUM 1 IF in(Bill b, p) AND billService(type(b)) AND NOT status(b) = BillStatus.canceled;
 
 DESIGN project {
     details {
