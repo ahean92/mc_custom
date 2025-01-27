@@ -13,10 +13,11 @@ nameEmployeeToNotify 'Кого уведомить' (TaskNotification tn) = name[
 dateTimeNotification 'Дата и время' = DATA DATETIME (TaskNotification) CHARWIDTH 15;
 countNotifications(Task t) = GROUP SUM 1 IF task(TaskNotification tn) = t;
 notificationSent 'Отправлено' = DATA BOOLEAN (TaskNotification) CHARWIDTH 10;
+note 'Примечание' = DATA STRING (TaskNotification) CHARWIDTH 20;
 
 EXTEND FORM task
     OBJECTS tn = TaskNotification
-    PROPERTIES(tn) DISABLEIF notificationSent(tn) nameEmployeeToNotify, dateTimeNotification, notificationSent READONLY
+    PROPERTIES(tn) DISABLEIF notificationSent(tn) nameEmployeeToNotify, dateTimeNotification, note, notificationSent READONLY
     PROPERTIES(tn) NEW, DELETE
     FILTERS task(tn) = t
 ;
@@ -27,8 +28,11 @@ DESIGN task {
     }
 }
 
-notificationMessage (TaskNotification tn) = 'Уведомление: задача\n\n' + CONCAT ', ', 'Название: ' + name(task(tn)),
-    'проект: ' + nameProject(task(tn)), 'приоритет: ' + namePriority(task(tn)), 'дедлайн: ' + toChar(deadline(task(tn)), 'dd.mm.yyyy hh:mm');
+notificationMessage (TaskNotification tn) = JSON FROM title = ('Напоминание по задаче ' + name(task(tn))), 
+    options = JSON FROM 
+        body = OVERRIDE note(tn), (CONCAT ', ', 'Исполнитель: ' + nameAssignedTo(task(tn)), 'проект: ' + nameProject(task(tn)), 'приоритет: ' + namePriority(task(tn)), 
+            'дедлайн: ' + toChar(deadline(task(tn)), 'dd.mm.yyyy hh:mm'))
+;
 
 WHEN LOCAL FORMS task SET (TaskNotification tn IS TaskNotification) DO {
     employeeToNotify(tn) <- assignedTo(task(tn));
@@ -42,7 +46,7 @@ notifyUsers () {
                 NEWTHREAD {
                     SHOW task OBJECTS t = task(tn) DOCKED NOWAIT;
                 } TO exportInteger;
-                pushNotify(pushConnection(employeeToNotify(tn)), notificationMessage(tn), exportInteger());
+                pushNotify(pushConnection(employeeToNotify(tn)), notificationMessage(tn),  action(exportInteger()));
             }
             notificationSent(tn) <- TRUE;
             APPLY;
@@ -52,7 +56,7 @@ notifyUsers () {
                     NEWTHREAD {
                         SHOW task OBJECTS t = task(tn) DOCKED NOWAIT;
                     } TO exportInteger;
-                    pushNotify(pushConnection(employeeToNotify(tn)), notificationMessage(tn), exportInteger());
+                    pushNotify(pushConnection(employeeToNotify(tn)), notificationMessage(tn), action(exportInteger()));
                 }
                 notificationSent(tn) <- TRUE;
                 APPLY;
@@ -66,7 +70,7 @@ FORM taskNotifications 'Журнал уведомлений'
     PROPERTIES valFrom = VALUE (from), valTo = VALUE (to)
 
     OBJECTS tn = TaskNotification LAST
-    PROPERTIES(tn) 'Имя пользователя' = nameEmployeeToNotify, 'Дата и время уведомления' = dateTimeNotification
+    PROPERTIES(tn) READONLY 'Имя пользователя' = nameEmployeeToNotify, note, 'Дата и время уведомления' = dateTimeNotification
     FILTERS notificationSent(tn)
     FILTERS dateTimeNotification(tn) >= from AND dateTimeNotification(tn) <= to
     EVENTS
