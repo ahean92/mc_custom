@@ -1,0 +1,82 @@
+MODULE TaskNotificationStendex;
+
+REQUIRE ProjectTask;
+
+NAMESPACE ProjectManagement;
+
+CLASS TaskNotification 'Уведомления о задачах';
+
+task = DATA Task (TaskNotification);
+
+employeeToNotify = DATA Employee(TaskNotification);
+nameEmployeeToNotify 'Кого уведомить' (TaskNotification tn) = name[CustomUser](employeeToNotify(tn));
+dateTimeNotification 'Дата и время' = DATA DATETIME (TaskNotification) CHARWIDTH 15;
+countNotifications(Task t) = GROUP SUM 1 IF task(TaskNotification tn) = t;
+notificationSent 'Отправлено' = DATA BOOLEAN (TaskNotification) CHARWIDTH 10;
+
+EXTEND FORM task
+    OBJECTS tn = TaskNotification
+    PROPERTIES(tn) DISABLEIF notificationSent(tn) nameEmployeeToNotify, dateTimeNotification, notificationSent READONLY
+    PROPERTIES(tn) NEW, DELETE
+    FILTERS task(tn) = t
+;
+
+DESIGN task {
+    details {
+        MOVE BOX (tn) { caption = 'Уведомления'; }
+    }
+}
+
+notificationMessage (TaskNotification tn) = 'Уведомление: задача\n\n' + CONCAT ', ', 'Название: ' + name(task(tn)),
+    'проект: ' + nameProject(task(tn)), 'приоритет: ' + namePriority(task(tn)), 'дедлайн: ' + toChar(deadline(task(tn)), 'dd.mm.yyyy hh:mm');
+
+WHEN LOCAL FORMS task SET (TaskNotification tn IS TaskNotification) DO {
+    employeeToNotify(tn) <- assignedTo(task(tn));
+    dateTimeNotification(tn) <- currentDateTime();
+}
+
+notifyUsers () {
+    FOR Connection c IS Connection AND connectionStatus(c) = ConnectionStatus.connectedConnection DO {
+        FOR TaskNotification tn IS TaskNotification AND user(c) = employeeToNotify(tn) AND currentDateTime() = dateTimeNotification(tn) AND NOT notificationSent(tn) DO {
+            IF pushConnection(employeeToNotify(tn)) THEN {
+                NEWTHREAD {
+                    SHOW task OBJECTS t = task(tn) DOCKED NOWAIT;
+                } TO exportInteger;
+                pushNotify(pushConnection(employeeToNotify(tn)), notificationMessage(tn), exportInteger());
+            }
+            notificationSent(tn) <- TRUE;
+            APPLY;
+        } ELSE {
+            FOR TaskNotification tn IS TaskNotification AND user(c) = employeeToNotify(tn) AND currentDateTime() > dateTimeNotification(tn) AND NOT notificationSent(tn) DO {
+                IF pushConnection(employeeToNotify(tn)) THEN {
+                    NEWTHREAD {
+                        SHOW task OBJECTS t = task(tn) DOCKED NOWAIT;
+                    } TO exportInteger;
+                    pushNotify(pushConnection(employeeToNotify(tn)), notificationMessage(tn), exportInteger());
+                }
+                notificationSent(tn) <- TRUE;
+                APPLY;
+            }
+        }
+    }
+}
+
+FORM taskNotifications 'Журнал уведомлений'
+    OBJECTS dates = (from = DATETIME, to = DATETIME ) PANEL
+    PROPERTIES valFrom = VALUE (from), valTo = VALUE (to)
+
+    OBJECTS tn = TaskNotification LAST
+    PROPERTIES(tn) 'Имя пользователя' = nameEmployeeToNotify, 'Дата и время уведомления' = dateTimeNotification
+    FILTERS notificationSent(tn)
+    FILTERS dateTimeNotification(tn) >= from AND dateTimeNotification(tn) <= to
+    EVENTS
+        ON INIT {
+            SEEK taskNotifications.dates OBJECTS from = dateTimeToDateTime(currentDate(), 00:00), to = currentDateTime();
+        }
+;
+
+NAVIGATOR {
+    logs {
+        NEW taskNotifications;
+    }
+}

@@ -48,7 +48,7 @@ REQUIRE Eval, ProcessMonitor, Backup,
         TaskWorkflow, TaskKanban,
     
         WorkplaceStendex,
-        TimeEntryStendex;
+        TimeEntryStendex, TaskNotificationStendex;
 
 
 onWebClientLoad() +{
