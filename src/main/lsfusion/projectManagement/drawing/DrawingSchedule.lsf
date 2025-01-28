@@ -1,0 +1,106 @@
+MODULE DrawingSchedule;
+
+REQUIRE ProjectTask, TimesheetSupervisor, UtilsStendex, ProjectStendex, Employee, EnterpriseData;
+
+NAMESPACE ProjectManagement;
+
+designer 'Дизайнер' = DATA Individual (Task);
+nameDesigner 'Дизайнер' (Task t) = name(designer(t));
+
+color 'Цвет' = DATA COLOR (Task);
+taskStartDate 'Дата начала задачи' = DATA DATE (Task);
+taskEndDate 'Дата окончания задачи' = DATA DATE (Task);
+
+EXTEND FORM task
+    PROPERTIES(t) nameDesigner, taskStartDate, taskEndDate, color
+;
+
+CLASS DrawingScheduleLine;
+
+phone 'Телефон' = DATA STRING (DrawingScheduleLine) CHARWIDTH 15;
+project 'Проект' = DATA Project (DrawingScheduleLine) NONULL;
+name 'Проект' (DrawingScheduleLine l) = name(project(l));
+
+manager 'Менеджер' = DATA Employee (DrawingScheduleLine) NONULL;
+managerName 'Менеджер' (DrawingScheduleLine l)= MasterData.name(manager(l));
+
+designer 'Дизайнер' = DATA Individual (DrawingScheduleLine) NONULL;
+designerName 'Дизайнер' (DrawingScheduleLine l)= MasterData.name(designer(l));
+
+nameTask(DATE d, DrawingScheduleLine l) = 
+    GROUP CONCAT name(Task t) IF d >= taskStartDate(t) 
+        AND d <= taskEndDate(t) 
+        AND designer(l) = designer(t) 
+        AND project(t) = project(l) 
+        AND assignedTo(t) = manager(l), 
+        ', ' ORDER name(t);
+
+color 'Задачи' (DATE d, DrawingScheduleLine l) = 
+    GROUP MAX color(Task t) IF d >= taskStartDate(t) AND d <= taskEndDate(t) AND designer(l) = designer(t) AND project(t) = project(l) AND assignedTo(t) = manager(l);
+
+FORM taskDateEmployee 'Задачи'
+    OBJECTS i = INTERVAL[DATE] PANEL
+    OBJECTS l = DrawingScheduleLine PANEL
+
+    OBJECTS t = Task
+    PROPERTIES(t) name, nameProject
+    PROPERTIES(t) taskStartDate, taskEndDate, color, nameDesigner, nameAssignedTo
+    PROPERTIES(t) NEW, EDIT, DELETE
+    FILTERS project(t) = project(l), designer(t) = designer(l), assignedTo(t) = manager(l)
+;
+
+showTask 'Добавить задачу' (INTERVAL[DATE] int)  {
+    NEWSESSION SHOW taskDateEmployee OBJECTS i = int;
+} ASON CONTEXTMENU nameTask[DATE, DrawingScheduleLine];
+
+FORM drawingSchedule 'График отрисовки'
+    OBJECTS dates = INTERVAL[DATE] PANEL NULL
+    PROPERTIES dates '' = VALUE(dates)
+
+    OBJECTS d = DATE
+    FILTERS iterate(d, from(dates), to(dates))
+
+    OBJECTS l = DrawingScheduleLine
+    PROPERTIES phone(l), name(l), managerName(l), designerName(l)
+    PROPERTIES(l) NEW, EDIT, DELETE
+    
+    PROPERTIES nameTask(d, l) WAIT COLUMNS (d) HEADER extractDay(d) BACKGROUND color(d,l)
+    ON CHANGE {
+        SHOW taskDateEmployee OBJECTS i = interval(d, d) FLOAT;
+    }
+    EVENTS ON INIT {
+        SEEK drawingSchedule.dates = interval(firstDayOfMonth(currentDate()), lastDayOfMonth(currentDate()));
+    }
+    PROPERTIES prevInterval '<' = { SEEK drawingSchedule.dates = prevMonthInterval(dates); },
+        nextInterval '>' = { SEEK drawingSchedule.dates = nextMonthInterval(dates); }
+;
+
+DESIGN drawingSchedule {
+    OBJECTS {
+        NEW header {
+            alignment = STRETCH;
+            horizontal = TRUE;
+            NEW interval {
+                horizontal = TRUE;
+                MOVE PROPERTY(prevInterval);
+                MOVE PROPERTY(dates);
+                MOVE PROPERTY(nextInterval);
+            }
+        }
+        NEW tabbedPane {
+            tabbed = TRUE;
+            fill = 1;
+            MOVE BOX(l) {
+                PROPERTY(nameTask(d, l)) {
+                    charWidth = 2;
+                }
+            }
+        }
+    }
+}
+
+NAVIGATOR {
+    dashboard {
+        NEW drawingSchedule;
+    }
+}
