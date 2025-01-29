@@ -67,13 +67,18 @@ FORM manufacturingOrderDashboard 'Управление заявками'
     PROPERTIES(tn) READONLY '' = canonicalName
 ;
 
+activityDateTimeUser = DATA DATETIME (CustomUser);
+
 back 'Back' (TouchNode tn) {
     SEEK manufacturingOrderDashboard.tn = parent(tn);
+    activityDateTimeUser(currentUser()) <- currentDateTime();
 }
 
 drop 'Reset' () {
     SEEK manufacturingOrderDashboard.tn = GROUP LAST Category c ORDER c WHERE c IS Category AND NOT parent(c);
+    activityDateTimeUser(currentUser()) <- currentDateTime();
 }
+
 EXTEND FORM manufacturingOrderDashboard
     PROPERTIES drop(), back(tn)
     EVENTS ON INIT drop()
@@ -104,46 +109,43 @@ selectOrderSearch 'Select' (ManufacturingOrder i, Item it) {
 } CHANGEMOUSE 'DBLCLK';
 
 select (ManufacturingOrder i, TouchNode tn) {
+    activityDateTimeUser(currentUser()) <- currentDateTime();
     IF tn IS Category THEN
         SEEK manufacturingOrderDashboard.tn = tn;
     ELSE
         selectOrderSearch(i, tn);
 }
 
+authorized = DATA BOOLEAN (CustomUser);
+pass = DATA LOCAL ISTRING[10] () CHARWIDTH 25;
+responsibleNow = DATA Individual (CustomUser);
+
 createOrder () {
+    activityDateTimeUser(currentUser()) <- currentDateTime();
     NEW i = ManufacturingOrder {
+        responsible(i) <- responsibleNow(currentUser());
         SEEK manufacturingOrderDashboard.i = i;
-    }
-}
-
-newOrder 'Новая заявка' () {
-    CANCEL;
-    createOrder();
-} CONFIRM CHANGEKEY 'shift F12';
-
-FORM enterPin 'Введите PIN-код'
-    OBJECTS s = ISTRING[10] PANEL
-    PROPERTIES 'PIN' = VALUE(s)
-;
-
-saveOrder 'Оформить заказ' (ManufacturingOrder i) {
-    DIALOG enterPin OBJECTS s INPUT NOMANAGESESSION DO {
-        IF individual(s) THEN {
-            responsible(i) <- individual(s);
-            APPLY;
-            createOrder();
-        } ELSE {
-            MESSAGE 'PIN-код не найден';
-        }
     }
 }
 
 hasImagePickList 'С изображениями' = DATA LOCAL NESTED BOOLEAN ();
 
+authorizeUser 'Авторизоваться' () {
+    IF individual(pass()) THEN {
+        authorized(currentUser()) <- TRUE;
+        responsibleNow(currentUser()) <- individual(pass());
+        APPLY;
+        createOrder();
+    } ELSE {
+        MESSAGE 'PIN-код не найден';
+        CANCEL;
+    }
+} CHARWIDTH 23;
+
 EXTEND FORM manufacturingOrderDashboard
-    PROPERTIES newOrder(), saveOrder(i), hasImagePickList()
-    
-    OBJECTS tn1 = TouchNode
+    PROPERTIES() hasImagePickList, pass, authorizeUser
+
+    OBJECTS tn1 = TouchNode 
     FILTERS parent(tn1) = tn, mod(index(tn1),3) = 1, NOT hide(tn1)
     PROPERTIES NOWAIT select(i, tn1) COLUMNS (tn1) HEADER name(tn1) IMAGE image(tn1)
     FILTERS active(tn1),
@@ -160,8 +162,10 @@ EXTEND FORM manufacturingOrderDashboard
     PROPERTIES NOWAIT select(i, tn3) COLUMNS (tn3) HEADER name(tn3) IMAGE image(tn3)
     FILTERS active(tn3),
             hasImagePickList(tn3) OR NOT hasImagePickList()
-        
-    EVENTS ON INIT createOrder()
+
+    EVENTS ON INIT {
+        IF authorized(currentUser()) THEN createOrder();
+    }
 ;
 
 DESIGN manufacturingOrderDashboard {
@@ -169,6 +173,7 @@ DESIGN manufacturingOrderDashboard {
         class = '';
         border = FALSE;
         NEW mainPane {
+            showIf = authorized(currentUser());
             fill = 1;
             horizontal = TRUE;
             NEW leftPane {
@@ -224,8 +229,6 @@ DESIGN manufacturingOrderDashboard {
                         }
                         NEW actions {
                             alignment = STRETCH;
-                            MOVE PROPERTY(newOrder()) { fill = 1; valueClass = 'btn-danger'; }
-                            MOVE PROPERTY(saveOrder(i)) { fill = 1; valueClass = 'btn-primary'; }
                         }
                     }
                 }
@@ -262,18 +265,32 @@ DESIGN manufacturingOrderDashboard {
                 }
             }
         }
+        NEW authorizePane {
+            showIf = NOT authorized(currentUser());
+            fill = 1;
+            alignment = CENTER;
+            horizontal = TRUE;
+            NEW box {
+                alignment = CENTER;
+                MOVE PROPERTY(pass());
+                MOVE PROPERTY(authorizeUser());
+                PROPERTY(pass()) { placeholder = 'Введите пароль'; caption = ''; alignment = CENTER; fontSize = 18; valueHeight = 35; };
+                PROPERTY(authorizeUser()) { alignment = CENTER; height = 35; };
+            }
+        }
     }
-
     REMOVE TOOLBARBOX;
 }
 
 setQuantity(ConsumedLine l, INTEGER n) {
+    activityDateTimeUser(currentUser()) <- currentDateTime();
     IF n = 0 THEN
         DELETE l;
     ELSE
         toConsume(l) <- n;
 }
 addQuantity(ConsumedLine l, INTEGER n) {
+    activityDateTimeUser(currentUser()) <- currentDateTime();
     IF toConsume(l) + n <= 0 THEN 
         DELETE l;
     ELSE 
@@ -302,7 +319,7 @@ manufacturingOrderDashboardSubtarct10 '-10' (ConsumedLine o) {
     addQuantity(o, -10);
 }
 
-EXTEND FORM manufacturingOrderDashboard 
+EXTEND FORM manufacturingOrderDashboard
     PROPERTIES(l) manufacturingOrderDashboardSubtarct10, manufacturingOrderDashboardSubtarct5, manufacturingOrderDashboardSubtarct1, 
         manufacturingOrderDashboardPress0, manufacturingOrderDashboardAdd1, manufacturingOrderDashboardAdd5, manufacturingOrderDashboardAdd10
 ;
@@ -322,4 +339,56 @@ NAVIGATOR {
     dashboard {
         NEW manufacturingOrderDashboard;
     }
+}
+
+nameFilter 'Поиск по наименованию' = DATA LOCAL ISTRING ();
+
+saveOrder 'Оформить заказ' () {
+    activityDateTimeUser(currentUser()) <- currentDateTime();
+    APPLY;
+    IF NOT canceled() THEN createOrder();
+} CONFIRM CHANGEKEY 'shift F12';
+
+cancelOrder 'Отменить' (ManufacturingOrder o) {
+    activityDateTimeUser(currentUser()) <- currentDateTime();
+    FOR ConsumedLine l IF manufacturingOrder(l) = o DO {
+        DELETE l;
+    }
+}
+
+EXTEND FORM manufacturingOrderDashboard
+    PROPERTIES () nameFilter, saveOrder
+    PROPERTIES (i) cancelOrder
+    FILTERS isISubstring(name(tn1), nameFilter()) OR NOT nameFilter()
+    FILTERS isISubstring(name(tn2), nameFilter()) OR NOT nameFilter()
+    FILTERS isISubstring(name(tn3), nameFilter()) OR NOT nameFilter()
+
+    EVENTS ON SCHEDULE PERIOD 60 {
+        IF subtractSeconds(activityDateTimeUser(currentUser()), currentDateTime()) >= 300 THEN {
+            CANCEL;
+            authorized(currentUser()) <- NULL;
+            responsibleNow(currentUser()) <- NULL;
+            APPLY;
+            formRefresh();
+        }
+    }
+;
+
+DESIGN manufacturingOrderDashboard {
+    filters {
+        MOVE PROPERTY(nameFilter()) FIRST;
+    }
+    actions {
+        MOVE PROPERTY(saveOrder()) { fill = 1; valueClass = 'btn-primary'; }
+        MOVE PROPERTY(cancelOrder(i)) { fill = 1; valueClass = 'btn-danger'; }
+    }
+}
+
+WHEN LOCAL FORMS manufacturingOrderDashboard CHANGED(project(ManufacturingOrder o)) OR CHANGED(orderBeforeDate(o))
+    OR CHANGED(scheduledDateTime(o)) OR CHANGED(priority(o)) DO {
+    activityDateTimeUser(currentUser()) <- currentDateTime();
+}
+
+WHEN LOCAL FORMS manufacturingOrderDashboard CHANGED(nameFilter()) OR CHANGED(hasImagePickList()) DO {
+    activityDateTimeUser(currentUser()) <- currentDateTime();
 }

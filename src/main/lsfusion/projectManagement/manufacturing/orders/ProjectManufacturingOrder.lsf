@@ -9,7 +9,7 @@ orderType = DATA ManufacturingOrderType (ProjectType);
 nameOrderType 'Manufacturing order type' (ProjectType t) = name(orderType(t));
 EXTEND FORM projectType PROPERTIES manufacturingOrderType = nameOrderType(o);
 
-project = DATA Project (ManufacturingOrder) INDEXED;
+project = DATA Project (ManufacturingOrder) INDEXED NONULL;
 nameProject 'Project' (ManufacturingOrder i) = name(project(i));
 
 project (ConsumedLine l) = project(manufacturingOrder(l));
