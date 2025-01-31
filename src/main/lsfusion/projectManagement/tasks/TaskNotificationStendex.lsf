@@ -1,6 +1,6 @@
 MODULE TaskNotificationStendex;
 
-REQUIRE ProjectTask;
+REQUIRE ProjectTask, NotificationsStendex;
 
 NAMESPACE ProjectManagement;
 
@@ -28,11 +28,14 @@ DESIGN task {
     }
 }
 
-notificationMessage (TaskNotification tn) = JSON FROM title = ('Напоминание по задаче ' + name(task(tn))), 
+notificationMessage (TaskNotification tn) = JSON FROM title = ('Напоминание по задаче "' + name(task(tn)) + '"'), 
     options = JSON FROM 
         body = OVERRIDE note(tn), (CONCAT ', ', 'Исполнитель: ' + nameAssignedTo(task(tn)), 'проект: ' + nameProject(task(tn)), 'приоритет: ' + namePriority(task(tn)), 
             'дедлайн: ' + toChar(deadline(task(tn)), 'dd.mm.yyyy hh:mm'))
 ;
+
+notificationMessageSimple (TaskNotification tn) = CONCAT '\n', 'Напоминание по задаче "' + name(task(tn)) + '"' + '\n', 'исполнитель: ' + nameAssignedTo(task(tn)), 'проект: ' + nameProject(task(tn)), 'приоритет: ' + namePriority(task(tn)),
+    'дедлайн: ' + toChar(deadline(task(tn)), 'dd.mm.yyyy hh:mm'), 'примечание: ' + note(tn);
 
 WHEN LOCAL FORMS task SET (TaskNotification tn IS TaskNotification) DO {
     employeeToNotify(tn) <- assignedTo(task(tn));
@@ -41,26 +44,23 @@ WHEN LOCAL FORMS task SET (TaskNotification tn IS TaskNotification) DO {
 
 notifyUsers () {
     FOR Connection c IS Connection AND connectionStatus(c) = ConnectionStatus.connectedConnection DO {
-        FOR TaskNotification tn IS TaskNotification AND user(c) = employeeToNotify(tn) AND currentDateTime() = dateTimeNotification(tn) AND NOT notificationSent(tn) DO {
+        FOR TaskNotification tn IS TaskNotification AND user(c) = employeeToNotify(tn) AND currentDateTime() >= dateTimeNotification(tn) AND NOT notificationSent(tn) DO {
             IF pushConnection(employeeToNotify(tn)) THEN {
-                NEWTHREAD {
-                    SHOW task OBJECTS t = task(tn) DOCKED NOWAIT;
-                } TO exportInteger;
-                pushNotify(pushConnection(employeeToNotify(tn)), notificationMessage(tn),  action(exportInteger()));
-            }
-            notificationSent(tn) <- TRUE;
-            APPLY;
-        } ELSE {
-            FOR TaskNotification tn IS TaskNotification AND user(c) = employeeToNotify(tn) AND currentDateTime() > dateTimeNotification(tn) AND NOT notificationSent(tn) DO {
-                IF pushConnection(employeeToNotify(tn)) THEN {
+                IF sendNotificiationInsteadMessage() THEN {
                     NEWTHREAD {
                         SHOW task OBJECTS t = task(tn) DOCKED NOWAIT;
                     } TO exportInteger;
                     pushNotify(pushConnection(employeeToNotify(tn)), notificationMessage(tn), action(exportInteger()));
+                } ELSE {
+                    NEWSESSION {
+                        NEWTHREAD {
+                            MESSAGE notificationMessageSimple(tn) WARN;
+                        } CONNECTION c;
+                    }
                 }
-                notificationSent(tn) <- TRUE;
-                APPLY;
             }
+            notificationSent(tn) <- TRUE;
+            APPLY;
         }
     }
 }

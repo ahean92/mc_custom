@@ -23,3 +23,13 @@ messageNotification (Order o) = CONCAT '\n', 'Новый заказ', '№' + nu
 WHEN SET(Order o IS Order) AND number(o) AND chatOrderNotification() DO{
     sendMessage(chatOrderNotification(), messageNotification(o), NULL, TRUE);
 }
+
+sendNotificiationInsteadMessage 'Отправлять уведомления вместо сообщений' = DATA BOOLEAN ();
+EXTEND FORM System.options PROPERTIES sendNotificiationInsteadMessage();
+
+DESIGN System.options {
+    notification {
+        MOVE PROPERTY(sendNotificiationInsteadMessage());
+        PROPERTY(sendNotificiationInsteadMessage()) { panelCaptionLast = FALSE; }
+    }
+}
