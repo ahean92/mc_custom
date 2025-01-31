@@ -392,3 +392,19 @@ WHEN LOCAL FORMS manufacturingOrderDashboard CHANGED(project(ManufacturingOrder 
 WHEN LOCAL FORMS manufacturingOrderDashboard CHANGED(nameFilter()) OR CHANGED(hasImagePickList()) DO {
     activityDateTimeUser(currentUser()) <- currentDateTime();
 }
+
+EXTEND FORM manufacturingOrderDashboard
+    OBJECTS o = ManufacturingOrder
+    PROPERTIES (o) READONLY date 'Дата' = scheduledDate, number, nameType, nameConsumedItem, nameStatus, orderBeforeDate
+    FILTERS responsible(o) = responsibleNow(currentUser())
+    ORDERS number(o) DESC
+;
+
+DESIGN manufacturingOrderDashboard {
+    tabPane {
+        NEW orders {
+            caption = 'Мои заявки';
+            MOVE BOX(o) { caption = ''; };
+        }
+    }
+}
