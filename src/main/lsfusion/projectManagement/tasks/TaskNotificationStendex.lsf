@@ -42,6 +42,36 @@ WHEN LOCAL FORMS task SET (TaskNotification tn IS TaskNotification) DO {
     dateTimeNotification(tn) <- currentDateTime();
 }
 
+showTask 'Открыть задачу' (Task t) {
+    SHOW task OBJECTS t = t DOCKED;
+}
+
+FORM openTask 'Уведомление'
+    OBJECTS s = STRING PANEL
+    PROPERTIES READONLY notifi = TEXT(s)
+
+    OBJECTS t = Task
+    PROPERTIES(t) showTask
+;
+
+DESIGN openTask {
+    size = (330, 270);
+    BOX(t) { caption = ''; }
+    BOX(s) { caption = ''; }
+    OBJECTS {
+        MOVE PROPERTY(notifi);
+        PROPERTY(notifi) { caption = ''; alignment = STRETCH; valueHeight = 150; valueWidth = 300; }
+    }
+    MOVE PANEL AFTER OBJECTS {
+        MOVE PROPERTY(showTask(t)) { alignment = STRETCH; fill = 1; };
+        MOVE PROPERTY(formClose()) LAST { alignment = STRETCH; fill = 1; };
+    }
+    REMOVE TOOLBAR;
+    REMOVE TOOLBARLEFT;
+    REMOVE PROPERTY(formOk());
+    REMOVE PROPERTY(formRefresh());
+}
+
 notifyUsers () {
     FOR Connection c IS Connection AND connectionStatus(c) = ConnectionStatus.connectedConnection DO {
         FOR TaskNotification tn IS TaskNotification AND user(c) = employeeToNotify(tn) AND currentDateTime() >= dateTimeNotification(tn) AND NOT notificationSent(tn) DO {
@@ -54,7 +84,7 @@ notifyUsers () {
                 } ELSE {
                     NEWSESSION {
                         NEWTHREAD {
-                            MESSAGE notificationMessageSimple(tn) WARN;
+                            SHOW openTask OBJECTS t = task(tn), s = notificationMessageSimple(tn) FLOAT;
                         } CONNECTION c;
                     }
                 }
