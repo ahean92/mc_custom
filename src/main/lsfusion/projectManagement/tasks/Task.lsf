@@ -1,7 +1,7 @@
 MODULE Task;
 
 REQUIRE ProjectManagementSettings, Employee,
-        Doc, FileUtils,
+        Doc, FileUtils, UtilsStendex,
         TaskStatus, TaskPriority, TaskTag;
 
 PRIORITY MasterData;
@@ -102,7 +102,7 @@ FORM tasks '{Tasks}'
 @defineObjectFiles(task, t, 'Task file');
 
 NAVIGATOR {
-    operations {
+    dashboard {
         NEW tasks;
     }
 }
