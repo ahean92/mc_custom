@@ -232,7 +232,7 @@ DESIGN order {
     }        
 }
 
-@defineDocHistory(order, o, item, quantity);
+//@defineDocHistory(order, o, item, quantity);
 
 background = ABSTRACT CASE COLOR (Order);
 FORM orders 'Purchase orders'

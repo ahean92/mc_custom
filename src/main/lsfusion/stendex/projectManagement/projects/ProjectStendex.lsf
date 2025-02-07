@@ -335,7 +335,29 @@ WHEN DROPPED(upstairs(Project p)) AND NOT disableHistory() DO {
 @defineProjectHistoryAttr(lengthUpstairs, lengthUpstairs, 'Изменена длина(второй этаж), м');
 @defineProjectHistoryAttr(widthUpstairs, widthUpstairs, 'Изменена ширина(второй этаж), м');
 
-@defineDocHistoryForm(project, project, p);
+EXTEND FORM project
+    OBJECTS projectl = ProjectHistory
+    PROPERTIES(projectl) READONLY dateTime, nameUser, hostnameComputer, type, description, pdescription = description PANEL
+    FILTERS project(projectl) = p
+;
+
+DESIGN project {
+    details {
+        NEW history {
+            caption = badged('History', countHistories(p));
+            fill = 1;
+            horizontal = TRUE;
+            MOVE BOX(projectl) {
+                fill = 2;
+                caption = '';
+                PROPERTY(description(projectl)) { valueHeight = 18; }
+            }
+            MOVE PROPERTY(pdescription) { panelCaptionVertical = TRUE; fill = 1; }
+        }
+    }
+}
+
+//@defineDocHistoryForm(project, project, p){
 
 inner 'Внутренний' = DATA BOOLEAN (ProjectType) CHARWIDTH 10;
 inner 'Внутренний' (Project p) = inner(type(p));

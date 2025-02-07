@@ -7,9 +7,9 @@ NAMESPACE Invoicing;
 EXTEND CLASS BillStatus {
     closed 'Закрыт'
 }
-closed 'Закрыт' = DATA BOOLEAN (Bill);
+dataClosed 'Закрыт' = DATA BOOLEAN (Bill);
 
-status(Bill b) += WHEN closed(b) THEN BillStatus.closed;
+status(Bill b) += WHEN dataClosed(b) THEN BillStatus.closed;
 color(BillStatus b) += WHEN b = BillStatus.closed THEN RGB(255,200,216);
 
 close 'Закрыть' (Bill b) {
@@ -17,7 +17,7 @@ close 'Закрыть' (Bill b) {
     IF canceled() THEN RETURN;
 
     NEWSESSION {
-        closed(b) <- TRUE;
+        dataClosed(b) <- TRUE;
         APPLY;
     }
 }

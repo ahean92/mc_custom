@@ -1,6 +1,6 @@
 MODULE BillStendex;
 
-REQUIRE BillDone, BillCanceled, ProjectBill, ServiceP, UtilsStendex, EmployeeStendex, PartnerStendex, BillClosedStendex;
+REQUIRE BillDone, BillCanceled, ProjectBill, ServiceP, UtilsStendex, EmployeeStendex, PartnerStendex, BillClosedStendex, Selection;
 
 NAMESPACE Invoicing;
 
@@ -134,7 +134,7 @@ DESIGN bill {
         REMOVE PROPERTY(markAsToDo(b));
     }
     status {
-        MOVE PROPERTY(onApproval(b)) BEFORE PROPERTY(ready(b));
+        MOVE PROPERTY(onApproval(b));
     }
 }
 
@@ -142,14 +142,6 @@ EXTEND FORM bills
     EXTEND FILTERGROUP status
         FILTER 'На утверждении' status(b) = BillStatus.onApproval
 ;
-
-@defineSelectionAction(bills, Bill, markAsOnApproval, 'На утверждение', statuses);
-
-DESIGN bills {
-    statuses {
-        MOVE PROPERTY(markAsOnApprovalBills()) BEFORE PROPERTY(markAsToDoBills());
-    }
-}
 
 CLASS Urgency 'Срочность' {
     notUrgent 'Не срочный',
@@ -389,7 +381,27 @@ DESIGN billCustom {
 }
 
 @defineObjectFilesForm(bill, billCustom, b);
-@defineDocHistoryForm(bill, billCustom, b);
+EXTEND FORM billCustom
+    OBJECTS billl = BillHistory
+    PROPERTIES(billl) READONLY dateTime, nameUser, hostnameComputer, type, description, pdescription = description PANEL
+    FILTERS bill(billl) = b
+;
+
+DESIGN billCustom {
+    details {
+        NEW history {
+            caption = badged('History', countHistories(b));
+            fill = 1;
+            horizontal = TRUE;
+            MOVE BOX(billl) {
+                fill = 2;
+                caption = '';
+                PROPERTY(description(billl)) { valueHeight = 18; }
+            }
+            MOVE PROPERTY(pdescription) { panelCaptionVertical = TRUE; fill = 1; }
+        }
+    }
+}
 
 CLASS TypeFile{
     paymentOrder 'Платежное поручение',
