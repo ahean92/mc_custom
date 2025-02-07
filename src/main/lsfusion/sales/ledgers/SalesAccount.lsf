@@ -8,6 +8,8 @@ CLASS ABSTRACT SalesAccount 'Sales account';
 id '{ID}' = ABSTRACT STRING[100] (SalesAccount) CHARWIDTH 15; 
 name = ABSTRACT ISTRING[250] (SalesAccount) CHARWIDTH 25;
 
+revenue 'Revenue' = ABSTRACT BOOLEAN (SalesAccount) MATERIALIZED;
+
 CLASS SystemSalesAccount 'Sales account' {
     revenue 'Revenue',
     cost 'Cost'
@@ -16,9 +18,11 @@ CLASS SystemSalesAccount 'Sales account' {
 id (SystemSalesAccount a) += STRING[100](staticName(a)) IF a IS SystemSalesAccount;
 name(SystemSalesAccount a) += ISTRING[250](staticCaption(a)) IF a IS SystemSalesAccount;
 
+revenue(SystemSalesAccount a) += a = SystemSalesAccount.revenue;
+
 CLASS CustomSalesAccount 'Sales account' : SalesAccount;
-id '{ID}' = DATA STRING[100] (CustomSalesAccount);
-name 'Name' = DATA ISTRING[250] (CustomSalesAccount);
+id '{ID}' = DATA STRING[100] (CustomSalesAccount) CHARWIDTH 10;
+name '{Name}' = DATA ISTRING[250] (CustomSalesAccount) CHARWIDTH 20;
 
 id(CustomSalesAccount a) += id(a);
 name(CustomSalesAccount a) += name(a);
@@ -28,6 +32,13 @@ FORM customSalesAccount 'Sales account'
     PROPERTIES(o) name, id
 
     EDIT CustomSalesAccount OBJECT o;
+;
+
+FORM customSalesAccounts 'Sales accounts'
+    OBJECTS o = CustomSalesAccount
+    PROPERTIES(o) READONLY name, id
+
+    LIST CustomSalesAccount OBJECT o
 ;
 
 FORM salesAccounts 'Sales accounts'

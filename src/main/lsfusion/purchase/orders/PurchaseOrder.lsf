@@ -11,7 +11,7 @@ NAMESPACE Purchase;
 
 CLASS Order 'Purchase order';
 
-@defineDocStatus(order, 'Purchase order');
+@defineDocStatus(order, 'Purchase order status');
 
 // type
 type 'Type' = DATA OrderType (Order) NONULL;
@@ -44,7 +44,7 @@ WHEN LOCAL CHANGED(vendor(Order o)) AND NOT CHANGED(paymentTerms(o)) DO paymentT
 
 // Shipping information
 scheduledDateTime 'Scheduled date' = DATA DATETIME (Order) IN id;
-scheduledDateTime(Order o) <- currentDateTime() WHEN SET(o IS Order);
+scheduledDateTime(Order o) <- currentDateTime() WHEN SET(o IS Order);   
 
 // company
 company 'Company' = DATA Company (Order) NONULL;
@@ -86,9 +86,15 @@ idBarCodeItem 'Barcode' (OrderLine l) = idBarCode(item(l));
 idItem '{ID}' (OrderLine l) = id(item(l));
 referenceItem 'Reference' (OrderLine l) = reference(item(l));
 
+nameCategoryItem 'Category' (OrderLine l) = nameCategory(item(l));
+level1Item 'Category 1' (OrderLine l) = level1(item(l));
+level2Item 'Category 2' (OrderLine l) = level2(item(l));
+level3Item 'Category 3' (OrderLine l) = level3(item(l));
+level4Item 'Category 4' (OrderLine l) = level4(item(l));
+
 CONSTRAINT item(OrderLine l) AND NOT canBePurchased(item(l))
             CHECKED BY item[OrderLine] 
-            MESSAGE 'The item is not intended for purchase';
+            MESSAGE 'The item is not for purchase';
 
 description 'Description' = DATA ISTRING (OrderLine);
 
@@ -130,22 +136,24 @@ edit (OrderLine l) + { edit(order(l)); }
 
 FORM order 'Purchase order'
     OBJECTS o = Order PANEL
-    PROPERTIES(o) nameType, dateTime, number,
-        nameVendor, nameCompany, nameLocation, nameCurrency,
-        namePaymentTerms,
-        scheduledDateTime,
-        nameRepresentative, vendorReference, note,
-        details
+    PROPERTIES(o) READONLYIF readonly(o)
+                  nameType, dateTime, number, 
+                  nameVendor, nameCompany, nameLocation, nameCurrency,
+                  namePaymentTerms,
+                  scheduledDateTime,
+                  nameRepresentative, vendorReference, note,
+                  details
     PROPERTIES(o) READONLY untaxedAmount, taxAmount, amount
                  
     OBJECTS l = OrderLine
-    PROPERTIES(l) index, 
+    PROPERTIES(l) READONLYIF readonly(o)
+                  index, 
                   nameItem ON CHANGE {
                       INPUT i = item(l) LIST name(i) ACTIONS 'add' { newProduct(STRING(i)); } DO item(l) <- i;
                   },
                   description, nameUom, idBarCodeItem, idItem, referenceItem, 
-                  quantity, price, untaxedAmount, taxes
-    PROPERTIES(l) NEW, DELETE
+                  quantity, price, untaxedAmount, taxes,
+                  NEW, DELETE
     FILTERS order(l) = o
      
     EDIT Order OBJECT o    
@@ -212,7 +220,7 @@ DESIGN order {
         }
         NEW footer {
             align = END;
-            horizontal = TRUE;
+            horizontal = TRUE; 
             NEW total {
                 caption = 'Total';
                 horizontal = TRUE;
@@ -240,10 +248,15 @@ FORM orders 'Purchase orders'
 
 @extendFormEditable(orders);
 
+@defineDocHistory(order, o, item);
+@defineDocHistoryLineProperty(order, OrderLine, quantity, 'Qty', nameItem);
+
 @defineDocObjectsForm(orders, o, 'Purchase orders');
 @defineDocStatusForm(order, o);
 @defineDocLinesCount(order, o);
 @defineDocLocationAccess(order, o);
+
+@defineObjectComments(order, o, details);
 
 @defineObjectFiles(order, o, 'Purchase order file');
 

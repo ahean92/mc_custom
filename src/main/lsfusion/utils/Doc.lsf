@@ -1,8 +1,14 @@
 MODULE Doc;
 
-REQUIRE Authentication, Time, BarCode, Icon, ItemAttribute;
+REQUIRE SystemEvents, Authentication, Time, BarCode, Icon, ItemAttribute;
 
 NAMESPACE Utils;
+
+// remove later
+registerFontDirectories () INTERNAL <{com.lowagie.text.FontFactory.registerDirectories(); }>; 
+onStarted() +{
+    registerFontDirectories();
+}
 
 META defineDocObjectsForm (form, obj, title)
     DESIGN form {
@@ -17,7 +23,7 @@ META defineDocObjectsForm (form, obj, title)
                 }
                 NEW rightPane {
                     tabbed = TRUE;
-                    width = 200;
+//                    width = 230;
                     fill = 1;
                     NEW filters {
                         caption = 'Filters';
@@ -41,32 +47,55 @@ META defineDocObjectsForm (form, obj, title)
     }
 END
 
-META defineDocStatus (doc, title)
-    CLASS ###doc##Status title##' status' {
-        draft 'Draft'
+META defineDocStatus (doc, title, firstStatus, firstStatusCapt)
+    CLASS ###doc##Status title {
+        firstStatus firstStatusCapt
     }
     
     name '{First_name}' (###doc##Status s) = staticCaption(s) IF s IS ###doc##Status CHARWIDTH 12;
     imagedName '{First_name}' (###doc##Status s) = imagedCaption(s) IF s IS ###doc##Status CHARWIDTH 12;
 
     color 'Color' = ABSTRACT CASE COLOR (###doc##Status) MATERIALIZED;
-    color (###doc##Status s) += WHEN s = ###doc##Status.draft THEN RGB(187,242,210);
+    color (###doc##Status s) += WHEN s = ###doc##Status.firstStatus THEN RGB(187,242,210);
 
     status 'Status' = ABSTRACT CASE ###doc##Status (###doc) MATERIALIZED INDEXED;
     nameStatus 'Status' (###doc d) = name(status(d));
     imagedNameStatus 'Status' (###doc d) = imagedName(status(d));
     colorStatus 'Color' (###doc d) = color(status(d));
     
-    status(###doc d) += WHEN d IS ###doc THEN ###doc##Status.draft;
+    status(###doc d) += WHEN d IS ###doc THEN ###doc##Status.firstStatus;
     
-    readonly = ABSTRACT CASE BOOLEAN (###doc);
+    readonly 'Read-only' = DATA BOOLEAN (###doc##Status);
+
+    readonly = ABSTRACT CASE BOOLEAN (###doc) MATERIALIZED;
+    readonly (###doc d) += WHEN readonly(status(d)) THEN TRUE;
+
+    closed = ABSTRACT CASE BOOLEAN (###doc##Status) MATERIALIZED;
+    closed 'Closed' (###doc d) = closed(status(d));
+    opened 'Opened' (###doc d) = d IS ###doc AND NOT closed(d) MATERIALIZED INDEXED;
+
+    EXTEND FORM options
+        OBJECTS doc##st = ###doc##Status
+        PROPERTIES(doc##st) READONLY imagedName, color
+        PROPERTIES(doc##st) readonly
+    ;
+    
+    DESIGN options {
+        tabbedPane {
+            MOVE BOX(doc##st);
+        }
+    }
 END
 
-META defineDocStatusForm (doc, let, beforeProp)
+META defineDocStatus (doc, title)
+    @defineDocStatus (doc, title, draft, 'Draft');
+END
+
+META defineDocStatusForm (doc, let, beforeProp, firstStatus, firstStatusCapt)
     EXTEND FORM doc##s
         PROPERTIES(##let) READONLY imagedNameStatus BACKGROUND colorStatus(##let) BEFORE beforeProp(##let)
         FILTERGROUP status
-            FILTER 'Draft' status(##let) = ###doc##Status.draft
+            FILTER firstStatusCapt status(##let) = ###doc##Status.firstStatus
     ;
     
     DESIGN doc##s {
@@ -81,7 +110,6 @@ META defineDocStatusForm (doc, let, beforeProp)
     
     DESIGN doc {
         NEW statusPane FIRST {
-            caption = 'Statuses';
             horizontal = TRUE;
             alignment = STRETCH;                          
             NEW statusActions {
@@ -94,12 +122,24 @@ META defineDocStatusForm (doc, let, beforeProp)
                     horizontal = TRUE;
                 }           
             }
-            NEW status {
-                horizontal = TRUE;
-                MOVE PROPERTY(imagedNameStatus(##let));
+            NEW statusContainer {
+                fill = 1;
+                NEW status {
+                    alignment = END;
+                    horizontal = TRUE;
+                    MOVE PROPERTY(imagedNameStatus(##let));
+                    NEW statusGroup {
+                        custom = '';
+                        class = 'btn-group';
+                    }
+                }
             }
         }    
     } 
+END
+
+META defineDocStatusForm (doc, let, beforeProp)
+    @defineDocStatusForm(doc, let, beforeProp, draft, 'Draft');
 END
 
 META defineDocStatusForm (doc, let)
@@ -147,6 +187,7 @@ META defineDocSearchTab (doc, it)
         
         OBJECTS itm = ###it
         PROPERTIES(itm) READONLY name, nameUom, idBarCode, id, reference
+        PROPERTIES(itm) READONLY nameCategory, level1, level2, level3, level4
         PROPERTIES(itm) NEWSESSION EDIT
         ORDERS name(itm)
         FILTERS level(category(itm), c)
@@ -171,6 +212,11 @@ META defineDocSearchTab (doc, it)
                 MOVE BOX(itm) { 
                     fill = 2;
                     caption = '';
+                    PROPERTY(nameCategory(itm)) { hide = TRUE; }
+                    PROPERTY(level1(itm)) { hide = TRUE; }
+                    PROPERTY(level2(itm)) { hide = TRUE; }
+                    PROPERTY(level3(itm)) { hide = TRUE; }
+                    PROPERTY(level4(itm)) { hide = TRUE; }
                 }
             }
         }
@@ -209,37 +255,74 @@ DESIGN System.options {
     }
 }
 
-META defineDocHistoryHeader(doc, let)
-    CLASS ###doc##History 'Change history';
-
-    doc = DATA ###doc (###doc##History) INDEXED;
-    countHistories (###doc d) = GROUP SUM 1 IF doc(###doc##History h) = d;
-    
-    dateTime 'Date' = DATA DATETIME (###doc##History);
-
-    user = DATA User (###doc##History);
-    nameUser 'User' (###doc##History l) = name(user(l));
-
-    computer = DATA Computer (###doc##History);
-    hostnameComputer 'Computer' (###doc##History l) = hostname(computer(l)) CHARWIDTH 10;
-
-    type 'Type' = DATA ISTRING[100] (###doc##History) CHARWIDTH 15;
-    description 'Description' = DATA TEXT (###doc##History);
-
-    WHEN SETCHANGED(status(###doc let)) AND NOT disableHistory() DO {
-        NEW l = ###doc##History {
-            doc(l) <- let;
+META defineHistoryProperty(obj, prop, capt, nameProp)
+    WHEN SETCHANGED(prop(###obj let)) AND NOT disableHistory() DO {
+        NEW l = ###obj##History {
+            obj(l) <- let;
             dateTime(l) <- currentDateTime();
             user(l) <- currentUser();
             computer(l) <- currentComputer();
-            type(l) <- 'Status changed';
-            description (l) <- 'Changed status to' + ' ' + staticCaption(status(let));
+            type(l) <- capt;
+            description (l) <- CONCAT ' -> ', PREV(nameProp(let)), nameProp(let);
         }
     }
-
 END
 
-META defineDocHistoryLine(doc, docLine, class, fun)
+META defineHistoryProperty(obj, prop, capt)
+    @defineHistoryProperty(obj, prop, capt, prop);
+END
+
+META defineDocHistoryLineProperty(doc, docLine, prop, capt, descrProp)
+    WHEN CHANGED(prop(docLine l)) AND doc(l) = ###doc d
+        AND NOT status(d) = ###doc##Status.draft AND NOT disableHistory() DO {
+        NEW h = ###doc##History {
+            doc(h) <- d;
+            dateTime(h) <- currentDateTime();
+            user(h) <- currentUser();
+            type(h) <- capt;
+            description (h) <- '' + index(l) + '. ' + (CONCAT ', ', descrProp(l), (CONCAT ' -> ', PREV(prop(l)), prop(l)));
+        }
+    }
+END
+
+META defineObjectHistory(obj)
+    CLASS ###obj##History 'Change history';
+
+    obj = DATA ###obj (###obj##History) INDEXED;
+    countHistories (###obj d) = GROUP SUM 1 IF obj(###obj##History h) = d;
+
+    dateTime 'Date' = DATA DATETIME (###obj##History);
+
+    user = DATA User (###obj##History);
+    nameUser 'User' (###obj##History l) = name(user(l));
+
+    computer = DATA Computer (###obj##History);
+    hostnameComputer 'Computer' (###obj##History l) = hostname(computer(l)) CHARWIDTH 10;
+
+    type 'Type' = DATA ISTRING[100] (###obj##History) CHARWIDTH 15;
+    description 'Description' = DATA TEXT (###obj##History);
+
+    firstHistory (###obj d) = GROUP LAST ###obj##History h ORDER DESC h WHERE obj(h) = d MATERIALIZED;
+    nameUserFirstHistory 'Created by' (###obj d) = nameUser(firstHistory(d));
+    dateTimeFirstHistory 'Created at' (###obj d) = dateTime(firstHistory(d));
+    
+    lastHistory (###obj d) = GROUP LAST ###obj##History h ORDER h WHERE obj(h) = d MATERIALIZED;
+    nameUserLastHistory 'Last modified by' (###obj d) = nameUser(lastHistory(d));
+    dateTimeLastHistory 'Last modified at' (###obj d) = dateTime(lastHistory(d));
+END
+
+META defineDocHistoryHeader(doc, dateProp)
+
+    @defineObjectHistory(doc);
+
+    @defineHistoryProperty(doc, status, 'Status', nameStatus);
+
+    @defineHistoryProperty(doc, number, 'Number');
+
+    @defineHistoryProperty(doc, dateProp, 'Date');
+END
+
+META defineDocHistoryLine(doc, docLine, class)
 
     WHEN SETCHANGED(docLine l IS docLine) AND doc(l) = ###doc d
         AND NOT status(d) = ###doc##Status.draft AND NOT disableHistory() DO {
@@ -249,7 +332,7 @@ META defineDocHistoryLine(doc, docLine, class, fun)
             user(h) <- currentUser();
             computer(h) <- currentComputer();
             type(h) <- 'Added line';
-            description (h) <- 'Added line with index' + ' ' + index(l);
+            description (h) <- '' + index(l);
         }
     }
 
@@ -261,18 +344,7 @@ META defineDocHistoryLine(doc, docLine, class, fun)
             user(h) <- currentUser();
             computer(h) <- currentComputer();
             type(h) <- 'Removed line';
-            description (h) <- 'Deleted line with index' + ' ' + PREV(index(l));
-        }
-    }
-
-    WHEN CHANGED(##fun(docLine l)) AND doc(l) = ###doc d
-        AND NOT status(d) = ###doc##Status.draft AND NOT disableHistory() DO {
-        NEW h = ###doc##History {
-            doc(h) <- d;
-            dateTime(h) <- currentDateTime();
-            user(h) <- currentUser();
-            type(h) <- 'Changed the initial quantity';
-            description (h) <- 'Changed the initial product quantity' + ' ' + name###class(l) + ' -> ' + ##fun(l);
+            description (h) <- '' + PREV(index(l));
         }
     }
 
@@ -284,14 +356,14 @@ META defineDocHistoryLine(doc, docLine, class, fun)
             user(h) <- currentUser();
             computer(h) <- currentComputer();
             type(h) <- 'Product changed';
-            description (h) <- 'Product changed in line' + ' ' + index(l) + ' -> ' + name###class(l);
+            description (h) <- '' + index(l) + (CONCAT ' -> ', PREV(name###class(l)), name###class(l));
         }
     }
 
 END
 
-META defineDocHistoryLine(doc, class, fun)
-    @defineDocHistoryLine(doc, ###doc##Line, class, fun);
+META defineDocHistoryLine(doc, class)
+    @defineDocHistoryLine(doc, ###doc##Line, class);
 END
 
 META defineDocHistoryForm(doc, form, let)
@@ -316,14 +388,22 @@ META defineDocHistoryForm(doc, form, let)
             }
         }
     }
+    
+    EXTEND FORM form##s
+        PROPERTIES(let) nameUserFirstHistory, dateTimeFirstHistory, nameUserLastHistory, dateTimeLastHistory
+    ;
 END
 
-META defineDocHistory(doc, let, class, fun)
+META defineDocHistory(doc, let, class, dateProp)
 
-    @defineDocHistoryHeader(doc, ##let);
-    @defineDocHistoryLine(doc, class, fun);
+    @defineDocHistoryHeader(doc, dateProp);
+    @defineDocHistoryLine(doc, class);
     @defineDocHistoryForm(doc, doc, let);
 
+END
+
+META defineDocHistory(doc, let, class)
+    @defineDocHistory(doc, let, class, dateTime);
 END
 
 META defineDocRelation(docTo, docFrom, captTo, captFrom, objTo, objFrom)
@@ -349,14 +429,14 @@ META defineDocRelation(docTo, docFrom, captTo, captFrom, objTo, objFrom)
     ;
 END
 
-META defineDocLineRelation(docTo, docFrom, docFromLine, captTo, captFrom, objTo, objFrom)
+META defineDocLineRelation(docTo, docFrom, docFromLine, captTo, captFrom, objTo, objFrom, prefix)
     docTo##Line = DATA ###docTo##Line (###docFromLine) INDEXED;
     
     in (###docTo i, ###docFrom s) = GROUP SUM 1 IF docTo(docTo##Line(###docFromLine l)) = i AND docFrom(l) = s MATERIALIZED; 
     
     count###docTo (###docFrom s) = GROUP SUM 1 IF in(###docTo i, s) MATERIALIZED;
     count###docFrom##s (###docTo i) = GROUP SUM 1 IF in(i, ###docFrom s) MATERIALIZED;
-    numberDate###docTo captTo (###docFrom s) = GROUP CONCAT numberDate(###docTo i) IF in(i, s), ',' ORDER i CHARWIDTH 30; 
+    numberDate###docTo captTo (###docFrom s) = GROUP CONCAT numberDate(###docTo i) IF in(i, s), ',' ORDER i CHARWIDTH 30;
     numberDate###docTo##Line captTo (###docFromLine s) = numberDate(docTo##Line(s)); 
 
     numberDate###docFrom##s captFrom (###docTo s) = GROUP CONCAT numberDate(###docFrom i) IF in(s, i), ',' ORDER i CHARWIDTH 30;
@@ -370,15 +450,15 @@ META defineDocLineRelation(docTo, docFrom, docFromLine, captTo, captFrom, objTo,
             edit(i); 
     }
     EXTEND FORM docFrom
-        PROPERTIES(objFrom) numberDate###docTo ON CHANGE open###docTo(objFrom) SHOWIF count###docTo(objFrom)
+        PROPERTIES(objFrom) prefix###numberDate###docTo = numberDate###docTo ON CHANGE open###docTo(objFrom) SHOWIF count###docTo(objFrom)
     ;
     DESIGN docFrom {
         footer {
-            MOVE PROPERTY(numberDate###docTo(objFrom));
+            MOVE PROPERTY(prefix###numberDate###docTo);
         }
     }
     EXTEND FORM docFrom##s
-        PROPERTIES(objFrom) READONLY numberDate###docTo
+        PROPERTIES(objFrom) READONLY prefix###numberDate###docTo = numberDate###docTo
     ;
     EXTEND FORM docTo##s
         PROPERTIES(objTo) READONLY numberDate###docFrom##s
@@ -386,7 +466,7 @@ META defineDocLineRelation(docTo, docFrom, docFromLine, captTo, captFrom, objTo,
 END
 
 META defineDocLineRelation(docTo, docFrom, captTo, captFrom, objTo, objFrom)
-    @defineDocLineRelation(docTo, docFrom, docFrom##Line, captTo, captFrom, objTo, objFrom);
+    @defineDocLineRelation(docTo, docFrom, docFrom##Line, captTo, captFrom, objTo, objFrom, );
 END
 META defineDocDiscount (doc)
     discount 'Discount, %' = DATA NUMERIC[5,2] (###doc##Line);
@@ -408,9 +488,9 @@ META defineDocDiscount (doc)
     
 END
 
-META defineDocDiscountForm (doc)
+META defineDocDiscountForm (doc, let)
     EXTEND FORM doc
-        PROPERTIES(l) AFTER price(l) discount, discountPrice ON CHANGE changeDiscountPrice(l)
+        PROPERTIES(l) READONLYIF readonly(let) AFTER price(l) discount, discountPrice ON CHANGE changeDiscountPrice(l)
     ;
 END
 

@@ -54,7 +54,7 @@ findByIdParty (STRING code) {
 
 fill (LegalEntity l, STRING[13] c) {
     findByIdParty(c);
-    IF short(0) OR short_with_opf(0)THEN {
+    IF short(0) OR short_with_opf(0) THEN {
         name(l) <- OVERRIDE short(0), short_with_opf(0) WHERE NOT name(l);
         dataFullName(l) <- full_with_opf(0) WHERE NOT dataFullName(l);
         

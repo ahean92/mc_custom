@@ -34,7 +34,7 @@ openPricelist (Pricelist s) {
         edit(i); 
 }
 EXTEND FORM pricelist
-    PROPERTIES(p) numberDatePricelist ON CHANGE openPricelist(p) SHOWIF countPricelist(p)
+    PROPERTIES(p) READONLYIF readonly(p) numberDatePricelist ON CHANGE openPricelist(p) SHOWIF countPricelist(p)
 ;
 DESIGN pricelist {
     footer {
@@ -102,6 +102,10 @@ DESIGN Purchase.pricelist {
         MOVE BOX(sp) {
             showIf = pricelistType();
             caption = badged('Pricelists', countPricelists(p));
+            GRID(sp) {
+                width = 100;
+                autoSize = TRUE;
+            }
         }
         REMOVE TOOLBARSYSTEM(sp);
     }

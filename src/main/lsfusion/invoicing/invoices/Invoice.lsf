@@ -10,7 +10,7 @@ NAMESPACE Invoicing;
 
 CLASS Invoice 'Invoice';
 
-@defineDocStatus(invoice, 'Invoice');
+@defineDocStatus(invoice, 'Invoice status');
 
 // type
 type 'Type' = DATA InvoiceType (Invoice) NONULL;
@@ -20,7 +20,7 @@ WHEN LOCAL SET(Invoice s IS Invoice) AND NOT CHANGED(type(s)) DO type(s) <- defa
 
 // dateTime
 dateTime 'Date' = DATA DATETIME (Invoice) NONULL IN id;
-WHEN LOCAL SET (Invoice b IS Invoice) DO dateTime(b) <- currentDateTime();
+WHEN LOCAL SET (Invoice b IS Invoice) AND NOT CHANGED(dateTime(b)) DO dateTime(b) <- currentDateTime();
 @defineDateTimeAggregation(Invoice);
 
 @defineNumberType(invoice);
@@ -62,6 +62,7 @@ WHEN LOCAL (SETCHANGED(paymentTerms(Invoice i)) OR SETCHANGED(dateTime(i))) AND 
 // partner account
 customerAccount 'Customer account' = DATA Account (Invoice);
 nameCustomerAccount 'Customer account' (Invoice b) = name(customerAccount(b));
+numberCustomerAccount (Invoice b) = number(customerAccount(b));
 WHEN LOCAL CHANGED (customer(Invoice b)) DO customerAccount(b) <- defaultAccount(customer(b));
 
 CONSTRAINT customerAccount(Invoice b) AND NOT customer(b) = holder(customerAccount(b))
@@ -71,6 +72,11 @@ CONSTRAINT customerAccount(Invoice b) AND NOT customer(b) = holder(customerAccou
 // company account
 companyAccount 'Company account' = DATA Account (Invoice);
 nameCompanyAccount 'Company account' (Invoice b) = name(companyAccount(b));
+numberCompanyAccount (Invoice b) = number(companyAccount(b));
+bankCompanyAccount (Invoice b) = bank(companyAccount(b));
+idBankCompanyAccount 'Bank' (Invoice b) = idBank(companyAccount(b));
+nameBankCompanyAccount 'Bank' (Invoice b) = nameBank(companyAccount(b)); 
+
 WHEN LOCAL CHANGED(company(Invoice b)) DO companyAccount(b) <- defaultAccount(company(b));
 
 CONSTRAINT companyAccount(Invoice b) AND NOT company(b) = holder(companyAccount(b))
@@ -106,6 +112,12 @@ idBarCodeItem 'Barcode' (InvoiceLine l) = idBarCode(item(l));
 idItem '{ID}' (InvoiceLine l) = id(item(l));
 referenceItem 'Reference' (InvoiceLine l) = reference(item(l));
 
+nameCategoryItem 'Category' (InvoiceLine l) = nameCategory(item(l));
+level1Item 'Category 1' (InvoiceLine l) = level1(item(l));
+level2Item 'Category 2' (InvoiceLine l) = level2(item(l));
+level3Item 'Category 3' (InvoiceLine l) = level3(item(l));
+level4Item 'Category 4' (InvoiceLine l) = level4(item(l));
+
 CONSTRAINT item(InvoiceLine l) AND NOT canBeSold(item(l))
             CHECKED BY item 
             MESSAGE 'The item is not for sale';
@@ -129,10 +141,14 @@ WHEN LOCAL SETCHANGED(item(InvoiceLine l)) AND NOT CHANGED(price(l)) DO price(l)
 
 defaultPrice (InvoiceLine l) += WHEN salesPrice(item(l)) THEN salesPrice(item(l)); 
 
+calcAmount (InvoiceLine l) = NUMERIC[14,2](quantity(l) * price(l));
+
 @defineDocDiscount(invoice);
 
 @defineTaxCalc(invoice, i, sales, resultPrice);
 taxIncluded (InvoiceLine l) += taxIncluded(type(invoice(l)));
+
+discountAmount 'Discount amount' (InvoiceLine l) = calcAmount(l) (-) untaxedAmount(l);
 
 // Line properties
 type (InvoiceLine l) = type(invoice(l));
@@ -250,11 +266,10 @@ DESIGN invoice {
     }
 }
 
-@defineDocHistory(invoice, i, item, quantity);
 @defineDocSearch(invoice, item, quantity, 'Quantity', i, canBeSold);
 @defineBarCodeSearch(invoice, i, l, quantity);
 
-@defineDocDiscountForm(invoice);
+@defineDocDiscountForm(invoice, i);
 
 background = ABSTRACT CASE COLOR (Invoice);
 FORM invoices 'Invoices'
@@ -271,10 +286,17 @@ FORM invoices 'Invoices'
 
 @extendFormEditable(invoices);
 
+@defineDocHistory(invoice, i, item);
+@defineDocHistoryLineProperty(invoice, InvoiceLine, quantity, 'Qty', nameItem);
+@defineDocHistoryLineProperty(invoice, InvoiceLine, untaxedAmount, '{Amount}', nameItem);
+
+
 @defineDocObjectsForm(invoices, i, 'Invoices');
 @defineDocTaxForm(invoice, i);
 @defineDocStatusForm(invoice, i);
 @defineDocLinesCount(invoice, i);
+
+@defineObjectComments(invoice, i, details);
 
 @defineObjectFiles(invoice, i, 'Invoice file');
 
@@ -289,6 +311,7 @@ clone ABSTRACT LIST (Invoice, Invoice);
 clone (Invoice to, Invoice from) + {
     type(to) <- type(from);
     customer(to) <- customer(from);
+    company(to) <- company(from);
     note(to) <- note(from);
     FOR invoice(InvoiceLine l) = from INLINE NEW nl = InvoiceLine DO {
         invoice(nl) <- to;

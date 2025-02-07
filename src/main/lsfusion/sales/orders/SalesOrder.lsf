@@ -1,6 +1,6 @@
 MODULE SalesOrder;
 
-REQUIRE Time, MetaNumerator, Employee, Company, DateUtils, FileUtils,
+REQUIRE Time, MetaNumerator, Employee, Company, DateUtils, FileUtils, Comments,
         MetaTax, TaxItem, BarCode, LocationEmployee, Department,
         SalesSettings, PartnerSales, ItemSales, SalesOrderType,
         PaymentTermsSales, ServiceP, Doc;  
@@ -9,7 +9,7 @@ NAMESPACE Sales;
 
 CLASS Order 'Sales order';
 
-@defineDocStatus(order, 'Sales order');
+@defineDocStatus(order, 'Sales order status');
 
 // type
 type 'Type' = DATA OrderType (Order) NONULL;
@@ -32,7 +32,7 @@ addressCsvCustomer 'Customer address' (Order o) = addressCsv(customer(o));
 
 CONSTRAINT customer(Order o) AND NOT isCustomer(customer(o))
                 CHECKED BY customer[Order]
-                MESSAGE 'The partner of the buyer\'s order must be the buyer';
+                MESSAGE 'The partner of the sales order must be a customer';
 
 @defineDocDepartment(order, customer);
 
@@ -96,6 +96,12 @@ idItem '{ID}' (OrderLine l) = id(item(l));
 referenceItem 'Reference' (OrderLine l) = reference(item(l));
 isService 'Service' (OrderLine l) = item(l) IS Service;
 
+nameCategoryItem 'Category' (OrderLine l) = nameCategory(item(l));
+level1Item 'Category 1' (OrderLine l) = level1(item(l));
+level2Item 'Category 2' (OrderLine l) = level2(item(l));
+level3Item 'Category 3' (OrderLine l) = level3(item(l));
+level4Item 'Category 4' (OrderLine l) = level4(item(l));
+
 CONSTRAINT item(OrderLine l) AND NOT canBeSold(item(l))
             CHECKED BY item[OrderLine] 
             MESSAGE 'The item is not for sale';
@@ -146,7 +152,8 @@ nameCurrency 'Currency' (OrderLine l) = nameCurrency(order(l));
 
 FORM order 'Sales order'
     OBJECTS o = Order PANEL
-    PROPERTIES(o) nameType, dateTime, number, 
+    PROPERTIES(o) READONLYIF readonly(o)
+                  nameType, dateTime, number, 
                   nameCustomer, nameDepartment SHOWIF countDepartment(customer(o)), 
                   nameCompany, nameLocation, nameCurrency,
                   validity,
@@ -157,8 +164,9 @@ FORM order 'Sales order'
     PROPERTIES(o) READONLY untaxedAmount, taxAmount, amount
                  
     OBJECTS l = OrderLine
-    PROPERTIES(l) index, nameItem, description, nameUom, idBarCodeItem, idItem, referenceItem, quantity, price, untaxedAmount, taxes
-    PROPERTIES(l) NEW, DELETE
+    PROPERTIES(l) READONLYIF readonly(o)
+                  index, nameItem, description, nameUom, idBarCodeItem, idItem, referenceItem, quantity, price, untaxedAmount, taxes,
+                  NEW, DELETE
     FILTERS order(l) = o
     
     EDIT Order OBJECT o    
@@ -248,8 +256,7 @@ DESIGN order {
     }            
 }
 
-@defineDocHistory(order, o, item, quantity);
-@defineDocDiscountForm(order);
+@defineDocDiscountForm(order, o);
 
 background = ABSTRACT CASE COLOR (Order);
 FORM orders 'Sales orders'
@@ -268,10 +275,15 @@ FORM orders 'Sales orders'
 
 @extendFormEditable(orders);
 
+@defineDocHistory(order, o, item);
+@defineDocHistoryLineProperty(order, OrderLine, quantity, 'Qty', nameItem);
+
 @defineDocObjectsForm(orders, o, 'Sales orders');
 @defineDocStatusForm(order, o);
 @defineDocLinesCount(order, o);
 @defineDocLocationAccess(order, o);
+
+@defineObjectComments(order, o, details);
 
 @defineObjectFiles(order, o, 'Sales order file');
 

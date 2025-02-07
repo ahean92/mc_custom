@@ -15,6 +15,9 @@ nameLocation 'Location' (Invoice i) = name(location(i));
 CONSTRAINT SETCHANGED(location(Invoice o)) AND internalUse(location(o)) CHECKED BY location[Invoice]
     MESSAGE 'The selected location is for internal use';
 
+location (InvoiceLine l) = location(invoice(l));
+nameLocation 'Location' (InvoiceLine l) = name(location(l));
+
 EXTEND FORM invoice 
     PROPERTIES(i) nameLocation SHOWIF shipmentType(type(i))
 ;
@@ -26,7 +29,7 @@ DESIGN invoice {
 }
 
 EXTEND FORM invoices
-    PROPERTIES(i) READONLY nameLocation
+    PROPERTIES(i) READONLYIF isReadonly() nameLocation
 ;
 
 @defineDocLocationAccess(invoice, i);
@@ -34,6 +37,7 @@ EXTEND FORM invoices
 // lines
 @defineDocLineRelation(invoice, shipment, 'Invoice', 'Shipment', i, s);
 
+fill ABSTRACT LIST (Shipment, Invoice);
 fill ABSTRACT LIST (ShipmentLine, InvoiceLine);
 invoiceShipmentCreated = DATA LOCAL Shipment ();
 newShipment (Invoice i) {
@@ -47,7 +51,9 @@ newShipment (Invoice i) {
         deliveryAddress(r) <- deliveryAddress(i);
 
         immediate(r) <- TRUE;
-        done(r) <- TRUE;    
+        done(r) <- TRUE;
+        
+        fill(r, i);
     
         FOR invoice(InvoiceLine l) = i AND item(l) IS Product INLINE NEW rl = ShipmentLine DO {            
             shipment(rl) <- r;
@@ -87,6 +93,10 @@ DESIGN invoice {
     relatedDoc {
         MOVE BOX(s) {
             caption = badged('Shipments', countShipments(i));
+            GRID(s) {
+                width = 100;
+                autoSize = TRUE;
+            }
         }
         REMOVE TOOLBARSYSTEM(s);
     }
