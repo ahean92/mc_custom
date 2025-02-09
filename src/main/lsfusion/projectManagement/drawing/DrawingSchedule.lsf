@@ -12,7 +12,7 @@ taskStartDate 'Дата начала задачи' = DATA DATE (Task);
 taskEndDate 'Дата окончания задачи' = DATA DATE (Task);
 
 EXTEND FORM task
-    PROPERTIES(t) nameDesigner, taskStartDate, taskEndDate, color
+    PROPERTIES(t) SHOWIF id(type(t)) = 'typeDrawing' nameDesigner, taskStartDate, taskEndDate, color 
 ;
 
 CLASS DrawingScheduleLine;
@@ -27,26 +27,28 @@ managerName 'Менеджер' (DrawingScheduleLine l)= MasterData.name(manager(
 designer 'Дизайнер' = DATA Individual (DrawingScheduleLine) NONULL;
 designerName 'Дизайнер' (DrawingScheduleLine l)= MasterData.name(designer(l));
 
-nameTask(DATE d, DrawingScheduleLine l) = 
+nameTask(DATE d, DrawingScheduleLine l) = OVERRIDE( 
     GROUP CONCAT name(Task t) IF d >= taskStartDate(t) 
         AND d <= taskEndDate(t) 
         AND designer(l) = designer(t) 
         AND project(t) = project(l) 
         AND assignedTo(t) = manager(l), 
-        ', ' ORDER name(t);
+        ', ' ORDER name(t)), ' ';
 
 color 'Задачи' (DATE d, DrawingScheduleLine l) = 
     GROUP MAX color(Task t) IF d >= taskStartDate(t) AND d <= taskEndDate(t) AND designer(l) = designer(t) AND project(t) = project(l) AND assignedTo(t) = manager(l);
+
+nameTypeTask(DrawingScheduleLine l)= GROUP MAX nameType(Task t) IF id(type(t)) = ('typeDrawing') AND l IS DrawingScheduleLine;
 
 FORM taskDateEmployee 'Задачи'
     OBJECTS i = INTERVAL[DATE] PANEL
     OBJECTS l = DrawingScheduleLine PANEL
 
     OBJECTS t = Task
-    PROPERTIES(t) name, nameProject
+    PROPERTIES(t) nameType, name, nameProject
     PROPERTIES(t) taskStartDate, taskEndDate, color, nameDesigner, nameAssignedTo
     PROPERTIES(t) NEW, EDIT, DELETE
-    FILTERS project(t) = project(l), designer(t) = designer(l), assignedTo(t) = manager(l)
+    FILTERS nameType(t) = nameTypeTask(l), project(t) = project(l), designer(t) = designer(l), assignedTo(t) = manager(l)
 ;
 
 showTask 'Добавить задачу' (INTERVAL[DATE] int)  {
@@ -75,6 +77,16 @@ FORM drawingSchedule 'График отрисовки'
         nextInterval '>' = { SEEK drawingSchedule.dates = nextMonthInterval(dates); }
 ;
 
+
+EXTEND FORM drawingSchedule
+    OBJECTS t = Task
+    PROPERTIES(t) READONLY  nameType, name, nameProject
+    PROPERTIES(t) READONLY taskStartDate, taskEndDate, color, nameDesigner, nameAssignedTo
+    FILTERS taskStartDate(t) >= from(dates) AND taskEndDate(t) <= to(dates) AND id(type(t)) = 'typeDrawing'
+    PROPERTIES(t) NEW, EDIT, DELETE
+
+;
+
 DESIGN drawingSchedule {
     OBJECTS {
         NEW header {
@@ -91,9 +103,13 @@ DESIGN drawingSchedule {
             tabbed = TRUE;
             fill = 1;
             MOVE BOX(l) {
+                caption = 'График отрисовки';
                 PROPERTY(nameTask(d, l)) {
                     charWidth = 2;
                 }
+            }
+            MOVE BOX (t){
+                caption = 'Задачи';
             }
         }
     }
