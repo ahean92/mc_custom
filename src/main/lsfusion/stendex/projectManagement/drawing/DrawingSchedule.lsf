@@ -1,20 +1,39 @@
 MODULE DrawingSchedule;
 
-REQUIRE ProjectTask, TimesheetSupervisor, UtilsStendex, ProjectStendex, Employee, EnterpriseData;
+REQUIRE ProjectTask, TimesheetSupervisor, UtilsStendex, ProjectStendex, Employee, TaskCustom, EnterpriseData;
 
 NAMESPACE ProjectManagement;
 
 designer 'Дизайнер' = DATA Individual (Task);
 nameDesigner 'Дизайнер' (Task t) = name(designer(t));
 
-color 'Цвет' = DATA COLOR (Task);
+CONSTRAINT SETCHANGED(designer(Task t)) AND NOT isDesigner(designer(t)) CHECKED BY designer[Task] 
+    MESSAGE 'Выбранное физ.лицо не является дизайнером.'
+;
+
+color 'Цвет' (Task t) = color(status(t));
+
 taskStartDate 'Дата начала задачи' = DATA DATE (Task);
 taskEndDate 'Дата окончания задачи' = DATA DATE (Task);
 
+isDrawing (Task t) = id(type(t)) = 'typeDrawing';
+
 EXTEND FORM task
-    PROPERTIES(t) SHOWIF id(type(t)) = 'typeDrawing' nameDesigner, taskStartDate, taskEndDate, color 
+    PROPERTIES(t) SHOWIF id(type(t)) = 'typeDrawing' nameDesigner, taskStartDate, taskEndDate 
 ;
 
+DESIGN task{
+    OBJECTS {
+        params{
+            NEW drawing{
+                caption = 'Отрисовка';
+                MOVE PROPERTY (nameDesigner(t)) { notNull = TRUE; }
+                MOVE PROPERTY (taskStartDate(t)) { notNull = TRUE; }
+                MOVE PROPERTY (taskEndDate(t)) { notNull = TRUE; }
+            }
+        }
+    }
+}
 CLASS DrawingScheduleLine;
 
 phone 'Телефон' = DATA STRING (DrawingScheduleLine) CHARWIDTH 15;
@@ -51,6 +70,20 @@ FORM taskDateEmployee 'Задачи'
     FILTERS nameType(t) = nameTypeTask(l), project(t) = project(l), designer(t) = designer(l), assignedTo(t) = manager(l)
 ;
 
+task (DATE date, Project p, Individual d, Employee m) = GROUP MAX Task t IF isDrawing(t) AND 
+    project(t) = p AND designer(t) = d AND assignedTo(t) = m
+    AND date >= taskStartDate(t) AND date <= taskEndDate(t)
+;
+countTask (DATE date, Project p, Individual d, Employee m) = GROUP SUM 1 IF isDrawing(Task t) AND
+    project(t) = p AND designer(t) = d AND assignedTo(t) = m
+    AND date >= taskStartDate(t) AND date <= taskEndDate(t)
+;
+
+captionTask(DATE date, Project p, Individual d, Employee m) = ' ' IF countTask(date, p, d, m);
+
+inPeriod (INTERVAL[DATE] int, Project p, Individual d, Employee m) = 
+    GROUP SUM 1 IF task(DATE date, p, d, m) AND iterate(date, from(int), to(int));
+
 showTask 'Добавить задачу' (INTERVAL[DATE] int)  {
     NEWSESSION SHOW taskDateEmployee OBJECTS i = int;
 } ASON CONTEXTMENU nameTask[DATE, DrawingScheduleLine];
@@ -61,15 +94,16 @@ FORM drawingSchedule 'График отрисовки'
 
     OBJECTS d = DATE
     FILTERS iterate(d, from(dates), to(dates))
-
-    OBJECTS l = DrawingScheduleLine
-    PROPERTIES phone(l), name(l), managerName(l), designerName(l)
-    PROPERTIES(l) NEW, EDIT, DELETE
     
-    PROPERTIES nameTask(d, l) WAIT COLUMNS (d) HEADER extractDay(d) BACKGROUND color(d,l)
-    ON CHANGE {
-        SHOW taskDateEmployee OBJECTS i = interval(d, d) FLOAT;
-    }
+    OBJECTS line = (p = Project, designer = Individual, manager = Employee)
+    PROPERTIES 'Проект' = name(p), 'Менеджер' = name(manager), 'Дизайнер' = name(designer), 
+        captionTask(d, p, designer, manager) COLUMNS (d) HEADER extractDay(d) BACKGROUND color(task(d, p, designer, manager))
+    FILTERS inPeriod(dates, p, designer, manager)
+    
+    OBJECTS s = TaskStatus
+    PROPERTIES READONLY color = ' ' IF color(s) COLUMNS (s) HEADER name(s) BACKGROUND (color(s)) PANEL 
+    FILTERS color(s)
+    
     EVENTS ON INIT {
         SEEK drawingSchedule.dates = interval(firstDayOfMonth(currentDate()), lastDayOfMonth(currentDate()));
     }
@@ -77,13 +111,22 @@ FORM drawingSchedule 'График отрисовки'
         nextInterval '>' = { SEEK drawingSchedule.dates = nextMonthInterval(dates); }
 ;
 
+newDrawingTask 'Добавить'(){
+    NEW t = Task{
+        type(t) <- taskType('typeDrawing');
+        author(t) <- currentUser();
+        taskStartDate(t) <- currentDate();
+        taskEndDate(t) <- currentDate();
+        SHOW task OBJECTS t = t DOCKED;
+    }
+} IMAGE 'add.png';
 
 EXTEND FORM drawingSchedule
     OBJECTS t = Task
-    PROPERTIES(t) READONLY  nameType, name, nameProject
-    PROPERTIES(t) READONLY taskStartDate, taskEndDate, color, nameDesigner, nameAssignedTo
-    FILTERS taskStartDate(t) >= from(dates) AND taskEndDate(t) <= to(dates) AND id(type(t)) = 'typeDrawing'
-    PROPERTIES(t) NEW, EDIT, DELETE
+    PROPERTIES(t) READONLY  nameType, name, nameProject, nameStatus BACKGROUND color(t)
+    PROPERTIES(t) READONLY taskStartDate, taskEndDate, nameDesigner, 'Менеджер' = nameAssignedTo
+    FILTERS taskStartDate(t) >= from(dates) AND taskEndDate(t) <= to(dates) AND isDrawing(t)
+    PROPERTIES NEWSESSION newDrawingTask() TOOLBAR DRAW t, EDIT(t), DELETE(t)
 
 ;
 
@@ -97,14 +140,20 @@ DESIGN drawingSchedule {
                 MOVE PROPERTY(prevInterval);
                 MOVE PROPERTY(dates);
                 MOVE PROPERTY(nextInterval);
+                NEW info{
+                    alignment = END;
+                    MOVE PROPERTY (color);
+                }
             }
+            
         }
         NEW tabbedPane {
             tabbed = TRUE;
             fill = 1;
-            MOVE BOX(l) {
+            
+            MOVE BOX(line){
                 caption = 'График отрисовки';
-                PROPERTY(nameTask(d, l)) {
+                PROPERTY(captionTask(d, p, designer, manager)) {
                     charWidth = 2;
                 }
             }
@@ -118,5 +167,13 @@ DESIGN drawingSchedule {
 NAVIGATOR {
     dashboard {
         NEW drawingSchedule;
+    }
+}
+
+
+onStarted() +{
+    IF NOT taskType('typeDrawing') THEN NEW t = TaskType{
+        id(t) <- 'typeDrawing';
+        name(t) <- 'Отрисовка';
     }
 }

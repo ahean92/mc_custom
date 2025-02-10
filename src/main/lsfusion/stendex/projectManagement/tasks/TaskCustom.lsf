@@ -1,0 +1,11 @@
+MODULE TaskCustom;
+
+REQUIRE Task;
+
+NAMESPACE ProjectManagement;
+
+color 'Цвет' = DATA COLOR (TaskStatus);
+
+EXTEND FORM options
+    PROPERTIES (ts) color
+;

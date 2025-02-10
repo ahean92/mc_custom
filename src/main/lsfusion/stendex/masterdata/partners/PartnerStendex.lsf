@@ -93,3 +93,14 @@ DESIGN partner {
         };
     }
 }
+
+isDesigner 'Дизайнер' = DATA BOOLEAN (Position);
+isDesigner (Individual d) = isDesigner(position(d));
+
+EXTEND FORM positions
+    PROPERTIES (o) isDesigner READONLY 
+;
+
+EXTEND FORM position
+    PROPERTIES (o) isDesigner
+;
