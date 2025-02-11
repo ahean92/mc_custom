@@ -78,7 +78,10 @@ countTask (DATE date, Project p, Individual d, Employee m) = GROUP SUM 1 IF isDr
     project(t) = p AND designer(t) = d AND assignedTo(t) = m
     AND date >= taskStartDate(t) AND date <= taskEndDate(t)
 ;
-
+comment 'Комментарий'(INTERVAL[DATE] int, Project p, Individual d, Employee m) = 
+    OVERRIDE (GROUP CONCAT name(Task t) IF project(t) = p AND designer(t) = d AND assignedTo(t) = m  AND  taskStartDate(t) >= from(int) AND taskEndDate(t) <= to(int)
+    , ' ' ORDER t), ' '
+;
 captionTask(DATE date, Project p, Individual d, Employee m) = ' ' IF countTask(date, p, d, m);
 
 inPeriod (INTERVAL[DATE] int, Project p, Individual d, Employee m) = 
@@ -88,6 +91,8 @@ showTask 'Добавить задачу' (INTERVAL[DATE] int)  {
     NEWSESSION SHOW taskDateEmployee OBJECTS i = int;
 } ASON CONTEXTMENU nameTask[DATE, DrawingScheduleLine];
 
+fio (Employee e) = CONCAT ' ', lastName[Contact](e), initials(e);
+
 FORM drawingSchedule 'График отрисовки'
     OBJECTS dates = INTERVAL[DATE] PANEL NULL
     PROPERTIES dates '' = VALUE(dates)
@@ -96,7 +101,7 @@ FORM drawingSchedule 'График отрисовки'
     FILTERS iterate(d, from(dates), to(dates))
     
     OBJECTS line = (p = Project, designer = Individual, manager = Employee)
-    PROPERTIES 'Проект' = name(p), 'Менеджер' = name(manager), 'Дизайнер' = name(designer), 
+    PROPERTIES READONLY pro 'Проект' = name(p), man 'Менеджер' = fio(manager), des 'Дизайнер' = lastName(designer), phone 'Телефон' = phone(designer), comment(dates, p, designer, manager),
         captionTask(d, p, designer, manager) COLUMNS (d) HEADER extractDay(d) BACKGROUND color(task(d, p, designer, manager))
     FILTERS inPeriod(dates, p, designer, manager)
     
@@ -156,6 +161,22 @@ DESIGN drawingSchedule {
                 PROPERTY(captionTask(d, p, designer, manager)) {
                     charWidth = 2;
                 }
+                PROPERTY (man){
+                    charWidth = 12;
+                }
+                PROPERTY (des){
+                    charWidth = 12;
+                }
+                PROPERTY (comment(dates, p, designer, manager)){
+                    charWidth = 18;
+                }
+                PROPERTY (phone){
+                    charWidth = 12;
+                }
+                PROPERTY (pro){
+                    charWidth = 12;
+                }
+                
             }
             MOVE BOX (t){
                 caption = 'Задачи';
