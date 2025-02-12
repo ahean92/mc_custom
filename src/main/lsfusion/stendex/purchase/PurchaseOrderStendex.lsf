@@ -442,5 +442,15 @@ DESIGN order {
                 MOVE PROPERTY(nameVendorStendEx(o)) { notNull = TRUE; }
             }
         }
+        files{
+            MOVE BOX (of){
+                fill = 0.5;
+            }
+            MOVE preview{
+                fill = 0.5;
+                PROPERTY (previewImageFile()) { size = (40,40); fill = 1;}
+                PROPERTY (previewPdfFile()) { size = (40,40); fill = 1;}
+            }
+        }
     }
 }
