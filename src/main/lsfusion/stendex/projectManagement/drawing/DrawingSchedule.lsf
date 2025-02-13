@@ -18,22 +18,70 @@ taskEndDate 'Дата окончания задачи' = DATA DATE (Task);
 
 isDrawing (Task t) = id(type(t)) = 'typeDrawing';
 
-EXTEND FORM task
-    PROPERTIES(t) SHOWIF id(type(t)) = 'typeDrawing' nameDesigner, taskStartDate, taskEndDate 
+FORM taskDrawing '{Task}'
+    OBJECTS t = Task PANEL
+    PROPERTIES(t) 'Наименование' = name, nameStatus, nameAuthor, 'Менеджер' = nameAssignedTo, nameProject, nameDesigner, taskStartDate, taskEndDate
+    PROPERTIES inputComment(), newComment(t)
+
+    OBJECTS cmt = TaskComment CUSTOM 'comments'
+    PROPERTIES id = VALUE(cmt)
+    PROPERTIES(cmt) nameUser, dateTime, text
+    PROPERTIES(cmt) edit ON CHANGE {
+        SHOW editTaskComment OBJECTS c = cmt;
+    },
+        delete = DELETE
+    ORDERS id DESC
+    FILTERS task(cmt) = t
 ;
 
-DESIGN task{
+DESIGN taskDrawing {
     OBJECTS {
-        params{
-            NEW drawing{
-                caption = 'Отрисовка';
-                MOVE PROPERTY (nameDesigner(t)) { notNull = TRUE; }
-                MOVE PROPERTY (taskStartDate(t)) { notNull = TRUE; }
-                MOVE PROPERTY (taskEndDate(t)) { notNull = TRUE; }
+        NEW pane {
+            fill = 1;
+            horizontal = TRUE;
+            NEW header {
+                NEW main {
+                    horizontal = TRUE;
+                    alignment = STRETCH;
+                    MOVE PROPERTY(name(t)) { flex = 1; fontSize = 16; }
+                }
+                NEW params {
+                    lines = 2;
+                    alignment = STRETCH;
+                    MOVE PROPERTY(nameStatus(t));
+                    MOVE PROPERTY(nameAuthor(t));
+                    MOVE PROPERTY(nameAssignedTo(t));
+                    MOVE PROPERTY(nameProject(t));
+                    MOVE PROPERTY(taskStartDate(t));
+                    MOVE PROPERTY(nameDesigner(t));
+                    MOVE PROPERTY(taskEndDate(t));
+                }
+            }
+            NEW comments {
+                fill = 1;
+                caption = badged('Comments', countComment(t));
+                NEW inputComment {
+                    horizontal = TRUE;
+                    alignment = STRETCH;
+                    MOVE PROPERTY(inputComment()) {
+                        valueHeight = -1;
+                        fill = 1;
+                    }
+                    MOVE PROPERTY(newComment(t)) {
+                        alignment = STRETCH;
+                    }
+                }
+                MOVE GRID(cmt) {
+                    height = 200;
+                    width = 400;
+                    fill = 1;
+                }
+                REMOVE BOX(cmt);
             }
         }
     }
 }
+
 CLASS DrawingScheduleLine;
 
 phone 'Телефон' = DATA STRING (DrawingScheduleLine) CHARWIDTH 15;
@@ -56,6 +104,7 @@ nameTask(DATE d, DrawingScheduleLine l) = OVERRIDE(
 
 color 'Задачи' (DATE d, DrawingScheduleLine l) = 
     GROUP MAX color(Task t) IF d >= taskStartDate(t) AND d <= taskEndDate(t) AND designer(l) = designer(t) AND project(t) = project(l) AND assignedTo(t) = manager(l);
+colorTask(DATE dt, Task t) = GROUP MAX color(status(t)) IF dt >= taskStartDate(t) AND dt <= taskEndDate(t);
 
 nameTypeTask(DrawingScheduleLine l)= GROUP MAX nameType(Task t) IF id(type(t)) = ('typeDrawing') AND l IS DrawingScheduleLine;
 
@@ -78,14 +127,20 @@ countTask (DATE date, Project p, Individual d, Employee m) = GROUP SUM 1 IF isDr
     project(t) = p AND designer(t) = d AND assignedTo(t) = m
     AND date >= taskStartDate(t) AND date <= taskEndDate(t)
 ;
+countTask (DATE date, Task t) = GROUP SUM 1 IF isDrawing(Task tt)
+    AND date >= taskStartDate(tt) AND date <= taskEndDate(tt) AND tt = t
+;
+
 comment 'Комментарий'(INTERVAL[DATE] int, Project p, Individual d, Employee m) = 
     OVERRIDE (GROUP CONCAT name(Task t) IF project(t) = p AND designer(t) = d AND assignedTo(t) = m  AND  taskStartDate(t) >= from(int) AND taskEndDate(t) <= to(int)
     , ' ' ORDER t), ' '
 ;
 captionTask(DATE date, Project p, Individual d, Employee m) = ' ' IF countTask(date, p, d, m);
+captionTask(DATE date, Task t) = ' ' IF countTask(date, t);
 
 inPeriod (INTERVAL[DATE] int, Project p, Individual d, Employee m) = 
     GROUP SUM 1 IF task(DATE date, p, d, m) AND iterate(date, from(int), to(int));
+inPeriod(INTERVAL[DATE] int, Task t) = GROUP SUM 1 IF countTask(DATE dt, t) AND iterate(dt, from(int), to(int));
 
 showTask 'Добавить задачу' (INTERVAL[DATE] int)  {
     NEWSESSION SHOW taskDateEmployee OBJECTS i = int;
@@ -99,11 +154,12 @@ FORM drawingSchedule 'График отрисовки'
 
     OBJECTS d = DATE
     FILTERS iterate(d, from(dates), to(dates))
-    
-    OBJECTS line = (p = Project, designer = Individual, manager = Employee)
-    PROPERTIES READONLY pro 'Проект' = name(p), man 'Менеджер' = fio(manager), des 'Дизайнер' = lastName(designer), phone 'Телефон' = phone(designer), comment(dates, p, designer, manager),
-        captionTask(d, p, designer, manager) COLUMNS (d) HEADER extractDay(d) BACKGROUND color(task(d, p, designer, manager))
-    FILTERS inPeriod(dates, p, designer, manager)
+
+    OBJECTS tt = Task
+    PROPERTIES READONLY 'Наименование' = name(tt), pro = nameProject(tt), man 'Менеджер' = nameAssignedTo(tt), des = nameDesigner(tt),
+        captionTask(d, tt) DRAW tt COLUMNS (d) HEADER extractDay(d) BACKGROUND colorTask(d, tt)
+    FILTERS inPeriod(dates, tt)
+    FILTERS isDrawing(tt)
     
     OBJECTS s = TaskStatus
     PROPERTIES READONLY color = ' ' IF color(s) COLUMNS (s) HEADER name(s) BACKGROUND (color(s)) PANEL 
@@ -122,9 +178,19 @@ newDrawingTask 'Добавить'(){
         author(t) <- currentUser();
         taskStartDate(t) <- currentDate();
         taskEndDate(t) <- currentDate();
-        SHOW task OBJECTS t = t DOCKED;
+        SHOW taskDrawing OBJECTS t = t DOCKED;
     }
 } IMAGE 'add.png';
+
+EXTEND FORM tasks
+    PROPERTIES 'Добавить отрисовку' = newDrawingTask()
+;
+
+DESIGN tasks {
+    TOOLBARRIGHT(t) {
+        MOVE PROPERTY(newDrawingTask()) FIRST;
+    }
+}
 
 EXTEND FORM drawingSchedule
     OBJECTS t = Task
@@ -132,7 +198,6 @@ EXTEND FORM drawingSchedule
     PROPERTIES(t) READONLY taskStartDate, taskEndDate, nameDesigner, 'Менеджер' = nameAssignedTo
     FILTERS taskStartDate(t) >= from(dates) AND taskEndDate(t) <= to(dates) AND isDrawing(t)
     PROPERTIES NEWSESSION newDrawingTask() TOOLBAR DRAW t, EDIT(t), DELETE(t)
-
 ;
 
 DESIGN drawingSchedule {
@@ -155,28 +220,21 @@ DESIGN drawingSchedule {
         NEW tabbedPane {
             tabbed = TRUE;
             fill = 1;
-            
-            MOVE BOX(line){
+
+            MOVE BOX(tt){
                 caption = 'График отрисовки';
-                PROPERTY(captionTask(d, p, designer, manager)) {
-                    charWidth = 2;
-                }
                 PROPERTY (man){
                     charWidth = 12;
                 }
                 PROPERTY (des){
                     charWidth = 12;
                 }
-                PROPERTY (comment(dates, p, designer, manager)){
-                    charWidth = 18;
-                }
-                PROPERTY (phone){
-                    charWidth = 12;
-                }
                 PROPERTY (pro){
                     charWidth = 12;
                 }
-                
+                PROPERTY(captionTask(d, tt)) {
+                    charWidth = 2;
+                }
             }
             MOVE BOX (t){
                 caption = 'Задачи';
@@ -196,5 +254,13 @@ onStarted() +{
     IF NOT taskType('typeDrawing') THEN NEW t = TaskType{
         id(t) <- 'typeDrawing';
         name(t) <- 'Отрисовка';
+    }
+}
+
+edit (Task t) + {
+    IF type(t) = taskType('typeDrawing') THEN {
+        SHOW taskDrawing OBJECTS t = t DOCKED;
+    } ELSE {
+        SHOW task OBJECTS t = t DOCKED;
     }
 }

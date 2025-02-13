@@ -1,6 +1,6 @@
 MODULE TaskCustom;
 
-REQUIRE Task;
+REQUIRE Task, TaskType;
 
 NAMESPACE ProjectManagement;
 
@@ -9,3 +9,14 @@ color 'Цвет' = DATA COLOR (TaskStatus);
 EXTEND FORM options
     PROPERTIES (ts) color
 ;
+
+onStarted() + {
+    IF NOT taskType('default') THEN {
+        NEW t = TaskType {
+            name(t) <- 'По умолчанию';
+            id(t) <- 'default';
+        }
+    }
+}
+
+WHEN LOCAL SET (Task t IS Task) AND NOT type(t) DO type(t) <- taskType('default');
