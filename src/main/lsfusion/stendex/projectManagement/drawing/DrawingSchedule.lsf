@@ -156,8 +156,9 @@ FORM drawingSchedule 'График отрисовки'
     FILTERS iterate(d, from(dates), to(dates))
 
     OBJECTS tt = Task
-    PROPERTIES READONLY 'Наименование' = name(tt), pro = nameProject(tt), man 'Менеджер' = nameAssignedTo(tt), des = nameDesigner(tt),
-        captionTask(d, tt) DRAW tt COLUMNS (d) HEADER extractDay(d) BACKGROUND colorTask(d, tt)
+    PROPERTIES READONLY pro = nameProject(tt), man 'Менеджер' = nameAssignedTo(tt), des = nameDesigner(tt), 'Наименование' = name(tt)
+    PROPERTIES captionTask(d, tt) DRAW tt COLUMNS (d) HEADER extractDay(d) BACKGROUND colorTask(d, tt)
+    PROPERTIES (tt) NEWSESSION edit TOOLBAR 
     FILTERS inPeriod(dates, tt)
     FILTERS isDrawing(tt)
     
@@ -183,7 +184,7 @@ newDrawingTask 'Добавить'(){
 } IMAGE 'add.png';
 
 EXTEND FORM tasks
-    PROPERTIES 'Добавить отрисовку' = newDrawingTask()
+    PROPERTIES NEWSESSION 'Добавить отрисовку' = newDrawingTask()
 ;
 
 DESIGN tasks {
@@ -228,6 +229,7 @@ DESIGN drawingSchedule {
                 }
                 PROPERTY (des){
                     charWidth = 12;
+                    valueClass = 'caption';
                 }
                 PROPERTY (pro){
                     charWidth = 12;
@@ -239,6 +241,9 @@ DESIGN drawingSchedule {
             MOVE BOX (t){
                 caption = 'Задачи';
             }
+        }
+        PROPERTY (edit(tt)){
+            changeMouse = 'DBLCLK';
         }
     }
 }
