@@ -18,7 +18,7 @@ partiallyPaid(Bill b) = b IS Bill AND paid(b) AND NOT toPay(b) AND NOT done(b) M
 EXTEND CLASS BillStatus {
     partiallyPaid 'Частично оплачен'
 }
-status(Bill b) += WHEN partiallyPaid(b) THEN BillStatus.partiallyPaid;
+//status(Bill b) += WHEN partiallyPaid(b) THEN BillStatus.partiallyPaid;
 color (BillStatus s) += WHEN s = BillStatus.partiallyPaid THEN RGB(187,242,210);
 
 toReady (Bill b) = (b IS Bill AND NOT ready(b) AND NOT onApproval(b)) OR partiallyPaid(b) MATERIALIZED;
