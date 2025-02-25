@@ -45,13 +45,17 @@ DESIGN taskDrawing {
                     alignment = STRETCH;
                     MOVE PROPERTY(name(t)) { flex = 1; fontSize = 16; }
                 }
+                NEW pro {
+                    horizontal = TRUE;
+                    alignment = STRETCH;
+                    MOVE PROPERTY(nameProject(t)) { flex = 1; fontSize = 16; }
+                }
                 NEW params {
                     lines = 2;
                     alignment = STRETCH;
                     MOVE PROPERTY(nameStatus(t));
                     MOVE PROPERTY(nameAuthor(t));
                     MOVE PROPERTY(nameAssignedTo(t));
-                    MOVE PROPERTY(nameProject(t));
                     MOVE PROPERTY(taskStartDate(t));
                     MOVE PROPERTY(nameDesigner(t));
                     MOVE PROPERTY(taskEndDate(t));
@@ -268,4 +272,9 @@ edit (Task t) + {
     } ELSE {
         SHOW task OBJECTS t = t DOCKED;
     }
+}
+
+WHEN LOCAL CHANGED(project(Task t)) DO {
+    designer(t) <- designer(project(t));
+    assignedTo(t) <- manager(project(t));
 }
