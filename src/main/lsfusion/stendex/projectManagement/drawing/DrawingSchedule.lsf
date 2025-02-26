@@ -278,3 +278,25 @@ WHEN LOCAL CHANGED(project(Task t)) DO {
     designer(t) <- designer(project(t));
     assignedTo(t) <- manager(project(t));
 }
+
+showAllTasks 'Отображать все задачи' = DATA BOOLEAN (CustomUser);
+
+EXTEND FORM employee
+    PROPERTIES(e) showAllTasks
+;
+
+DESIGN employee {
+    login {
+        MOVE PROPERTY(showAllTasks(e));
+    }
+}
+
+filterTaskUser(Task t) = 
+    TRUE IF author(t) == currentUser()
+        OR assignedTo(t) == currentUser() 
+        OR showAllTasks(currentUser());
+
+EXTEND FORM tasks
+    FILTERS filterTaskUser(t)
+;
+    
