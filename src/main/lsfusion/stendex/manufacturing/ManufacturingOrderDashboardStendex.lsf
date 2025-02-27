@@ -84,6 +84,81 @@ EXTEND FORM manufacturingOrderDashboard
     EVENTS ON INIT drop()
 ;
 
+ok = DATA LOCAL BOOLEAN ();
+quantity 'Кол-во' = DATA LOCAL INTEGER(Item);
+
+addQuantity(Item i, INTEGER n) {
+    activityDateTimeUser(currentUser()) <- currentDateTime();
+    quantity(i) <- quantity(i) + n;
+}
+
+manufacturingOrderDashboardAdd1 '+1' (Item i) {
+    addQuantity(i, 1);
+}
+manufacturingOrderDashboardSubtarct1 '-1' (Item i) {
+    addQuantity(i, -1);
+}
+manufacturingOrderDashboardAdd5 '+5' (Item i) {
+    addQuantity(i, 5);
+}
+manufacturingOrderDashboardSubtarct5 '-5' (Item i) {
+    addQuantity(i, -5);
+}
+
+FORM showDescription ' '
+    OBJECTS i = Item PANEL
+    PROPERTIES(i) READONLY name '' = name, image '' = image, desc '' = description
+    PROPERTIES(i) quantity
+    PROPERTIES(i) manufacturingOrderDashboardAdd1, manufacturingOrderDashboardSubtarct1,
+            manufacturingOrderDashboardAdd5, manufacturingOrderDashboardSubtarct5
+    EVENTS ON INIT {
+        quantity(i) <- 1;
+    }
+    EVENTS ON OK {
+        ok() <- TRUE;
+    }
+;
+
+DESIGN showDescription {
+    OBJECTS {
+        NEW pane {
+            horizontal = TRUE;
+            fill = 1;
+            NEW header {
+                fill = 1;
+                NEW headerRow1 {
+                    alignment = STRETCH;
+                    horizontal = TRUE;
+                    NEW login {
+                        size = (200,100);
+                        MOVE PROPERTY(image){fill = 1;caption = '';}
+
+                    }
+                    NEW login2 {
+                        MOVE PROPERTY(name){alignment = STRETCH;}
+                        MOVE PROPERTY(quantity(i));
+                        NEW add {
+                            horizontal = TRUE;
+                            MOVE PROPERTY(manufacturingOrderDashboardSubtarct5(i)) { fill = 1; fontSize = 14; focusable = FALSE; }
+                            MOVE PROPERTY(manufacturingOrderDashboardSubtarct1(i)) { fill = 1; fontSize = 14; focusable = FALSE; }
+                            MOVE PROPERTY(manufacturingOrderDashboardAdd1(i)) { fill = 1; fontSize = 14; focusable = FALSE; }
+                            MOVE PROPERTY(manufacturingOrderDashboardAdd5(i)) { fill = 1; fontSize = 14; focusable = FALSE; }
+
+                        }
+                    }
+                }
+                NEW fff {
+                    fill = 1;
+                    caption = 'Описание';
+                    alignment = STRETCH;
+                    MOVE PROPERTY(desc);
+                }
+            }
+
+        }
+    }
+}
+
 lastOrderLine (ManufacturingOrder i, Item p) = GROUP LAST ConsumedLine l ORDER l BY manufacturingOrder(l), item(l);
 
 setQuantity (ManufacturingOrder i, Item p, NUMERIC[14,3] q) {
@@ -93,14 +168,18 @@ setQuantity (ManufacturingOrder i, Item p, NUMERIC[14,3] q) {
                 WHERE manufacturingOrder(l) = i AND item(l) = p;
         ELSE
             DELETE ConsumedLine l WHERE manufacturingOrder(l) = i AND item(l) = p;
-    } ELSE
+    } ELSE {
         IF q THEN
             NEW l = ConsumedLine{
-                manufacturingOrder(l) <- i;
-                item(l) <- p;
-                toConsume(l) <- q;
+                ok() <- NULL;
+                SHOW showDescription OBJECTS i = p FILTERS name(p);
+                IF ok() THEN {
+                    manufacturingOrder(l) <- i;
+                    item(l) <- p;
+                    toConsume(l) <- quantity(p);
+                }
             }
-
+    }
 }
 
 selectOrderSearch 'Select' (ManufacturingOrder i, Item it) {
@@ -359,9 +438,9 @@ cancelOrder 'Отменить' (ManufacturingOrder o) {
 EXTEND FORM manufacturingOrderDashboard
     PROPERTIES () nameFilter, saveOrder
     PROPERTIES (i) cancelOrder
-    FILTERS isISubstring(name(tn1), nameFilter()) OR NOT nameFilter()
-    FILTERS isISubstring(name(tn2), nameFilter()) OR NOT nameFilter()
-    FILTERS isISubstring(name(tn3), nameFilter()) OR NOT nameFilter()
+    FILTERS (isISubstring(name(tn1), nameFilter()) OR isISubstring(name(category(tn1)), nameFilter())) OR NOT nameFilter()
+    FILTERS (isISubstring(name(tn2), nameFilter()) OR isISubstring(name(category(tn2)), nameFilter())) OR NOT nameFilter()
+    FILTERS (isISubstring(name(tn3), nameFilter()) OR isISubstring(name(category(tn3)), nameFilter())) OR NOT nameFilter()
 
     EVENTS ON SCHEDULE PERIOD 60 {
         IF subtractSeconds(activityDateTimeUser(currentUser()), currentDateTime()) >= 300 THEN {
@@ -408,3 +487,7 @@ DESIGN manufacturingOrderDashboard {
         }
     }
 }
+
+EXTEND FORM dialogProjects
+    FILTERGROUP isOpen FILTER 'Открыт' NOT archived(p) AND NOT closed(p) DEFAULT
+;
