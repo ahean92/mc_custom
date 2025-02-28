@@ -105,9 +105,27 @@ manufacturingOrderDashboardSubtarct5 '-5' (Item i) {
     addQuantity(i, -5);
 }
 
+nameColor 'Цвет'  = DATA STRING(Item);
+nameSize 'Размер' = DATA STRING(Item);
+
+EXTEND FORM items
+    PROPERTIES(i) READONLY nameColor, nameSize
+;
+
+EXTEND FORM item
+    PROPERTIES(i) nameColor, nameSize
+;
+
+DESIGN item {
+    column2 {
+        MOVE PROPERTY(nameColor(i));
+        MOVE PROPERTY(nameSize(i));
+    }
+}
+
 FORM showDescription ' '
     OBJECTS i = Item PANEL
-    PROPERTIES(i) READONLY name '' = name, image '' = image, desc '' = description
+    PROPERTIES(i) READONLY name '' = name, image '' = image, desc '' = description, nameUom, nameColor, nameSize
     PROPERTIES(i) quantity
     PROPERTIES(i) manufacturingOrderDashboardAdd1, manufacturingOrderDashboardSubtarct1,
             manufacturingOrderDashboardAdd5, manufacturingOrderDashboardSubtarct5
@@ -120,6 +138,7 @@ FORM showDescription ' '
 ;
 
 DESIGN showDescription {
+    size = (600,380);
     OBJECTS {
         NEW pane {
             horizontal = TRUE;
@@ -130,31 +149,33 @@ DESIGN showDescription {
                     alignment = STRETCH;
                     horizontal = TRUE;
                     NEW login {
-                        size = (200,100);
+                        size = (200,200);
                         MOVE PROPERTY(image){fill = 1;caption = '';}
-
                     }
-                    NEW login2 {
-                        MOVE PROPERTY(name){alignment = STRETCH;}
-                        MOVE PROPERTY(quantity(i));
+                    NEW item {
+                        fill = 1;
+                        MOVE PROPERTY(name){alignment = STRETCH; wrap = TRUE;}
+                        MOVE PROPERTY(nameUom(i));
+                        MOVE PROPERTY(nameColor(i));
+                        MOVE PROPERTY(nameSize(i));
+                        NEW desc {
+                            fill = 0.5;
+                            caption = 'Описание';
+                            alignment = STRETCH;
+                            MOVE PROPERTY(desc);
+                        }
+                        MOVE PROPERTY(quantity(i)){alignment = STRETCH;}
                         NEW add {
                             horizontal = TRUE;
+                            alignment = STRETCH;
                             MOVE PROPERTY(manufacturingOrderDashboardSubtarct5(i)) { fill = 1; fontSize = 14; focusable = FALSE; }
                             MOVE PROPERTY(manufacturingOrderDashboardSubtarct1(i)) { fill = 1; fontSize = 14; focusable = FALSE; }
                             MOVE PROPERTY(manufacturingOrderDashboardAdd1(i)) { fill = 1; fontSize = 14; focusable = FALSE; }
                             MOVE PROPERTY(manufacturingOrderDashboardAdd5(i)) { fill = 1; fontSize = 14; focusable = FALSE; }
-
-                        }
-                    }
-                }
-                NEW fff {
-                    fill = 1;
-                    caption = 'Описание';
-                    alignment = STRETCH;
-                    MOVE PROPERTY(desc);
+                        }                        
+                    }    
                 }
             }
-
         }
     }
 }
