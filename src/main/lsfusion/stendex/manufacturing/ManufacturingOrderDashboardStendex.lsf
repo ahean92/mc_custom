@@ -441,7 +441,8 @@ NAVIGATOR {
     }
 }
 
-nameFilter 'Поиск по наименованию' = DATA LOCAL ISTRING ();
+filter = DATA LOCAL TouchNode ();
+nameFilter 'Поиск по наименованию' = name(filter());
 
 saveOrder 'Оформить заказ' () {
     activityDateTimeUser(currentUser()) <- currentDateTime();
@@ -459,9 +460,9 @@ cancelOrder 'Отменить' (ManufacturingOrder o) {
 EXTEND FORM manufacturingOrderDashboard
     PROPERTIES () nameFilter, saveOrder
     PROPERTIES (i) cancelOrder
-    FILTERS (isISubstring(name(tn1), nameFilter()) OR isISubstring(name(category(tn1)), nameFilter())) OR NOT nameFilter()
-    FILTERS (isISubstring(name(tn2), nameFilter()) OR isISubstring(name(category(tn2)), nameFilter())) OR NOT nameFilter()
-    FILTERS (isISubstring(name(tn3), nameFilter()) OR isISubstring(name(category(tn3)), nameFilter())) OR NOT nameFilter()
+    FILTERS isISubstring(name(tn1), nameFilter()) OR NOT nameFilter()
+    FILTERS isISubstring(name(tn2), nameFilter()) OR NOT nameFilter()
+    FILTERS isISubstring(name(tn3), nameFilter()) OR NOT nameFilter()
 
     EVENTS ON SCHEDULE PERIOD 60 {
         IF subtractSeconds(activityDateTimeUser(currentUser()), currentDateTime()) >= 300 THEN {
@@ -512,3 +513,7 @@ DESIGN manufacturingOrderDashboard {
 EXTEND FORM dialogProjects
     FILTERGROUP isOpen FILTER 'Открыт' NOT archived(p) AND NOT closed(p) DEFAULT
 ;
+
+WHEN LOCAL FORMS manufacturingOrderDashboard CHANGED(nameFilter()) DO {
+    SEEK manufacturingOrderDashboard.tn = parent(filter());
+}
