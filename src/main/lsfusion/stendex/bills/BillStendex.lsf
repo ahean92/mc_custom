@@ -1,6 +1,6 @@
 MODULE BillStendex;
 
-REQUIRE BillDone, BillCanceled, ProjectBill, ServiceP, UtilsStendex, EmployeeStendex, PartnerStendex, BillClosedStendex, Selection;
+REQUIRE BillDone, BillCanceled, ProjectBill, ServiceP, UtilsStendex, EmployeeStendex, PartnerStendex, BillClosedStendex, Selection, ProjectStendex;
 
 NAMESPACE Invoicing;
 
@@ -43,11 +43,15 @@ amountProjects 'Сумма по проекту' (Bill b) = GROUP SUM amount(b, P
 
 nameProjects 'Проекты' (Bill b) = GROUP CONCAT name(Project p) IF in(b, p), '/' ORDER p;
 
+changeIn (Bill b, Project p) {
+    in(b, p) <- NOT in(b, p);
+} CHANGEMOUSE 'DBLCLK';
+
 FORM changeBillProjects 'Выбрать проекты'
     OBJECTS b = Bill PANEL
     OBJECTS p = Project
     PROPERTIES(b,p) in
-    PROPERTIES(p) READONLY number, startDate, endDate, namePartner, nameType, name, nameCompany
+    PROPERTIES(p) ON CHANGE changeIn(b, p) number, startDate, endDate, namePartner, nameType, name, nameCompany
 
     FILTERGROUP active
         FILTER 'Opened' NOT archived(p) AND NOT closed(p) DEFAULT
@@ -807,5 +811,33 @@ onStarted() + {
             urgency(Bill b) <- Urgency.urgent WHERE isUrgent(b);
             APPLY;
         }
+    }
+}
+
+EXTEND FORM changeBillProjects
+    PROPERTIES allProjects 'Все' = showAllProjects(currentUser()) ON CHANGE {
+        NEWSESSION {
+            showAllProjects(currentUser()) <- NOT showAllProjects(currentUser());
+            IF showMyProjects(currentUser()) AND showAllProjects(currentUser()) THEN showMyProjects(currentUser()) <- NULL;
+            APPLY;
+        }
+    }
+
+    PROPERTIES myProjects 'Только мои' = showMyProjects(currentUser()) ON CHANGE {
+        NEWSESSION {
+            showMyProjects(currentUser()) <- NOT showMyProjects(currentUser());
+            IF showAllProjects(currentUser()) AND showMyProjects(currentUser()) THEN showAllProjects(currentUser()) <- NULL;
+            APPLY;
+        }
+    }
+
+    FILTERS (manager(p) = currentUser() IF showMyProjects(currentUser())) OR showAllProjects(currentUser())
+;
+
+DESIGN changeBillProjects {
+    TOOLBAR(p) {
+        MOVE PROPERTY (allProjects);
+        MOVE PROPERTY (myProjects);
+        MOVE FILTERGROUP (active);
     }
 }

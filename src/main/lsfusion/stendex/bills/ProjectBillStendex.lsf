@@ -5,7 +5,7 @@ REQUIRE Project, BillPaymentStendex, ProjectStendex;
 NAMESPACE Project;
 
 EXTEND FORM changeBillProjects
-    PROPERTIES(p) READONLY overNameManager
+    PROPERTIES(p) overNameManager ON CHANGE changeIn(b, p)
 ;
 EXTEND FORM bill
     PROPERTIES(p) READONLY overNameManager BEFORE amount(b,p)

@@ -259,7 +259,7 @@ META addFileProjectByFolder(folder, capt, obj)
             }
         }
     }
-END 
+END
 
 @addFileProjectByFolder(renders, 'Рендеры', renders);
 @addFileProjectByFolder(accreditation, 'Аккредитация', accreditation);
@@ -379,3 +379,33 @@ EXTEND FORM dialogProjects
 ;
 
 DESIGN dialogProjects { PROPERTY (inner(p)) { hide = TRUE; } }
+
+showAllProjects 'Все' = DATA BOOLEAN (CustomUser);
+showMyProjects 'Только мои' = DATA BOOLEAN (CustomUser);
+
+EXTEND FORM dialogProjects
+    PROPERTIES allProjects 'Все' = showAllProjects(currentUser()) ON CHANGE {
+        NEWSESSION {
+            showAllProjects(currentUser()) <- NOT showAllProjects(currentUser());
+            IF showMyProjects(currentUser()) AND showAllProjects(currentUser()) THEN showMyProjects(currentUser()) <- NULL;
+            APPLY;
+        }
+    }
+
+    PROPERTIES myProjects 'Только мои' = showMyProjects(currentUser()) ON CHANGE {
+        NEWSESSION {
+            showMyProjects(currentUser()) <- NOT showMyProjects(currentUser());
+            IF showAllProjects(currentUser()) AND showMyProjects(currentUser()) THEN showAllProjects(currentUser()) <- NULL;
+            APPLY;
+        }
+    }
+    
+    FILTERS (manager(p) = currentUser() IF showMyProjects(currentUser())) OR showAllProjects(currentUser())
+;
+
+DESIGN dialogProjects {
+    TOOLBAR(p) {
+        MOVE PROPERTY (allProjects);
+        MOVE PROPERTY (myProjects);
+    }
+}
