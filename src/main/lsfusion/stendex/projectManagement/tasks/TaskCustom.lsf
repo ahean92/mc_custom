@@ -26,3 +26,55 @@ NAVIGATOR {
         MOVE tasks;
     }
 }
+
+dontNotify 'Не уведомлять' = DATA BOOLEAN (Task);
+
+EXTEND FORM task
+    PROPERTIES (t) dontNotify
+;
+
+EXTEND FORM tasks
+    PROPERTIES (t) dontNotify
+;
+
+DESIGN task {
+    header {
+        MOVE PROPERTY (dontNotify(t));
+    }
+}
+
+EXTEND FORM tasks
+    OBJECTS tc = Task CALENDAR BACKGROUND rgbColorPriority(tc)
+
+    PROPERTIES(tc) READONLY id, name
+    PROPERTIES READONLY PANEL pcname = name(tc), nameAuthor = nameAuthor(tc), nameAssignedTo = nameAssignedTo(tc),
+        nameStatus = nameStatus(tc), ptype = nameType(tc), namePriority = namePriority(tc)
+    PROPERTIES(tc) NEWSESSION NEW, pedit = EDIT, pdelete = DELETE
+
+    FILTERS [FILTER tasks.t](tc)
+;
+
+@defineDocFilter(tasks, task, TaskType, type, tc, 'Type', type);
+@defineDocFilter(tasks, task, Employee, assignedTo, tc, 'Assigned to', assignedTo);
+
+DESIGN tasks {
+    tabbedPane {
+        MOVE BOX(tc) FIRST {
+            caption = 'Календарь';
+            GRID(tc) {
+                MOVE PROPERTY(pcname);
+                MOVE PROPERTY(ptype);
+                MOVE PROPERTY(namePriority);
+                MOVE PROPERTY(nameAuthor);
+                MOVE PROPERTY(nameAssignedTo);
+                MOVE PROPERTY(nameStatus);
+                NEW panelActions {
+                    horizontal = TRUE;
+                    alignment = STRETCH;
+                    MOVE PROPERTY(pedit) { fill = 1; };
+                    MOVE PROPERTY(pdelete) { fill = 1; };
+                }
+            }
+        }
+    }
+}

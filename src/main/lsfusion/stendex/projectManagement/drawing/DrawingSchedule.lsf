@@ -6,8 +6,9 @@ NAMESPACE ProjectManagement;
 
 designer 'Дизайнер' = DATA Individual (Task);
 nameDesigner 'Дизайнер' (Task t) = name(designer(t));
+isDrawing (Task t) = id(type(t)) = 'typeDrawing';
 
-CONSTRAINT SETCHANGED(designer(Task t)) AND NOT isDesigner(designer(t)) CHECKED BY designer[Task] 
+CONSTRAINT SETCHANGED(designer(Task t)) AND isDrawing(t) AND NOT isDesigner(designer(t)) CHECKED BY designer[Task] 
     MESSAGE 'Выбранное физ.лицо не является дизайнером.'
 ;
 
@@ -15,8 +16,6 @@ color 'Цвет' (Task t) = color(status(t));
 
 taskStartDate 'Дата начала задачи' = DATA DATE (Task);
 taskEndDate 'Дата окончания задачи' = DATA DATE (Task);
-
-isDrawing (Task t) = id(type(t)) = 'typeDrawing';
 
 FORM taskDrawing '{Task}'
     OBJECTS t = Task PANEL
@@ -40,6 +39,7 @@ DESIGN taskDrawing {
             fill = 1;
             horizontal = TRUE;
             NEW header {
+                fill = 1;
                 NEW main {
                     horizontal = TRUE;
                     alignment = STRETCH;
@@ -275,7 +275,7 @@ edit (Task t) + {
 }
 
 WHEN LOCAL CHANGED(project(Task t)) DO {
-    designer(t) <- designer(project(t));
+    designer(t) <- designer(project(t)) IF isDrawing(t);
     assignedTo(t) <- manager(project(t));
 }
 
@@ -299,4 +299,21 @@ filterTaskUser(Task t) =
 EXTEND FORM tasks
     FILTERS filterTaskUser(t)
 ;
-    
+
+EXTEND FORM taskDrawing
+    PROPERTIES (t) dontNotify
+;
+
+DESIGN taskDrawing {
+    header {
+        MOVE PROPERTY (dontNotify(t));
+    }
+}
+
+EXTEND FORM tasks
+    PROPERTIES NEWSESSION newDrawing 'Добавить отрисовку' = newDrawingTask() TOOLBAR DRAW tc
+    FILTERS filterTaskUser(tc)
+
+    PROPERTIES date = OVERRIDE deadline(tc), taskEndDate(tc)
+    ORDERS date
+;

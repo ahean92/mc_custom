@@ -1,6 +1,6 @@
 MODULE TaskNotificationStendex;
 
-REQUIRE ProjectTask, NotificationsStendex;
+REQUIRE ProjectTask, NotificationsStendex, TaskCustom, DrawingSchedule;
 
 NAMESPACE ProjectManagement;
 
@@ -14,10 +14,12 @@ dateTimeNotification 'Дата и время' = DATA DATETIME (TaskNotification)
 countNotifications(Task t) = GROUP SUM 1 IF task(TaskNotification tn) = t;
 notificationSent 'Отправлено' = DATA BOOLEAN (TaskNotification) CHARWIDTH 10;
 note 'Примечание' = DATA STRING (TaskNotification) CHARWIDTH 20;
+repeatable 'Повторяющееся' = DATA BOOLEAN (TaskNotification) CHARWIDTH 10;
 
 EXTEND FORM task
     OBJECTS tn = TaskNotification
     PROPERTIES(tn) DISABLEIF notificationSent(tn) nameEmployeeToNotify, dateTimeNotification, note, notificationSent READONLY
+    PROPERTIES(tn) repeatable BEFORE notificationSent(tn)
     PROPERTIES(tn) NEW, DELETE
     FILTERS task(tn) = t
 ;
@@ -46,12 +48,18 @@ showTask 'Открыть задачу' (Task t) {
     SHOW task OBJECTS t = t DOCKED;
 }
 
+dontNotifyMe 'Больше не уведомлять' (Task t) {
+    dontNotify(t) <- TRUE;
+    APPLY;
+}
+
 FORM openTask 'Уведомление'
     OBJECTS s = STRING PANEL
     PROPERTIES READONLY notifi = TEXT(s)
 
     OBJECTS t = Task
     PROPERTIES(t) showTask
+    PROPERTIES(t) NEWSESSION dontNotifyMe DISABLEIF dontNotify(t)
 ;
 
 DESIGN openTask {
@@ -63,8 +71,18 @@ DESIGN openTask {
         PROPERTY(notifi) { caption = ''; alignment = STRETCH; valueHeight = 150; valueWidth = 300; }
     }
     MOVE PANEL AFTER OBJECTS {
-        MOVE PROPERTY(showTask(t)) { alignment = STRETCH; fill = 1; };
-        MOVE PROPERTY(formClose()) LAST { alignment = STRETCH; fill = 1; };
+        NEW vert {
+            fill = 1;
+            horizontal = FALSE;
+            MOVE PROPERTY (dontNotifyMe(t)) { alignment = STRETCH; }
+            NEW horiz {
+                fill = 1;
+                horizontal = TRUE;
+                MOVE PROPERTY(showTask(t)) { alignment = STRETCH; fill = 1; };
+                MOVE PROPERTY(formClose()) LAST { alignment = STRETCH; fill = 1; };
+            }
+        }
+        
     }
     REMOVE TOOLBAR;
     REMOVE TOOLBARLEFT;
@@ -74,7 +92,8 @@ DESIGN openTask {
 
 notifyUsers () {
     FOR Connection c IS Connection AND connectionStatus(c) = ConnectionStatus.connectedConnection DO {
-        FOR TaskNotification tn IS TaskNotification AND user(c) = employeeToNotify(tn) AND currentDateTime() >= dateTimeNotification(tn) AND NOT notificationSent(tn) DO {
+        FOR TaskNotification tn IS TaskNotification AND user(c) = employeeToNotify(tn) AND currentDateTime() >= dateTimeNotification(tn)
+            AND (NOT notificationSent(tn) OR repeatable(tn)) AND NOT dontNotify(task(tn)) AND NOT closed(task(tn)) DO {
             IF pushConnection(employeeToNotify(tn)) THEN {
                 IF sendNotificiationInsteadMessage() THEN {
                     NEWTHREAD {
@@ -113,4 +132,38 @@ NAVIGATOR {
     logs {
         NEW taskNotifications;
     }
+}
+
+WHEN SETCHANGED(assignedTo(Task t)) AND (author(t) != assignedTo(t) OR NOT author(t)) DO {
+    NEW tn = TaskNotification {
+        task(tn) <- t;
+        employeeToNotify(tn) <- assignedTo(task(tn));
+        dateTimeNotification(tn) <- currentDateTime();
+        repeatable(tn) <- TRUE;
+    }
+    APPLY;
+}
+
+EXTEND FORM taskDrawing
+    OBJECTS tn = TaskNotification
+    PROPERTIES(tn) DISABLEIF notificationSent(tn) nameEmployeeToNotify, dateTimeNotification, note, notificationSent READONLY
+    PROPERTIES(tn) repeatable BEFORE notificationSent(tn)
+    PROPERTIES(tn) NEW, DELETE
+    FILTERS task(tn) = t
+;
+
+DESIGN taskDrawing {
+    header {
+        NEW details {
+            tabbed = TRUE;
+            fill = 1;
+            MOVE BOX (tn) { caption = 'Уведомления'; }
+            REMOVE TOOLBARSYSTEM (tn);
+        }
+    }
+}
+
+WHEN LOCAL FORMS taskDrawing SET (TaskNotification tn IS TaskNotification) DO {
+    employeeToNotify(tn) <- assignedTo(task(tn));
+    dateTimeNotification(tn) <- currentDateTime();
 }

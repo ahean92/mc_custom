@@ -1,0 +1,19 @@
+MODULE ProjectTaskStendex;
+
+REQUIRE ProjectTask, TaskCustom, ProjectAssignment;
+
+NAMESPACE ProjectManagement;
+
+EXTEND FORM tasks
+    PROPERTIES READONLY PANEL project = nameProject(tc)
+
+    FILTERS hasAccess(project(tc), currentUser()) OR accessAllProjects(currentUser())
+;
+
+DESIGN tasks {
+    tabbedPane {
+        GRID(tc) {
+            MOVE PROPERTY(project) AFTER PROPERTY(nameStatus);
+        }
+    }
+}
