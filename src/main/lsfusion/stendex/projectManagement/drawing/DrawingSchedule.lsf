@@ -201,7 +201,8 @@ EXTEND FORM drawingSchedule
     OBJECTS t = Task
     PROPERTIES(t) READONLY  nameType, name, nameProject, nameStatus BACKGROUND color(t)
     PROPERTIES(t) READONLY taskStartDate, taskEndDate, nameDesigner, 'Менеджер' = nameAssignedTo
-    FILTERS taskStartDate(t) >= from(dates) AND taskEndDate(t) <= to(dates) AND isDrawing(t)
+    
+    FILTERS inPeriod(dates, t) AND isDrawing(t)
     PROPERTIES NEWSESSION newDrawingTask() TOOLBAR DRAW t, EDIT(t), DELETE(t)
 ;
 
