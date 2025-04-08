@@ -45,14 +45,21 @@ nameProjects 'Проекты' (Bill b) = GROUP CONCAT name(Project p) IF in(b, p
 
 changeIn (Bill b, Project p) {
     in(b, p) <- NOT in(b, p);
-} CHANGEMOUSE 'DBLCLK';
+} 
+
+changeDoubleClick 'Выбрать проект'(Bill b, Project p){
+    in(b, Project pp) <- TRUE IF pp = p;
+    formOk();
+}CHANGEMOUSE 'DBLCLK' HIDE;
 
 FORM changeBillProjects 'Выбрать проекты'
     OBJECTS b = Bill PANEL
     OBJECTS p = Project
     PROPERTIES(b,p) in
-    PROPERTIES(p) ON CHANGE changeIn(b, p) number, startDate, endDate, namePartner, nameType, name, nameCompany
+    PROPERTIES(p) ON CHANGE changeIn(b, p) number, startDate, endDate
+    PROPERTIES (p) READONLY namePartner, nameType, name, nameCompany
 
+    PROPERTIES changeDoubleClick(b, p) TOOLBAR //SHOWIF NULL
     FILTERGROUP active
         FILTER 'Opened' NOT archived(p) AND NOT closed(p) DEFAULT
         FILTER 'Closed' archived(p) OR closed(p)
@@ -60,6 +67,9 @@ FORM changeBillProjects 'Выбрать проекты'
 
 DESIGN changeBillProjects{
     PROPERTY (in(b, p)) {changeOnSingleClick = TRUE; }
+    PROPERTY (number(p)) {changeOnSingleClick = TRUE; }
+    PROPERTY (startDate(p)) {changeOnSingleClick = TRUE; }
+    PROPERTY (endDate(p)) {changeOnSingleClick = TRUE; }
 }
 changeBillProjects 'Выбрать проекты' (Bill b) {
     DIALOG changeBillProjects OBJECTS b = b;
