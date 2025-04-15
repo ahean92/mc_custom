@@ -720,7 +720,7 @@ META billDashboardStatus(st, capt)
         OBJECTS s##st##LE = BillStatus
         PROPERTIES (st##LE, s##st##LE) changeStatus COLUMNS (s##st##LE) HEADER captionButton(s##st##LE) SHOWIF countBillLine(st##LE)
         FILTERS showStatus(st##LE, s##st##LE)
-        FILTERS allowStatusSet(bs##st##LE)
+        FILTERS allowStatusSet(s##st##LE)
 
     OBJECTS st##I = Bill BACKGROUND overBackgroundColor(st##I)
         PROPERTIES(st##I) READONLY number, date, overNameVendor, items, nameProjects, note, overNameRepresentative, amount
