@@ -664,6 +664,24 @@ openFilesInvoice (Bill i) {
     }
 }
 
+allowStatusSet 'Разрешить' = DATA BOOLEAN (BillStatus, UserRole);
+allowStatusSet(BillStatus s) =
+    ((GROUP SUM 1 IF allowStatusSet(s, UserRole r) AND in(currentUser(), r)));
+EXTEND FORM options
+    OBJECTS role = UserRole
+    PROPERTIES allowStatusSet(billst, role), name(role) READONLY
+;
+DESIGN options{
+    tabbedPane{
+        NEW statuses{
+            caption = 'Статусы';
+            horizontal = TRUE;
+            MOVE BOX (billst);
+            MOVE BOX (role);
+        }
+    }
+}
+
 META billDashboardStatus(st, capt)
     showBill###st##Tab 'Отображать вкладку '##capt = DATA BOOLEAN (UserRole);
     showBill###st##Tab (User u) = GROUP SUM 1 IF showBill###st##Tab(UserRole r) AND has(u, r);
@@ -696,14 +714,15 @@ META billDashboardStatus(st, capt)
         ORDERS st##LE##Order DESC
 
         OBJECTS bs##st##LE = BillStatus
-        PROPERTIES (st##LE, bs##st##LE) changeToPrevStatus COLUMNS (bs##st##LE) HEADER (captionButton(bs##st##LE) + '(возврат)') SHOWIF countBillLine(st##LE)
+        PROPERTIES (st##LE, bs##st##LE) changeToPrevStatus COLUMNS (bs##st##LE) HEADER (captionButton(bs##st##LE) + '(возврат)') SHOWIF countBillLine(st##LE) 
         FILTERS showPrevStatus(st##LE, bs##st##LE)
 
         OBJECTS s##st##LE = BillStatus
         PROPERTIES (st##LE, s##st##LE) changeStatus COLUMNS (s##st##LE) HEADER captionButton(s##st##LE) SHOWIF countBillLine(st##LE)
         FILTERS showStatus(st##LE, s##st##LE)
+        FILTERS allowStatusSet(bs##st##LE)
 
-        OBJECTS st##I = Bill BACKGROUND overBackgroundColor(st##I)
+    OBJECTS st##I = Bill BACKGROUND overBackgroundColor(st##I)
         PROPERTIES(st##I) READONLY number, date, overNameVendor, items, nameProjects, note, overNameRepresentative, amount
         PROPERTIES(st##I) 'Счет' = openFilesInvoice GRID
         PROPERTIES(st##I) NEWSESSION editBillCustom
@@ -725,7 +744,8 @@ META billDashboardStatus(st, capt)
 
         OBJECTS s##st##I = BillStatus
         PROPERTIES (st##I, s##st##I) changeStatus COLUMNS (s##st##I) HEADER captionButton(s##st##I) SHOWIF countBillLine(st##I)
-        FILTERS showStatus(st##I, s##st##I)
+    FILTERS showStatus(st##I, s##st##I) 
+    FILTERS allowStatusSet(s##st##I)
     ;
 
     filtered###st##LE(Bill b) = FILTER billDashboard.st##LE;

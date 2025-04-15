@@ -319,8 +319,8 @@ EXTEND FORM projectDashboard
 
 META dashboardActionPayment(st)
     EXTEND FORM projectDashboard
-        PROPERTIES (st) SHOWIF onApproval(lastBill(st)) pay
-        PROPERTIES(st) SHOWIF toPay(lastBill(st)) doPayment
+        PROPERTIES (st) SHOWIF onApproval(lastBill(st)) AND ((GROUP SUM 1 IF allowStatusSet(OrderStatus.inPayment, UserRole r) AND in(currentUser(), r))) pay
+        PROPERTIES(st) SHOWIF toPay(lastBill(st)) AND (GROUP SUM 1 IF allowStatusSet(OrderStatus.inPayment, UserRole r) AND in(currentUser(), r))doPayment
         PROPERTIES (st) left, toPay, paidDone
     ;
     DESIGN projectDashboard{
