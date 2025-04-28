@@ -1,6 +1,6 @@
 MODULE BillStendex;
 
-REQUIRE BillDone, BillCanceled, ProjectBill, ServiceP, UtilsStendex, EmployeeStendex, PartnerStendex, BillClosedStendex, Selection, ProjectStendex;
+REQUIRE BillDone, BillCanceled, ProjectBill, ServiceP, PurchaseOrderBill, UtilsStendex, EmployeeStendex, PartnerStendex, BillClosedStendex, Selection, ProjectStendex;
 
 NAMESPACE Invoicing;
 
@@ -479,7 +479,8 @@ countPaymentOrders(Bill b) = GROUP SUM 1 IF type(BillFile f) = TypeFile.paymentO
 countInvoices(Bill b) = GROUP SUM 1 IF type(BillFile f) = TypeFile.invoice AND bill(f) = b;
 countClosingDocuments(Bill b) = GROUP SUM 1 IF type(BillFile f) = TypeFile.closingDocument AND bill(f) = b;
 
-CONSTRAINT SETCHANGED (status(Bill b)) AND status(b) = BillStatus.ready AND NOT countInvoices(b)
+CONSTRAINT SETCHANGED (status(Bill b)) AND status(b) = BillStatus.ready AND NOT countInvoices(b) AND NOT
+    (GROUP SUM 1 IF in(Purchase.Order o, b))
     MESSAGE 'Для перевода в статус "К оплате" необходимо прикрепить счет!';
 
 CONSTRAINT SETCHANGED (status(Bill b)) AND status(b) = BillStatus.done AND NOT countPaymentOrders(b)
