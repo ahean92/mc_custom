@@ -872,3 +872,13 @@ DESIGN changeBillProjects {
         MOVE FILTERGROUP (active);
     }
 }
+
+dataColor 'Color' = DATA COLOR (BillStatus);
+color (BillStatus s) += WHEN s IS BillStatus THEN dataColor(s);
+
+FORM billStaus 'Статус счёта'
+    OBJECTS s = BillStatus PANEL
+    PROPERTIES(s) name, image, dataColor
+    PROPERTIES(s) readonly
+    EDIT BillStatus OBJECT s
+;

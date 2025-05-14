@@ -454,3 +454,11 @@ DESIGN order {
         }
     }
 }
+
+color (OrderStatus s) += WHEN s IS OrderStatus THEN dataColor(s);
+FORM orderStaus 'Статус заказа поставщику'
+    OBJECTS s = OrderStatus PANEL 
+    PROPERTIES(s) name, image, color
+    PROPERTIES(s) readonly
+    EDIT OrderStatus OBJECT s
+;

@@ -14,6 +14,8 @@ EXTEND FORM billCustom
     PROPERTIES(pr) READONLY overNameManager BEFORE amount(b,pr)
 ;
 
+amountBillrLine 'Total amount' (Project p) = GROUP SUM amount(Bill l) IF project(l) = p;
+
 newLegalEntityBill 'Добавить для организаций' (Project p) {
     NEWSESSION {
         NEW b = Bill {
@@ -40,6 +42,7 @@ EXTEND FORM project
         imagedNameStatus BACKGROUND colorStatus(bb), nameType,
         dueDateTime, namePaymentTerms
     PROPERTIES(bb,p) READONLY amount
+    PROPERTIES(p) READONLY amountBillrLine DRAW bb TOOLBAR
     FILTERS in(bb,p), NOT canceled(bb)
     
     OBJECTS bl 'Счета на оплату' = Bill BACKGROUND backgroundColor(bl)
