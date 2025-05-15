@@ -48,6 +48,11 @@ showTask 'Открыть задачу' (Task t) {
     SHOW task OBJECTS t = t DOCKED;
 }
 
+showTaskId 'Открыть задачу' (LONG id) {
+    FOR LONG(Task t AS Task) = id DO 
+        SHOW task OBJECTS t = t DOCKED;
+}
+
 dontNotifyMe 'Больше не уведомлять' (Task t) {
     dontNotify(t) <- TRUE;
     APPLY;
@@ -114,6 +119,38 @@ notifyUsers () {
     }
 }
 
+subject = ABSTRACT VALUE ISTRING (Task);
+subject (Task t) += CONCAT ' - ', (CONCAT ' ', '(' + nameStatus(t) + ')', idName(t));
+
+propertiesHtmlShortList (Task t) = HTMLTEXT(CONCAT '', '<b>Напоминание по задаче "' + name(t) + '"' + '</b>',
+                                                                   '<p>Исполнитель: ' + nameAssignedTo(t) + '</p>', 
+                                                                   '<p>Проект: ' + nameProject(t) + '</p>', 
+                                                                   '<p>Приоритет: ' + namePriority(t) + '</p>',
+                                                                   '<p>Дедлайн: ' + toChar(deadline(t), 'dd.mm.yyyy hh:mm')) + '</p>';
+
+info = ABSTRACT VALUE HTMLTEXT (Task);
+info (Task t) += propertiesHtmlShortList(t);
+
+body = ABSTRACT VALUE HTMLTEXT (Task);
+body(Task t) += HTMLTEXT (CONCAT '',
+    '<h1><a href="' + contextUrl('/exec/ProjectManagement.showTaskId?id=' + t) + '">' + subject(t) + '</a></h1>',
+    info(t),
+    description(t)
+    );
+
+notifyUserEmail 'Уведомление на почту' (TaskNotification tn)  {
+    EMAIL
+        SUBJECT 'Напоминание по задаче "' + name(task(tn)) + '"'
+        TO email[Contact](employeeToNotify(tn))
+        BODY body(task(tn));
+    IF canceled() THEN RETURN;
+    ;
+}
+
+WHEN SET(TaskNotification tn IS TaskNotification) AND (NOT notificationSent(tn) OR repeatable(tn)) AND NOT dontNotify(task(tn)) AND NOT closed(task(tn)) DO {
+    notifyUserEmail(tn);
+}
+
 FORM taskNotifications 'Журнал уведомлений'
     OBJECTS dates = (from = DATETIME, to = DATETIME ) PANEL
     PROPERTIES valFrom = VALUE (from), valTo = VALUE (to)
@@ -141,7 +178,6 @@ WHEN SETCHANGED(assignedTo(Task t)) AND (author(t) != assignedTo(t) OR NOT autho
         dateTimeNotification(tn) <- currentDateTime();
         repeatable(tn) <- TRUE;
     }
-    APPLY;
 }
 
 EXTEND FORM taskDrawing
@@ -167,3 +203,4 @@ WHEN LOCAL FORMS taskDrawing SET (TaskNotification tn IS TaskNotification) DO {
     employeeToNotify(tn) <- assignedTo(task(tn));
     dateTimeNotification(tn) <- currentDateTime();
 }
+
