@@ -1,0 +1,149 @@
+MODULE FileCatalog;
+
+REQUIRE UtilsStendex, Security, Category;
+
+NAMESPACE MasterData;
+
+allowManageFileCatalog 'Разрешить управление каталогом файлов' = DATA BOOLEAN (UserRole);
+allowManageFileCatalog (User u) = GROUP SUM 1 IF allowManageFileCatalog(UserRole r) AND has(u, r);
+
+EXTEND FORM securityPolicy
+    PROPERTIES(ur) PANEL allowManageFileCatalog
+;
+
+DESIGN securityPolicy {
+    roleApplicationSettings {
+        tabbed = TRUE;
+        NEW fileCatalogDashboard {
+            caption = 'Каталог файлов';
+            MOVE PROPERTY(allowManageFileCatalog(ur));
+        }
+    }
+}
+
+CLASS FileSystemNode 'Элемент файловой системы';
+name 'Название' = DATA STRING[200] (FileSystemNode);
+parent 'Родитель' = DATA Directory (FileSystemNode);
+dateTime 'Дата создания' = DATA DATETIME (FileSystemNode);
+user 'Пользователь' = DATA User (FileSystemNode);
+
+rootDirectory 'Корневой каталог' () = GROUP MIN Directory d IS Directory IF NOT parent(d);
+
+nameParent 'Родитель' (FileSystemNode n) = name(parent(n));
+
+CLASS Directory 'Каталог' : FileSystemNode;
+
+CONSTRAINT Directory d = parent(d) CHECKED BY parent[Directory] MESSAGE 'Каталог не может быть родителем самого себя!';
+
+level 'Уровень' (Directory child, Directory parent) =
+    RECURSION 1l IF child IS Directory AND parent = child
+        STEP 2l IF parent = parent($parent) MATERIALIZED;
+
+CONSTRAINT level(parent(Directory d), d) MESSAGE 'Нельзя установить родителя, который уже является вложенной папкой!';
+
+CLASS File 'Файл' : FileSystemNode;
+file 'Файл' = DATA RAWFILE (File);
+extension 'Расширение' = DATA STRING[10] (File);
+
+nodeName 'Название элемента' (FileSystemNode n) = CONCAT '.', name(n), IF n IS File THEN extension(n);
+
+WHEN SET(FileSystemNode n IS FileSystemNode) DO {
+    dateTime(n) <- currentDateTime();
+    user(n) <- currentUser();
+}
+
+previewPdfFile = DATA PDFFILE ();
+previewImageFile = DATA IMAGEFILE ();
+
+uploadFile 'Загрузить' (File f) {
+    INPUT uf = NAMEDFILE DO {
+        file(f) <- RAWFILE(uf);
+        name(f) <- name(uf);
+        extension(f) <- extension(uf);
+    }
+} IMAGE 'upload.png';
+
+FORM directory 'Каталог'
+    OBJECTS n = Directory PANEL
+    PROPERTIES (n) name, nameParent
+
+    EDIT Directory OBJECT n
+;
+
+FORM file 'Файл'
+    OBJECTS f = File PANEL
+    PROPERTIES uploadFile(f)
+    PROPERTIES (f) name, nameParent
+
+    EDIT File OBJECT f
+;
+
+newFile 'Добавить файл' (FileSystemNode n) {
+    NEW f = File {
+        parent(f) <- IF n IS File THEN parent(n) ELSE n;
+        SHOW file OBJECTS f = f;
+    }
+} IMAGE 'add.png' CHANGEKEY 'INSERT';
+
+createDirectory 'Добавить каталог' (FileSystemNode n) {
+    NEW d = Directory {
+        parent(d) <- IF n IS File THEN parent(n) ELSE n;
+        SHOW directory OBJECTS n = d;
+    }
+} IMAGE 'add.png';
+
+createRootDirectory 'Добавить каталог' () {
+    NEW d = Directory {
+        SHOW directory OBJECTS n = d;
+    }
+} IMAGE 'add.png';
+
+FORM fileCatalog 'Каталог файлов'
+    TREE catalog n = FileSystemNode PARENT parent(n)
+    PROPERTIES READONLY nodeName(n)
+    PROPERTIES (n) DELETE SHOWIF allowManageFileCatalog(currentUser())
+    PROPERTIES TOOLBAR SHOWIF allowManageFileCatalog(currentUser()) createDirectory(n), newFile(n)
+    PROPERTIES TOOLBAR createRootDirectory() SHOWIF allowManageFileCatalog(currentUser()) AND NOT rootDirectory()
+    PROPERTIES previewPdfFile() SHOWIF previewPdfFile(), previewImageFile() SHOWIF NOT previewPdfFile()
+
+    EVENTS ON CHANGE n {
+        previewPdfFile() <- NULL;
+        previewImageFile() <- NULL;
+        IF n IS File THEN {
+            IF lower(extension(n)) = 'jpg' OR lower(extension(n)) = 'jpeg' OR lower(extension(n)) = 'png' OR lower(extension(n)) = 'bmp' THEN {
+                previewImageFile() <- IMAGEFILE(file(n));
+            }
+            IF lower(extension(n)) = 'pdf' THEN {
+                previewPdfFile() <- PDFFILE(file(n));
+            }
+            IF lower(extension(n)) = 'doc' OR lower(extension(n)) = 'docx' THEN {
+                TRY { wordToPdf(file(n)); } CATCH {}
+                previewPdfFile() <- exportPdfFile();
+            }
+        }
+    }
+;
+
+DESIGN fileCatalog {
+    OBJECTS {
+        NEW pane {
+            fill = 1;
+            horizontal = TRUE;
+            NEW catalog {
+                fill = 1;
+                MOVE BOX(TREE catalog) { caption = ''; };
+            }
+            NEW preview {
+                fill = 1;
+                MOVE PROPERTY(previewImageFile()) { fill = 1; size = (100, 100); caption = ''; }
+                MOVE PROPERTY(previewPdfFile()) { fill = 1; size = (100, 100); caption = ''; }
+            }
+        }
+    }
+}
+
+NAVIGATOR {
+    dashboard {
+        NEW fileCatalog;
+    }
+}
