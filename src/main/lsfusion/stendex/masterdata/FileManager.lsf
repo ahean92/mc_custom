@@ -4,21 +4,26 @@ REQUIRE UtilsStendex, Security, Category;
 
 NAMESPACE MasterData;
 
-CLASS Directory 'Каталог';
-name 'Название' = DATA STRING[200] (Directory);
-parent 'Родитель' = DATA Directory (Directory);
-dateTime 'Дата создания' = DATA DATETIME (Directory);
-user 'Пользователь' = DATA User (Directory);
+CLASS FileSystemNode 'Элемент файловой системы';
+name 'Название' = DATA STRING[200] (FileSystemNode);
+parentN 'Родитель' = DATA Directory (FileSystemNode);
+dateTime 'Дата создания' = DATA DATETIME (FileSystemNode);
+user 'Пользователь' = DATA User (FileSystemNode);
 
-rootDirectory 'Корневой каталог' () = GROUP MIN Directory d IS Directory IF NOT parent(d);
+rootDirectory 'Корневой каталог' () = GROUP MIN Directory d IS Directory IF NOT parentN(d);
 
-CLASS File 'Файл' : Directory;
+nameParent 'Родитель' (FileSystemNode n) = name(parentN(n));
+
+CLASS Directory 'Каталог' : FileSystemNode;
+CONSTRAINT Directory n = parentN(n) CHECKED BY parentN MESSAGE 'Каталог не может быть родителем самого себя!';
+
+CLASS File 'Файл' : FileSystemNode;
 file 'Файл' = DATA RAWFILE (File);
 extension 'Расширение' = DATA STRING[10] (File);
 
-nodeName 'Название элемента' (Directory n) = CONCAT '.', name(n), IF n IS File THEN extension(n);
+nodeName 'Название элемента' (FileSystemNode n) = CONCAT '.', name(n), IF n IS File THEN extension(n);
 
-WHEN SET(Directory n IS Directory) DO {
+WHEN SET(FileSystemNode n IS FileSystemNode) DO {
     dateTime(n) <- currentDateTime();
     user(n) <- currentUser();
 }
@@ -26,53 +31,51 @@ WHEN SET(Directory n IS Directory) DO {
 previewPdfFile = DATA PDFFILE ();
 previewImageFile = DATA IMAGEFILE ();
 
-openFile 'Открыть файл' (File f) { open(file(f), nodeName(f)); } IMAGE 'open.png';
+uploadFile 'Загрузить' (File f) {
+    INPUT uf = NAMEDFILE DO {
+        file(f) <- RAWFILE(uf);
+        name(f) <- name(uf);
+        extension(f) <- extension(uf);
+    }
+} IMAGE 'upload.png';
 
-dirName 'Название папки' = DATA LOCAL STRING[200] ();
-
-FORM dirName 'Добавление папки'
-    OBJECTS n = Directory
-    PROPERTIES dirName()
-    EVENTS ON CLOSE { dirName() <- NULL; }
+FORM directory 'Папка'
+    OBJECTS n = Directory PANEL
+    PROPERTIES (n) name, nameParent
+    
+    EDIT Directory OBJECT n
 ;
 
-newFile 'Добавить файл' (Directory n) {
-    NEWSESSION {
-        INPUT uf = NAMEDFILE DO {
-            NEW f = File {
-                parent(f) <- IF n IS File THEN parent(n) ELSE n;
-                file(f) <- RAWFILE(uf);
-                name(f) <- name(uf);
-                extension(f) <- extension(uf);
-            }
-            APPLY;
-    }}} IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE;
+FORM file 'Файл'
+    OBJECTS f = File PANEL
+    PROPERTIES uploadFile(f)
+    PROPERTIES (f) name, nameParent
 
-createDirectory 'Добавить папку' (Directory n) {
-    NEWSESSION {
-        dirName() <- 'Новая папка';
-        SHOW dirName;
-        IF dirName() THEN {
-            NEW d = Directory {
-                parent(d) <- IF n IS File THEN parent(n) ELSE n;
-                name(d) <- dirName();
-            }
-            APPLY;
-    }}} IMAGE 'add.png';
+    EDIT File OBJECT f
+;
+
+newFile 'Добавить файл' (FileSystemNode n) {
+    NEW f = File {
+        parentN(f) <- IF n IS File THEN parentN(n) ELSE n;
+        SHOW file OBJECTS f = f;
+        }
+} IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE;
+
+createDirectory 'Добавить папку' (FileSystemNode n) {
+    NEW d = Directory {
+        parentN(d) <- IF n IS File THEN parentN(n) ELSE n;
+        SHOW directory OBJECTS n = d;
+    }
+} IMAGE 'add.png';
 
 createRootDirectory 'Добавить папку' () {
-    NEWSESSION {
-        dirName() <- 'Корневой каталог';
-        SHOW dirName;
-        IF dirName() THEN {
-            NEW d = Directory {
-                name(d) <- dirName();
-            }
-            APPLY;
-    }}} IMAGE 'add.png';
+    NEW d = Directory {
+        SHOW directory OBJECTS n = d;
+    }
+} IMAGE 'add.png';
 
 FORM fileManager 'Каталог файлов'
-    TREE catalog n = Directory PARENT parent(n)
+    TREE catalog n = FileSystemNode PARENT parentN(n)
     PROPERTIES READONLY nodeName(n)
     PROPERTIES (n) DELETE
     PROPERTIES TOOLBAR createDirectory(n), newFile(n), createRootDirectory() SHOWIF NOT rootDirectory()
@@ -103,7 +106,7 @@ DESIGN fileManager {
             horizontal = TRUE;
             NEW catalog {
                 fill = 1;
-                MOVE BOX(TREE catalog) { caption = ''; };;
+                MOVE BOX(TREE catalog) { caption = ''; };
             }
             NEW preview {
                 fill = 1;
@@ -113,7 +116,6 @@ DESIGN fileManager {
         }
     }
 }
-
 
 NAVIGATOR {
     dashboard {
