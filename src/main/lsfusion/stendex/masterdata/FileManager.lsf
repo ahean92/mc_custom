@@ -1,0 +1,122 @@
+MODULE FileManager;
+
+REQUIRE UtilsStendex, Security, Category;
+
+NAMESPACE MasterData;
+
+CLASS Directory 'Каталог';
+name 'Название' = DATA STRING[200] (Directory);
+parent 'Родитель' = DATA Directory (Directory);
+dateTime 'Дата создания' = DATA DATETIME (Directory);
+user 'Пользователь' = DATA User (Directory);
+
+rootDirectory 'Корневой каталог' () = GROUP MIN Directory d IS Directory IF NOT parent(d);
+
+CLASS File 'Файл' : Directory;
+file 'Файл' = DATA RAWFILE (File);
+extension 'Расширение' = DATA STRING[10] (File);
+
+nodeName 'Название элемента' (Directory n) = CONCAT '.', name(n), IF n IS File THEN extension(n);
+
+WHEN SET(Directory n IS Directory) DO {
+    dateTime(n) <- currentDateTime();
+    user(n) <- currentUser();
+}
+
+previewPdfFile = DATA PDFFILE ();
+previewImageFile = DATA IMAGEFILE ();
+
+openFile 'Открыть файл' (File f) { open(file(f), nodeName(f)); } IMAGE 'open.png';
+
+dirName 'Название папки' = DATA LOCAL STRING[200] ();
+
+FORM dirName 'Добавление папки'
+    OBJECTS n = Directory
+    PROPERTIES dirName()
+    EVENTS ON CLOSE { dirName() <- NULL; }
+;
+
+newFile 'Добавить файл' (Directory n) {
+    NEWSESSION {
+        INPUT uf = NAMEDFILE DO {
+            NEW f = File {
+                parent(f) <- IF n IS File THEN parent(n) ELSE n;
+                file(f) <- RAWFILE(uf);
+                name(f) <- name(uf);
+                extension(f) <- extension(uf);
+            }
+            APPLY;
+    }}} IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE;
+
+createDirectory 'Добавить папку' (Directory n) {
+    NEWSESSION {
+        dirName() <- 'Новая папка';
+        SHOW dirName;
+        IF dirName() THEN {
+            NEW d = Directory {
+                parent(d) <- IF n IS File THEN parent(n) ELSE n;
+                name(d) <- dirName();
+            }
+            APPLY;
+    }}} IMAGE 'add.png';
+
+createRootDirectory 'Добавить папку' () {
+    NEWSESSION {
+        dirName() <- 'Корневой каталог';
+        SHOW dirName;
+        IF dirName() THEN {
+            NEW d = Directory {
+                name(d) <- dirName();
+            }
+            APPLY;
+    }}} IMAGE 'add.png';
+
+FORM fileManager 'Каталог файлов'
+    TREE catalog n = Directory PARENT parent(n)
+    PROPERTIES READONLY nodeName(n)
+    PROPERTIES (n) DELETE
+    PROPERTIES TOOLBAR createDirectory(n), newFile(n), createRootDirectory() SHOWIF NOT rootDirectory()
+    PROPERTIES () READONLY previewPdfFile SHOWIF previewPdfFile(), previewImageFile SHOWIF NOT previewPdfFile()
+
+    EVENTS ON CHANGE n {
+        previewPdfFile() <- NULL;
+        previewImageFile() <- NULL;
+        IF n IS File THEN {
+            IF lower(extension(n)) = 'jpg' OR lower(extension(n)) = 'jpeg' OR lower(extension(n)) = 'png' OR lower(extension(n)) = 'bmp' THEN {
+                previewImageFile() <- IMAGEFILE(file(n));
+            }
+            IF lower(extension(n)) = 'pdf' THEN {
+                previewPdfFile() <- PDFFILE(file(n));
+            }
+            IF lower(extension(n)) = 'doc' OR lower(extension(n)) = 'docx' THEN {
+                TRY { wordToPdf(file(n)); } CATCH {}
+                previewPdfFile() <- exportPdfFile();
+            }
+        }
+    }
+;
+
+DESIGN fileManager {
+    OBJECTS {
+        NEW pane {
+            fill = 1;
+            horizontal = TRUE;
+            NEW catalog {
+                fill = 1;
+                MOVE BOX(TREE catalog) { caption = ''; };;
+            }
+            NEW preview {
+                fill = 1;
+                MOVE PROPERTY(previewImageFile()) { fill = 1; caption = ''; };
+                MOVE PROPERTY(previewPdfFile()) { fill = 1; caption = ''; };
+            }
+        }
+    }
+}
+
+
+NAVIGATOR {
+    dashboard {
+        NEW fileManager;
+    }
+}
