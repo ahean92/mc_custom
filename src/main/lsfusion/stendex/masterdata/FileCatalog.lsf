@@ -1,29 +1,45 @@
-MODULE FileManager;
+MODULE FileCatalog;
 
 REQUIRE UtilsStendex, Security, Category;
 
 NAMESPACE MasterData;
 
+allowManageFileCatalog 'Разрешить управление каталогом файлов' = DATA BOOLEAN (UserRole);
+allowManageFileCatalog (User u) = GROUP SUM 1 IF allowManageFileCatalog(UserRole r) AND has(u, r);
+
+EXTEND FORM securityPolicy
+    PROPERTIES(ur) PANEL allowManageFileCatalog
+;
+
+DESIGN securityPolicy {
+    roleApplicationSettings {
+        tabbed = TRUE;
+        NEW fileCatalogDashboard {
+            caption = 'Каталог файлов';
+            MOVE PROPERTY(allowManageFileCatalog(ur));
+        }
+    }
+}
+
 CLASS FileSystemNode 'Элемент файловой системы';
 name 'Название' = DATA STRING[200] (FileSystemNode);
-parentN 'Родитель' = DATA Directory (FileSystemNode);
+parent 'Родитель' = DATA Directory (FileSystemNode);
 dateTime 'Дата создания' = DATA DATETIME (FileSystemNode);
 user 'Пользователь' = DATA User (FileSystemNode);
 
-rootDirectory 'Корневой каталог' () = GROUP MIN Directory d IS Directory IF NOT parentN(d);
+rootDirectory 'Корневой каталог' () = GROUP MIN Directory d IS Directory IF NOT parent(d);
 
-nameParent 'Родитель' (FileSystemNode n) = name(parentN(n));
+nameParent 'Родитель' (FileSystemNode n) = name(parent(n));
 
 CLASS Directory 'Каталог' : FileSystemNode;
 
-//CONSTRAINT Directory d = parentN(d) CHECKED BY parentN MESSAGE 'Каталог не может быть родителем самого себя!';
-//CONSTRAINT Directory d1 = parentN(Directory d2) AND parentN(d1) = d2 CHECKED BY parentN MESSAGE 'Каталог не может быть родителем своей вложенной папки!';
+CONSTRAINT Directory d = parent(d) CHECKED BY parent[Directory] MESSAGE 'Каталог не может быть родителем самого себя!';
 
 level 'Уровень' (Directory child, Directory parent) =
     RECURSION 1l IF child IS Directory AND parent = child
-        STEP 2l IF parent = parentN($parent) MATERIALIZED;
+        STEP 2l IF parent = parent($parent) MATERIALIZED;
 
-CONSTRAINT level(parentN(Directory d), d) MESSAGE 'Каталог не может быть родителем своей вложенной папки!';
+CONSTRAINT level(parent(Directory d), d) MESSAGE 'Нельзя установить родителя, который уже является вложенной папкой!';
 
 CLASS File 'Файл' : FileSystemNode;
 file 'Файл' = DATA RAWFILE (File);
@@ -36,13 +52,6 @@ WHEN SET(FileSystemNode n IS FileSystemNode) DO {
     user(n) <- currentUser();
 }
 
-//WHEN SET(Directory d IS Directory) DO {
-//    IF level(parentN(d), d) THEN {
-//        MESSAGE 'Каталог не может быть родителем своей вложенной папки!' NOWAIT;
-//        CANCEL;
-//    }
-//}
-
 previewPdfFile = DATA PDFFILE ();
 previewImageFile = DATA IMAGEFILE ();
 
@@ -54,10 +63,10 @@ uploadFile 'Загрузить' (File f) {
     }
 } IMAGE 'upload.png';
 
-FORM directory 'Папка'
+FORM directory 'Каталог'
     OBJECTS n = Directory PANEL
     PROPERTIES (n) name, nameParent
-    
+
     EDIT Directory OBJECT n
 ;
 
@@ -71,30 +80,31 @@ FORM file 'Файл'
 
 newFile 'Добавить файл' (FileSystemNode n) {
     NEW f = File {
-        parentN(f) <- IF n IS File THEN parentN(n) ELSE n;
+        parent(f) <- IF n IS File THEN parent(n) ELSE n;
         SHOW file OBJECTS f = f;
-        }
-} IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE;
+    }
+} IMAGE 'add.png' CHANGEKEY 'INSERT';
 
-createDirectory 'Добавить папку' (FileSystemNode n) {
+createDirectory 'Добавить каталог' (FileSystemNode n) {
     NEW d = Directory {
-        parentN(d) <- IF n IS File THEN parentN(n) ELSE n;
+        parent(d) <- IF n IS File THEN parent(n) ELSE n;
         SHOW directory OBJECTS n = d;
     }
 } IMAGE 'add.png';
 
-createRootDirectory 'Добавить папку' () {
+createRootDirectory 'Добавить каталог' () {
     NEW d = Directory {
         SHOW directory OBJECTS n = d;
     }
 } IMAGE 'add.png';
 
-FORM fileManager 'Каталог файлов'
-    TREE catalog n = FileSystemNode PARENT parentN(n)
+FORM fileCatalog 'Каталог файлов'
+    TREE catalog n = FileSystemNode PARENT parent(n)
     PROPERTIES READONLY nodeName(n)
-    PROPERTIES (n) DELETE
-    PROPERTIES TOOLBAR createDirectory(n), newFile(n), createRootDirectory() SHOWIF NOT rootDirectory()
-    PROPERTIES () READONLY previewPdfFile SHOWIF previewPdfFile(), previewImageFile SHOWIF NOT previewPdfFile()
+    PROPERTIES (n) DELETE SHOWIF allowManageFileCatalog(currentUser())
+    PROPERTIES TOOLBAR SHOWIF allowManageFileCatalog(currentUser()) createDirectory(n), newFile(n)
+    PROPERTIES TOOLBAR createRootDirectory() SHOWIF allowManageFileCatalog(currentUser()) AND NOT rootDirectory()
+    PROPERTIES previewPdfFile() SHOWIF previewPdfFile(), previewImageFile() SHOWIF NOT previewPdfFile()
 
     EVENTS ON CHANGE n {
         previewPdfFile() <- NULL;
@@ -114,7 +124,7 @@ FORM fileManager 'Каталог файлов'
     }
 ;
 
-DESIGN fileManager {
+DESIGN fileCatalog {
     OBJECTS {
         NEW pane {
             fill = 1;
@@ -125,8 +135,8 @@ DESIGN fileManager {
             }
             NEW preview {
                 fill = 1;
-                MOVE PROPERTY(previewImageFile()) { fill = 1; caption = ''; };
-                MOVE PROPERTY(previewPdfFile()) { fill = 1; caption = ''; };
+                MOVE PROPERTY(previewImageFile()) { fill = 1; size = (100, 100); caption = ''; }
+                MOVE PROPERTY(previewPdfFile()) { fill = 1; size = (100, 100); caption = ''; }
             }
         }
     }
@@ -134,6 +144,6 @@ DESIGN fileManager {
 
 NAVIGATOR {
     dashboard {
-        NEW fileManager;
+        NEW fileCatalog;
     }
 }
