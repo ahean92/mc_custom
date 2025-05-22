@@ -15,7 +15,15 @@ rootDirectory 'Корневой каталог' () = GROUP MIN Directory d IS Di
 nameParent 'Родитель' (FileSystemNode n) = name(parentN(n));
 
 CLASS Directory 'Каталог' : FileSystemNode;
-CONSTRAINT Directory n = parentN(n) CHECKED BY parentN MESSAGE 'Каталог не может быть родителем самого себя!';
+
+//CONSTRAINT Directory d = parentN(d) CHECKED BY parentN MESSAGE 'Каталог не может быть родителем самого себя!';
+//CONSTRAINT Directory d1 = parentN(Directory d2) AND parentN(d1) = d2 CHECKED BY parentN MESSAGE 'Каталог не может быть родителем своей вложенной папки!';
+
+level 'Уровень' (Directory child, Directory parent) =
+    RECURSION 1l IF child IS Directory AND parent = child
+        STEP 2l IF parent = parentN($parent) MATERIALIZED;
+
+CONSTRAINT level(parentN(Directory d), d) MESSAGE 'Каталог не может быть родителем своей вложенной папки!';
 
 CLASS File 'Файл' : FileSystemNode;
 file 'Файл' = DATA RAWFILE (File);
@@ -27,6 +35,13 @@ WHEN SET(FileSystemNode n IS FileSystemNode) DO {
     dateTime(n) <- currentDateTime();
     user(n) <- currentUser();
 }
+
+//WHEN SET(Directory d IS Directory) DO {
+//    IF level(parentN(d), d) THEN {
+//        MESSAGE 'Каталог не может быть родителем своей вложенной папки!' NOWAIT;
+//        CANCEL;
+//    }
+//}
 
 previewPdfFile = DATA PDFFILE ();
 previewImageFile = DATA IMAGEFILE ();
