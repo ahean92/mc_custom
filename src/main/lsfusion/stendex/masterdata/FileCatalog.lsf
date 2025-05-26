@@ -1,10 +1,10 @@
 MODULE FileCatalog;
 
-REQUIRE UtilsStendex, Security, Category;
+REQUIRE UtilsStendex, Security;
 
 NAMESPACE MasterData;
 
-allowManageFileCatalog 'Разрешить управление каталогом файлов' = DATA BOOLEAN (UserRole);
+allowManageFileCatalog 'Разрешить управление' = DATA BOOLEAN (UserRole);
 allowManageFileCatalog (User u) = GROUP SUM 1 IF allowManageFileCatalog(UserRole r) AND has(u, r);
 
 EXTEND FORM securityPolicy
@@ -33,6 +33,9 @@ nameParent 'Родитель' (FileSystemNode n) = name(parent(n));
 
 CLASS Directory 'Каталог' : FileSystemNode;
 
+catalogAccessRole 'Разрешить управление' = DATA BOOLEAN (UserRole, Directory);
+catalogAccessRole (User u, FileSystemNode n) = GROUP SUM 1 IF catalogAccessRole(UserRole r, IF n IS File THEN parent(n) ELSE n) AND has(u, r);
+
 CONSTRAINT Directory d = parent(d) CHECKED BY parent[Directory] MESSAGE 'Каталог не может быть родителем самого себя!';
 
 level 'Уровень' (Directory child, Directory parent) =
@@ -40,6 +43,10 @@ level 'Уровень' (Directory child, Directory parent) =
         STEP 2l IF parent = parent($parent) MATERIALIZED;
 
 CONSTRAINT level(parent(Directory d), d) MESSAGE 'Нельзя установить родителя, который уже является вложенной папкой!';
+
+WHEN CHANGED(catalogAccessRole(UserRole r , Directory d)) DO {
+    FOR level(Directory d1, d) DO catalogAccessRole(r , d1) <- catalogAccessRole(r, d);
+}
 
 CLASS File 'Файл' : FileSystemNode;
 file 'Файл' = DATA RAWFILE (File);
@@ -64,17 +71,53 @@ uploadFile 'Загрузить' (File f) {
 } IMAGE 'upload.png';
 
 FORM directory 'Каталог'
-    OBJECTS n = Directory PANEL
-    PROPERTIES (n) name, nameParent
+    OBJECTS d = Directory PANEL
+    PROPERTIES name(d), nameParent(d)
 
-    EDIT Directory OBJECT n
+    OBJECTS r = UserRole
+    PROPERTIES name(r), catalogAccessRole(r, d) 
+
+    EVENTS ON APPLY BEFORE {
+    IF (NOT PREV(catalogAccessRole(currentUser(), d)) OR NOT catalogAccessRole(currentUser(), d))
+        AND NOT allowManageFileCatalog(currentUser()) THEN {
+        MESSAGE 'У вас нет прав на редактирование этого каталога!';
+        beforeCanceled() <- TRUE;
+    }
+}
+    
+EDIT Directory OBJECT d
 ;
+
+DESIGN directory {
+    OBJECTS {
+        NEW pane {
+            fill = 1;
+            horizontal = TRUE;
+            NEW catalogDetails {
+                fill = 1;
+                MOVE PROPERTY(name(d));
+                MOVE PROPERTY(nameParent(d));
+            }
+            NEW rolesPanel {
+                fill = 1;
+                MOVE BOX(r);
+            }
+        }
+    }
+}
 
 FORM file 'Файл'
     OBJECTS f = File PANEL
     PROPERTIES uploadFile(f)
     PROPERTIES (f) name, nameParent
 
+    EVENTS ON APPLY BEFORE {
+    IF (NOT PREV(catalogAccessRole(currentUser(), parent(f))) OR NOT catalogAccessRole(currentUser(), parent(f)))
+        AND NOT allowManageFileCatalog(currentUser()) THEN {
+        MESSAGE 'У вас нет прав на редактирование этого файла!';
+        beforeCanceled() <- TRUE;
+    }
+}
     EDIT File OBJECT f
 ;
 
@@ -88,22 +131,27 @@ newFile 'Добавить файл' (FileSystemNode n) {
 createDirectory 'Добавить каталог' (FileSystemNode n) {
     NEW d = Directory {
         parent(d) <- IF n IS File THEN parent(n) ELSE n;
-        SHOW directory OBJECTS n = d;
+        FOR has(currentUser(), UserRole r) DO catalogAccessRole(r, d) <- TRUE;
+        SHOW directory OBJECTS d = d;
     }
 } IMAGE 'add.png';
 
 createRootDirectory 'Добавить каталог' () {
     NEW d = Directory {
-        SHOW directory OBJECTS n = d;
+        FOR has(currentUser(), UserRole r) DO catalogAccessRole(r, d) <- TRUE;
+        SHOW directory OBJECTS d = d;
     }
 } IMAGE 'add.png';
 
+editObject 'Редактировать' (FileSystemNode n) {
+    NEWSESSION { IF n IS File THEN SHOW file OBJECTS f = n NOWAIT DOCKED; ELSE SHOW directory OBJECTS d = n NOWAIT DOCKED; }
+}
+
 FORM fileCatalog 'Каталог файлов'
     TREE catalog n = FileSystemNode PARENT parent(n)
-    PROPERTIES READONLY nodeName(n)
-    PROPERTIES (n) DELETE SHOWIF allowManageFileCatalog(currentUser())
-    PROPERTIES TOOLBAR SHOWIF allowManageFileCatalog(currentUser()) createDirectory(n), newFile(n)
-    PROPERTIES TOOLBAR createRootDirectory() SHOWIF allowManageFileCatalog(currentUser()) AND NOT rootDirectory()
+    PROPERTIES READONLY nodeName(n) ON CONTEXTMENU editObject(n)
+    PROPERTIES TOOLBAR SHOWIF allowManageFileCatalog(currentUser()) OR catalogAccessRole(currentUser(), n) createDirectory(n), newFile(n), DELETE(n)
+    PROPERTIES TOOLBAR createRootDirectory() SHOWIF NOT rootDirectory()
     PROPERTIES previewPdfFile() SHOWIF previewPdfFile(), previewImageFile() SHOWIF NOT previewPdfFile()
 
     EVENTS ON CHANGE n {
@@ -131,7 +179,8 @@ DESIGN fileCatalog {
             horizontal = TRUE;
             NEW catalog {
                 fill = 1;
-                MOVE BOX(TREE catalog) { caption = ''; };
+                MOVE BOX(TREE catalog) { caption = ''; }
+                PROPERTY(nodeName(n)) { font = IF n IS Directory THEN 'bold'; }
             }
             NEW preview {
                 fill = 1;
