@@ -16,7 +16,7 @@ REQUIRE Eval, ProcessMonitor, Backup,
         Uom, UomImport,
         ItemUom, ItemUomImport,
         BarCode, BarCodeHistory, BarCodeImport,
-        CountryP, CountryImport,
+        CountryP, CountryImport, FileCatalog,
         
         PurchaseSettings,
         PurchaseOrder, PurchaseOrderFilter, PurchaseOrderSelection,
