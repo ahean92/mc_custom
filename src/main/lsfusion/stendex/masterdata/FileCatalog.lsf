@@ -22,7 +22,7 @@ DESIGN securityPolicy {
 }
 
 CLASS FileSystemNode 'Элемент файловой системы';
-name 'Название' = DATA STRING[200] (FileSystemNode);
+name 'Название' = DATA STRING[200] (FileSystemNode) NONULL;
 parent 'Родитель' = DATA Directory (FileSystemNode);
 dateTime 'Дата создания' = DATA DATETIME (FileSystemNode);
 user 'Пользователь' = DATA User (FileSystemNode);
@@ -38,8 +38,8 @@ catalogAccessRole (User u, FileSystemNode n) = GROUP SUM 1 IF catalogAccessRole(
 
 CONSTRAINT Directory d = parent(d) CHECKED BY parent[Directory] MESSAGE 'Каталог не может быть родителем самого себя!';
 
-level 'Уровень' (Directory child, Directory parent) =
-    RECURSION 1l IF child IS Directory AND parent = child
+level 'Уровень' (FileSystemNode child, Directory parent) =
+    RECURSION 1l IF child IS FileSystemNode AND parent = child
         STEP 2l IF parent = parent($parent) MATERIALIZED;
 
 CONSTRAINT level(parent(Directory d), d) MESSAGE 'Нельзя установить родителя, который уже является вложенной папкой!';
@@ -59,8 +59,8 @@ WHEN SET(FileSystemNode n IS FileSystemNode) DO {
     user(n) <- currentUser();
 }
 
-previewPdfFile = DATA PDFFILE ();
-previewImageFile = DATA IMAGEFILE ();
+previewPdfFile = DATA LOCAL NESTED PDFFILE();
+previewImageFile = DATA LOCAL NESTED IMAGEFILE();
 
 uploadFile 'Загрузить' (File f) {
     INPUT uf = NAMEDFILE DO {
@@ -78,14 +78,23 @@ FORM directory 'Каталог'
     PROPERTIES name(r), catalogAccessRole(r, d) 
 
     EVENTS ON APPLY BEFORE {
-    IF (NOT PREV(catalogAccessRole(currentUser(), d)) OR NOT catalogAccessRole(currentUser(), d))
-        AND NOT allowManageFileCatalog(currentUser()) THEN {
-        MESSAGE 'У вас нет прав на редактирование этого каталога!';
-        beforeCanceled() <- TRUE;
+        IF (NOT PREV(catalogAccessRole(currentUser(), d)) OR NOT catalogAccessRole(currentUser(), d))
+            AND NOT allowManageFileCatalog(currentUser()) THEN {
+            MESSAGE 'У вас нет прав на редактирование этого каталога!';
+            beforeCanceled() <- TRUE;
+        }
     }
-}
+
+    EVENTS ON OK BEFORE {
+        IF NOT name(d) THEN {
+            MESSAGE 'Название каталога не может быть пустым!';
+            beforeCanceled() <- TRUE;
+        }
+    }
+
+    EVENTS ON CLOSE { name(d) <- NULL; }
     
-EDIT Directory OBJECT d
+    EDIT Directory OBJECT d
 ;
 
 DESIGN directory {
@@ -112,12 +121,22 @@ FORM file 'Файл'
     PROPERTIES (f) name, nameParent
 
     EVENTS ON APPLY BEFORE {
-    IF (NOT PREV(catalogAccessRole(currentUser(), parent(f))) OR NOT catalogAccessRole(currentUser(), parent(f)))
-        AND NOT allowManageFileCatalog(currentUser()) THEN {
-        MESSAGE 'У вас нет прав на редактирование этого файла!';
-        beforeCanceled() <- TRUE;
+        IF (NOT PREV(catalogAccessRole(currentUser(), parent(f))) OR NOT catalogAccessRole(currentUser(), parent(f)))
+            AND NOT allowManageFileCatalog(currentUser()) THEN {
+            MESSAGE 'У вас нет прав на редактирование этого файла!';
+            beforeCanceled() <- TRUE;
+        }
     }
-}
+    
+    EVENTS ON OK BEFORE {
+        IF NOT name(f) THEN {
+            MESSAGE 'Название файла не может быть пустым!';
+            beforeCanceled() <- TRUE;
+        }
+    }
+    
+    EVENTS ON CLOSE { name(f) <- NULL; }
+
     EDIT File OBJECT f
 ;
 
@@ -125,6 +144,8 @@ newFile 'Добавить файл' (FileSystemNode n) {
     NEW f = File {
         parent(f) <- IF n IS File THEN parent(n) ELSE n;
         SHOW file OBJECTS f = f;
+        IF NOT name(f) THEN DELETE f;
+        APPLY;
     }
 } IMAGE 'add.png' CHANGEKEY 'INSERT';
 
@@ -133,6 +154,8 @@ createDirectory 'Добавить каталог' (FileSystemNode n) {
         parent(d) <- IF n IS File THEN parent(n) ELSE n;
         FOR has(currentUser(), UserRole r) DO catalogAccessRole(r, d) <- TRUE;
         SHOW directory OBJECTS d = d;
+        IF NOT name(d) THEN DELETE d;
+        APPLY;
     }
 } IMAGE 'add.png';
 
@@ -140,6 +163,8 @@ createRootDirectory 'Добавить каталог' () {
     NEW d = Directory {
         FOR has(currentUser(), UserRole r) DO catalogAccessRole(r, d) <- TRUE;
         SHOW directory OBJECTS d = d;
+        IF NOT name(d) THEN DELETE d;
+        APPLY;
     }
 } IMAGE 'add.png';
 
@@ -147,13 +172,25 @@ editObject 'Редактировать' (FileSystemNode n) {
     NEWSESSION { IF n IS File THEN SHOW file OBJECTS f = n NOWAIT DOCKED; ELSE SHOW directory OBJECTS d = n NOWAIT DOCKED; }
 }
 
+deleteNode 'Удалить' (FileSystemNode n) {
+    ASK CONCAT '', 'Вы уверены, что хотите удалить "', nodeName(n), '"?' DO {
+        DELETE n;
+        APPLY;
+    }
+} IMAGE 'delete.png';
+
+findNode = DATA LOCAL FileSystemNode;
+nameFindNode 'Название элемента' = nodeName(findNode());
+
 FORM fileCatalog 'Каталог файлов'
     TREE catalog n = FileSystemNode PARENT parent(n)
     PROPERTIES READONLY nodeName(n) ON CONTEXTMENU editObject(n)
-    PROPERTIES TOOLBAR SHOWIF allowManageFileCatalog(currentUser()) OR catalogAccessRole(currentUser(), n) createDirectory(n), newFile(n), DELETE(n)
+    PROPERTIES TOOLBAR SHOWIF allowManageFileCatalog(currentUser()) OR catalogAccessRole(currentUser(), n) createDirectory(n), newFile(n), deleteNode(n)
     PROPERTIES TOOLBAR createRootDirectory() SHOWIF NOT rootDirectory()
     PROPERTIES previewPdfFile() SHOWIF previewPdfFile(), previewImageFile() SHOWIF NOT previewPdfFile()
-
+    PROPERTIES nameFindNode()
+    FILTERS (n = findNode() OR level(findNode(), n)) OR NOT findNode()
+    
     EVENTS ON CHANGE n {
         previewPdfFile() <- NULL;
         previewImageFile() <- NULL;
@@ -174,7 +211,7 @@ FORM fileCatalog 'Каталог файлов'
 
 DESIGN fileCatalog {
     OBJECTS {
-        NEW pane {
+        NEW main {
             fill = 1;
             horizontal = TRUE;
             NEW catalog {
@@ -182,10 +219,18 @@ DESIGN fileCatalog {
                 MOVE BOX(TREE catalog) { caption = ''; }
                 PROPERTY(nodeName(n)) { font = IF n IS Directory THEN 'bold'; }
             }
-            NEW preview {
+            NEW filterAndPreview {
                 fill = 1;
-                MOVE PROPERTY(previewImageFile()) { fill = 1; size = (100, 100); caption = ''; }
-                MOVE PROPERTY(previewPdfFile()) { fill = 1; size = (100, 100); caption = ''; }
+                NEW filter {
+                    fill = 1;
+                    horizontal = TRUE;
+                    MOVE PROPERTY(nameFindNode());
+                }
+                NEW preview {
+                    fill = 1000;
+                    MOVE PROPERTY(previewImageFile()) { fill = 1; size = (100, 100); caption = ''; }
+                    MOVE PROPERTY(previewPdfFile()) { fill = 1; size = (100, 100); caption = ''; }
+                }
             }
         }
     }
