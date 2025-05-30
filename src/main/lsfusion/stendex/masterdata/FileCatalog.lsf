@@ -23,13 +23,14 @@ DESIGN securityPolicy {
 
 CLASS FileSystemNode 'Элемент файловой системы';
 name 'Название' = DATA STRING[200] (FileSystemNode) NONULL;
+
 parent 'Родитель' = DATA Directory (FileSystemNode);
+nameParent 'Родитель' (FileSystemNode n) = name(parent(n));
+
 dateTime 'Дата создания' = DATA DATETIME (FileSystemNode);
 user 'Пользователь' = DATA User (FileSystemNode);
 
 rootDirectory 'Корневой каталог' () = GROUP MIN Directory d IS Directory IF NOT parent(d);
-
-nameParent 'Родитель' (FileSystemNode n) = name(parent(n));
 
 CLASS Directory 'Каталог' : FileSystemNode;
 
@@ -49,7 +50,7 @@ WHEN CHANGED(catalogAccessRole(UserRole r , Directory d)) DO {
 }
 
 CLASS File 'Файл' : FileSystemNode;
-file 'Файл' = DATA RAWFILE (File);
+file 'Файл' = DATA RAWFILE (File) NONULL;
 extension 'Расширение' = DATA STRING[10] (File);
 
 nodeName 'Название элемента' (FileSystemNode n) = CONCAT '.', name(n), IF n IS File THEN extension(n);
@@ -58,6 +59,13 @@ WHEN SET(FileSystemNode n IS FileSystemNode) DO {
     dateTime(n) <- currentDateTime();
     user(n) <- currentUser();
 }
+
+FORM fileSystemNodes 'Элементы файловой системы'
+    OBJECTS n = FileSystemNode
+    PROPERTIES READONLY nodeName(n)
+    
+    LIST FileSystemNode OBJECT n
+;
 
 previewPdfFile = DATA LOCAL NESTED PDFFILE();
 previewImageFile = DATA LOCAL NESTED IMAGEFILE();
@@ -133,6 +141,10 @@ FORM file 'Файл'
             MESSAGE 'Название файла не может быть пустым!';
             beforeCanceled() <- TRUE;
         }
+        ELSE IF NOT file(f) THEN {
+            MESSAGE 'Файл не загружен!';
+            beforeCanceled() <- TRUE;
+        }
     }
     
     EVENTS ON CLOSE { name(f) <- NULL; }
@@ -187,7 +199,7 @@ FORM fileCatalog 'Каталог файлов'
     PROPERTIES READONLY nodeName(n) ON CONTEXTMENU editObject(n)
     PROPERTIES TOOLBAR SHOWIF allowManageFileCatalog(currentUser()) OR catalogAccessRole(currentUser(), n) createDirectory(n), newFile(n), deleteNode(n)
     PROPERTIES TOOLBAR createRootDirectory() SHOWIF NOT rootDirectory()
-    PROPERTIES previewPdfFile() SHOWIF previewPdfFile(), previewImageFile() SHOWIF NOT previewPdfFile()
+    PROPERTIES READONLY previewPdfFile() SHOWIF previewPdfFile(), previewImageFile() SHOWIF NOT previewPdfFile()
     PROPERTIES nameFindNode()
     FILTERS (n = findNode() OR level(findNode(), n)) OR NOT findNode()
     
