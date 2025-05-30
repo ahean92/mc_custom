@@ -15,7 +15,7 @@ dataStatus = DATA BillStatus (Bill);
 dateTime = DATA DATETIME(Bill, BillStatus);
 
 WHEN SETCHANGED(status(Bill b)) DO {
-    dateTime(b,status(b)) <- currentDateTime();
+    dateTime(b, status(b)) <- currentDateTime();
 }
 
 allowPrevStatusSetBill 'Разрешить возвращать статус счета' = DATA BOOLEAN (UserRole);
@@ -37,15 +37,15 @@ DESIGN securityPolicy {
 }
 
 in 'On' = DATA BOOLEAN (Bill, Project);
-countProjects (Bill b) =  GROUP SUM 1 IF in(b, Project p);
+countProjects (Bill b) = GROUP SUM 1 IF in(b, Project p);
 amount 'Сумма по проекту' = DATA NUMERIC[14,2] (Bill, Project);
-amountProjects 'Сумма по проекту' (Bill b) = GROUP SUM amount(b, Project p) IF in(b,p);
+amountProjects 'Сумма по проекту' (Bill b) = GROUP SUM amount(b, Project p) IF in(b, p);
 
 nameProjects 'Проекты' (Bill b) = GROUP CONCAT name(Project p) IF in(b, p), '/' ORDER p;
 
 changeIn (Bill b, Project p) {
     in(b, p) <- NOT in(b, p);
-} 
+}
 
 changeDoubleClick 'Выбрать проект'(Bill b, Project p){
     in(b, Project pp) <- TRUE IF pp = p;
@@ -54,8 +54,9 @@ changeDoubleClick 'Выбрать проект'(Bill b, Project p){
 
 FORM changeBillProjects 'Выбрать проекты'
     OBJECTS b = Bill PANEL
+
     OBJECTS p = Project
-    PROPERTIES(b,p) in
+    PROPERTIES(b, p) in
     PROPERTIES(p) ON CHANGE changeIn(b, p) number, startDate, endDate
     PROPERTIES (p) READONLY namePartner, nameType, name, nameCompany
 
@@ -83,12 +84,12 @@ fillAmountProjects 'Расписать по проектам' (Bill b) {
 
 EXTEND FORM bill
     PROPERTIES (b) READONLY nameProjects
-    
+
     OBJECTS p = Project
     PROPERTIES(p) READONLY number, startDate, endDate, namePartner, nameType, name, nameCompany
-    PROPERTIES(b,p) READONLYIF readonly(b) amount
+    PROPERTIES(b, p) READONLYIF readonly(b) amount
     PROPERTIES(b) READONLYIF readonly(b) TOOLBAR DRAW p changeBillProjects
-    FILTERS in(b,p)
+    FILTERS in(b, p)
 ;
 
 DESIGN bill {
@@ -123,7 +124,7 @@ EXTEND CLASS BillStatus {
 onApproval 'На утверждении' = DATA BOOLEAN (Bill);
 
 status(Bill b) += WHEN onApproval(b) AND NOT (ready(b) OR done(b) OR canceled(b)) THEN BillStatus.onApproval;
-color(BillStatus b) += WHEN b = BillStatus.onApproval THEN RGB(217,247,149);
+color(BillStatus b) += WHEN b = BillStatus.onApproval THEN RGB(217, 247, 149);
 
 markAsOnApproval 'На утверждение' (Bill b) {
     APPLY;
@@ -172,7 +173,7 @@ FORM urgencies 'Срочность'
     LIST Urgency OBJECT u
 ;
 
-urgency 'Срочность' =  DATA Urgency (Bill) NONULL;
+urgency 'Срочность' = DATA Urgency (Bill) NONULL;
 nameUrgency 'Срочность' (Bill b) = name(urgency(b));
 
 isUrgent 'Срочный' = DATA BOOLEAN (Bill);
@@ -181,7 +182,7 @@ includeVAT 'С НДС' = DATA BOOLEAN (Bill);
 overNameRepresentative 'Our representative' (Bill o)= OVERRIDE MasterData.overName(representative(o)), MasterData.name(representative(o));
 
 EXTEND FORM bill
-    PROPERTIES(b) READONLYIF readonly(b) overNameRepresentative,  nameUrgency
+    PROPERTIES(b) READONLYIF readonly(b) overNameRepresentative, nameUrgency
 ;
 DESIGN bill {
     billInformat {
@@ -222,7 +223,7 @@ WHEN LOCAL SETCHANGED(type(BillLine l)) AND NOT item(l) DO
 FORM serviceCustom 'Услуга'
     OBJECTS s = Service PANEL
     PROPERTIES(s) dataName
-//    EDIT Service OBJECT s
+    //    EDIT Service OBJECT s
 ;
 
 DESIGN serviceCustom {
@@ -233,7 +234,7 @@ countServices (Category c) = GROUP SUM 1 IF category(Item i) = c AND i IS Servic
 
 addServiceCustom 'Добавить' () {
     NEW s = Service {
-        category(s) <- GROUP LAST Category c ORDER DESC c WHERE countServices(c); 
+        category(s) <- GROUP LAST Category c ORDER DESC c WHERE countServices(c);
         SHOW serviceCustom OBJECTS s = s;
         IF PREV(s IS Service) THEN seek(s);
     }
@@ -251,7 +252,7 @@ FORM servicesCustom 'Услуги'
 
 changeItems (Bill b) {
     DIALOG servicesCustom OBJECTS s INPUT LIST name(s) FILTERS s IS Service DO {
-        IF NOT GROUP SUM 1 IF b = bill(BillLine bl) AND NOT item(bl) IS Product THEN 
+        IF NOT GROUP SUM 1 IF b = bill(BillLine bl) AND NOT item(bl) IS Product THEN
             NEW l = BillLine {
                 bill(l) <- b;
                 item(l) <- s;
@@ -286,7 +287,7 @@ WHEN SET(Bill b IS Bill) AND type(b) AND NOT billService(type(b)) DO urgency(b) 
 
 showAllInvoices 'Показывать все счета' = DATA BOOLEAN (UserRole);
 showAllInvoices (User u) = GROUP SUM 1 IF showAllInvoices(UserRole r) AND has(u, r);
-editAllInvoices 'Редактировать закрытые счета' =  DATA BOOLEAN (UserRole);
+editAllInvoices 'Редактировать закрытые счета' = DATA BOOLEAN (UserRole);
 editAllInvoices (User u) = GROUP SUM 1 IF editAllInvoices(UserRole r) AND has(u, r);
 
 EXTEND FORM securityPolicy
@@ -311,37 +312,37 @@ WHEN LOCAL SET(Bill b IS Bill) DO editingOn(b) <- TRUE;
 
 readonly(Bill b) += WHEN b IS Bill AND NOT editingOn(b) THEN TRUE;
 
-FORM billCustom 'Счет'   
+FORM billCustom 'Счет'
     OBJECTS b = Bill PANEL
 
     OBJECTS anyNamePartner = ISTRING
     FILTERS anyNamePartner(anyNamePartner) == overNameVendor(b)
-    
+
     PROPERTIES(b) READONLYIF readonly(b)
-                  imagedNameStatus,
-                  'Услуга' = items ON CHANGE changeItems(b),
-                  nameCompany,
-                  nameProjects ON CHANGE {
-                      IF NOT readonly(b) THEN changeBillProjects(b);
-                  },
-                  overNameVendor ON CHANGE {
-                      INPUT ss = anyNamePartner(anyNamePartner) DO
-                          vendor(b) <- partnerByAnyName(ss);
-                    },
-                  note,
-                  amount READONLY,
-                  details,
-                  nameUrgency, includeVAT
+    imagedNameStatus,
+        'Услуга' = items ON CHANGE changeItems(b),
+        nameCompany,
+        nameProjects ON CHANGE {
+            IF NOT readonly(b) THEN changeBillProjects(b);
+        },
+        overNameVendor ON CHANGE {
+            INPUT ss = anyNamePartner(anyNamePartner) DO
+                vendor(b) <- partnerByAnyName(ss);
+        },
+        note,
+        amount READONLY,
+        details,
+        nameUrgency, includeVAT
 
     PROPERTIES(b) onApproval, ready, done, canceled, cancel SHOWIF status(b) = BillStatus.draft
 
     PROPERTIES(b) editingOn DISABLEIF ready(b) AND NOT editAllInvoices(currentUser())
-    
+
     OBJECTS pr = Project
     PROPERTIES(pr) READONLY number, startDate, endDate, namePartner, nameType, name, nameCompany
-    PROPERTIES(b,pr) READONLYIF readonly(b) amount
+    PROPERTIES(b, pr) READONLYIF readonly(b) amount
     PROPERTIES(b) READONLYIF readonly(b) TOOLBAR DRAW pr changeBillProjects
-    FILTERS in(b,pr) 
+    FILTERS in(b, pr)
 ;
 
 DESIGN billCustom {
@@ -452,7 +453,6 @@ uploadInvoice 'Счет' (Bill b){
     }
 } IMAGE 'add.png';
 
-
 uploadPaymentOrder 'Платежное поручение' (Bill b){
     INPUT uf = NAMEDFILE DO NEW uof = BillFile {
         bill(uof) <- b;
@@ -511,7 +511,7 @@ DESIGN billCustom {
 newLegalEntityBill 'Добавить' () {
     NEWSESSION {
         NEW b = Bill {
-            type(b) <- legalEntityType(); 
+            type(b) <- legalEntityType();
             SHOW billCustom OBJECTS b = b;
         }
     }
@@ -541,7 +541,7 @@ filterUrgent 'Срочность' = DATA LOCAL Urgency ();
 nameFilterUrgent 'Срочность' = name(filterUrgent());
 
 backgroundColor = ABSTRACT CASE COLOR (Bill);
-backgroundColor(Bill b) += WHEN urgency(b) == Urgency.urgent THEN RGB(237,193,116);
+backgroundColor(Bill b) += WHEN urgency(b) == Urgency.urgent THEN RGB(237, 193, 116);
 overBackgroundColor (Bill b) = OVERRIDE backgroundColor(b), colorStatus(b);
 
 FORM billDashboard 'Счета на услуги'
@@ -578,27 +578,27 @@ NAVIGATOR {
 }
 
 changeStatus ABSTRACT LIST (Bill, BillStatus);
-changeStatus (Bill b, BillStatus s) +{
+changeStatus (Bill b, BillStatus s) + {
     APPLY;
     IF canceled() THEN RETURN;
 }
 
-changeStatus (Bill b, BillStatus s) +{
-    IF s = BillStatus.canceled THEN  NEWSESSION {
+changeStatus (Bill b, BillStatus s) + {
+    IF s = BillStatus.canceled THEN NEWSESSION {
         dataStatus(b) <- s;
         APPLY;
     }
 }
 
-changeStatus (Bill b, BillStatus s) +{
-    IF s = BillStatus.draft THEN  NEWSESSION {
+changeStatus (Bill b, BillStatus s) + {
+    IF s = BillStatus.draft THEN NEWSESSION {
         dataStatus(b) <- s;
         APPLY;
     }
 }
 
-changeStatus (Bill b, BillStatus s) +{
-    IF s = BillStatus.closed THEN  NEWSESSION {
+changeStatus (Bill b, BillStatus s) + {
+    IF s = BillStatus.closed THEN NEWSESSION {
         dataStatus(b) <- s;
         APPLY;
     }
@@ -615,17 +615,17 @@ showStatus (Bill b, BillStatus s) = showStatusRule(b, s);
 changePrevStatus ABSTRACT LIST (Bill, BillStatus);
 
 changeToPrevStatus (Bill b, BillStatus s) {
-    dateTime(b,status(b)) <- NULL;
+    dateTime(b, status(b)) <- NULL;
     changePrevStatus(b, s);
-    changeStatus(b,s);
+    changeStatus(b, s);
 }
 hidePrevStatusRule = ABSTRACT CASE BOOLEAN (BillStatus);
-prevStatus (Bill b) = GROUP LAST BillStatus s IF dateTime(b,s) < dateTime(b,status(b)) ORDER dateTime(b,s), s;
+prevStatus (Bill b) = GROUP LAST BillStatus s IF dateTime(b, s) < dateTime(b, status(b)) ORDER dateTime(b, s), s;
 showPrevStatus (Bill b, BillStatus s) = prevStatus(b) == s AND allowPrevStatusSetBill(currentUser()) AND NOT hidePrevStatusRule(s);
 
 EXTEND FORM billCustom
     PROPERTIES(b) nameRepresentative
-    
+
     OBJECTS bs = BillStatus
     PROPERTIES (b, bs) changeToPrevStatus COLUMNS (bs) HEADER (captionButton(bs) + '(возврат)') SHOWIF countBillLine(b)
     FILTERS showPrevStatus(b, bs)
@@ -639,7 +639,7 @@ DESIGN billCustom{
     headerLeft {
         MOVE PROPERTY(nameRepresentative(b)) { fontSize = 24; }
     }
-    
+
     statusPane{
         statusActions {
             MOVE PROPERTY (changeToPrevStatus(b, bs));
@@ -705,17 +705,17 @@ META billDashboardStatus(st, capt)
         PROPERTIES(st##LE) NEWSESSION DELETE
         FILTERS status(st##LE) = BillStatus.st
         FILTERS legalEntity(st##LE), billService(type(st##LE)),
-                representative(st##LE) = currentUser() OR showAllInvoices(currentUser()) OR NOT representative(st##LE)
+            representative(st##LE) = currentUser() OR showAllInvoices(currentUser()) OR NOT representative(st##LE)
         FILTERS in(st##LE, filterProject()) OR NOT filterProject(),
-                representative(st##LE) = filterRepresentative() OR NOT filterRepresentative(),
-                status(st##LE) = filterStatus() OR NOT filterStatus(),
-                urgency(st##LE) = filterUrgent() OR NOT filterUrgent()
-        
+            representative(st##LE) = filterRepresentative() OR NOT filterRepresentative(),
+            status(st##LE) = filterStatus() OR NOT filterStatus(),
+            urgency(st##LE) = filterUrgent() OR NOT filterUrgent()
+
         PROPERTIES st##LE##Order 'Порядок' = VALUE(st##LE)
         ORDERS st##LE##Order DESC
 
         OBJECTS bs##st##LE = BillStatus
-        PROPERTIES (st##LE, bs##st##LE) changeToPrevStatus COLUMNS (bs##st##LE) HEADER (captionButton(bs##st##LE) + '(возврат)') SHOWIF countBillLine(st##LE) 
+        PROPERTIES (st##LE, bs##st##LE) changeToPrevStatus COLUMNS (bs##st##LE) HEADER (captionButton(bs##st##LE) + '(возврат)') SHOWIF countBillLine(st##LE)
         FILTERS showPrevStatus(st##LE, bs##st##LE)
 
         OBJECTS s##st##LE = BillStatus
@@ -723,7 +723,7 @@ META billDashboardStatus(st, capt)
         FILTERS showStatus(st##LE, s##st##LE)
         FILTERS allowStatusSet(s##st##LE)
 
-    OBJECTS st##I = Bill BACKGROUND overBackgroundColor(st##I)
+        OBJECTS st##I = Bill BACKGROUND overBackgroundColor(st##I)
         PROPERTIES(st##I) READONLY number, date, overNameVendor, items, nameProjects, note, overNameRepresentative, amount
         PROPERTIES(st##I) 'Счет' = openFilesInvoice GRID
         PROPERTIES(st##I) NEWSESSION editBillCustom
@@ -732,10 +732,10 @@ META billDashboardStatus(st, capt)
         FILTERS individual(st##I), billService(type(st##I)),
             representative(st##I) = currentUser() OR showAllInvoices(currentUser()) OR NOT representative(st##I)
         FILTERS in(st##I, filterProject()) OR NOT filterProject(),
-                representative(st##I) = filterRepresentative() OR NOT filterRepresentative(),
-                status(st##I) = filterStatus() OR NOT filterStatus(),
-                urgency(st##I) = filterUrgent() OR NOT filterUrgent()
-        
+            representative(st##I) = filterRepresentative() OR NOT filterRepresentative(),
+            status(st##I) = filterStatus() OR NOT filterStatus(),
+            urgency(st##I) = filterUrgent() OR NOT filterUrgent()
+
         PROPERTIES st##I##Order 'Порядок' = LONG(st##I) SHOWIF NULL
         ORDERS st##I##Order DESC
 
@@ -745,14 +745,14 @@ META billDashboardStatus(st, capt)
 
         OBJECTS s##st##I = BillStatus
         PROPERTIES (st##I, s##st##I) changeStatus COLUMNS (s##st##I) HEADER captionButton(s##st##I) SHOWIF countBillLine(st##I)
-    FILTERS showStatus(st##I, s##st##I) 
-    FILTERS allowStatusSet(s##st##I)
+        FILTERS showStatus(st##I, s##st##I)
+        FILTERS allowStatusSet(s##st##I)
     ;
 
     filtered###st##LE(Bill b) = FILTER billDashboard.st##LE;
     filtered###st##I(Bill b) = FILTER billDashboard.st##I;
     countFiltered###st = GROUP SUM 1 IF filtered###st##LE(Bill b) OR filtered###st##I(b);
-    
+
     DESIGN billDashboard{
         tab {
             NEW st {
@@ -808,6 +808,73 @@ END
 @billDashboardStatus(done, 'Оплачено');
 @billDashboardStatus(canceled, 'Отменен');
 @billDashboardStatus(closed, 'Закрыт');
+
+EXTEND FORM billDashboard
+    OBJECTS bLE = Bill
+    PROPERTIES(bLE) READONLY number, date, overNameVendor, items, nameProjects, note, overNameRepresentative, nameCompany, amount
+    PROPERTIES(bLE) 'Счет' = openFilesInvoice GRID
+    PROPERTIES(bLE) NEWSESSION editBillCustom
+    PROPERTIES(bLE) NEWSESSION DELETE
+    FILTERS legalEntity(bLE), billService(type(bLE)),
+        representative(bLE) = currentUser() OR showAllInvoices(currentUser()) OR NOT representative(bLE)
+    FILTERS in(bLE, filterProject()) OR NOT filterProject(),
+        representative(bLE) = filterRepresentative() OR NOT filterRepresentative(),
+        status(bLE) = filterStatus() OR NOT filterStatus(),
+        urgency(bLE) = filterUrgent() OR NOT filterUrgent()
+
+    PROPERTIES billOrder 'Порядок' = VALUE(bLE)
+    ORDERS billOrder DESC
+
+    OBJECTS bI = Bill BACKGROUND overBackgroundColor(bI)
+    PROPERTIES(bI) READONLY number, date, overNameVendor, items, nameProjects, note, overNameRepresentative, amount
+    PROPERTIES(bI) 'Счет' = openFilesInvoice GRID
+    PROPERTIES(bI) NEWSESSION editBillCustom
+    PROPERTIES(bI) NEWSESSION DELETE
+    FILTERS individual(bI), billService(type(bI)),
+        representative(bI) = currentUser() OR showAllInvoices(currentUser()) OR NOT representative(bI)
+    FILTERS in(bI, filterProject()) OR NOT filterProject(),
+        representative(bI) = filterRepresentative() OR NOT filterRepresentative(),
+        status(bI) = filterStatus() OR NOT filterStatus(),
+        urgency(bI) = filterUrgent() OR NOT filterUrgent()
+
+    PROPERTIES billIOrder 'Порядок' = LONG(bI) SHOWIF NULL
+    ORDERS billIOrder DESC
+
+;
+
+filteredBillLE(Bill b) = FILTER billDashboard.bLE;
+filteredBillI(Bill b) = FILTER billDashboard.bI;
+countFilteredBill = GROUP SUM 1 IF filteredBillLE(Bill b) OR filteredBillI(b) ;
+
+DESIGN billDashboard{
+    tab {
+        NEW allBills LAST {
+            caption = badged('Все счета', countFilteredBill());
+            //showIf = showBillTab();
+            fill = 1;
+            NEW billLE {
+                caption = 'Счета на оплату';
+                fill = 1;
+                NEW billLEHeader {
+                    horizontal = TRUE;
+                    alignment = STRETCH;
+                    MOVE TOOLBAR(bLE);
+                }
+                MOVE BOX(bLE) { caption = ''; };
+            }
+            NEW billI {
+                caption = 'Оплата freelance';
+                fill = 1;
+                NEW billIHeader {
+                    horizontal = TRUE;
+                    alignment = STRETCH;
+                    MOVE TOOLBAR(bI);
+                }
+                MOVE BOX(bI) { caption = ''; };
+            }
+        }
+    }}
+
 countBillPaymentOrders 'Кол-во платёжных поручений' (Bill i) = GROUP SUM 1 IF bill(BillFile bf) = i AND type(bf) = TypeFile.paymentOrder;
 
 paymentOrder 'ПП' (Bill i) = GROUP MAX BillFile bf IF bill(bf) = i AND type(bf) = TypeFile.paymentOrder;
