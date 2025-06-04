@@ -39,7 +39,7 @@ catalogAccessRole (User u, FileSystemNode n) = GROUP SUM 1 IF catalogAccessRole(
 
 CONSTRAINT Directory d = parent(d) CHECKED BY parent[Directory] MESSAGE 'Каталог не может быть родителем самого себя!';
 
-level 'Уровень' (FileSystemNode child, Directory parent) =
+level 'Уровень' (FileSystemNode child, FileSystemNode parent) =
     RECURSION 1l IF child IS FileSystemNode AND parent = child
         STEP 2l IF parent = parent($parent) MATERIALIZED;
 
@@ -184,23 +184,27 @@ editObject 'Редактировать' (FileSystemNode n) {
     NEWSESSION { IF n IS File THEN SHOW file OBJECTS f = n NOWAIT DOCKED; ELSE SHOW directory OBJECTS d = n NOWAIT DOCKED; }
 }
 
-deleteNode 'Удалить' (FileSystemNode n) {
-    ASK CONCAT '', 'Вы уверены, что хотите удалить "', nodeName(n), '"?' DO {
-        DELETE n;
-        APPLY;
-    }
-} IMAGE 'delete.png';
+//deleteNode 'Удалить' (FileSystemNode n) {
+//    ASK CONCAT '', 'Вы уверены, что хотите удалить "', nodeName(n), '"?' DO {
+//        NEWSESSION DELETE n;
+//        APPLY;
+//    }
+//} IMAGE 'delete.png';
 
 findNode = DATA LOCAL FileSystemNode;
 nameFindNode 'Название элемента' = nodeName(findNode());
 
+open 'Open' (FileSystemNode f) { IF f IS File THEN open(file(f), nodeName(f)); } IMAGE 'open.png';
+
 FORM fileCatalog 'Каталог файлов'
     TREE catalog n = FileSystemNode PARENT parent(n)
     PROPERTIES READONLY nodeName(n) ON CONTEXTMENU editObject(n)
-    PROPERTIES TOOLBAR SHOWIF allowManageFileCatalog(currentUser()) OR catalogAccessRole(currentUser(), n) createDirectory(n), newFile(n), deleteNode(n)
+    PROPERTIES TOOLBAR open(n) SHOWIF n IS File 
+    PROPERTIES TOOLBAR SHOWIF allowManageFileCatalog(currentUser()) OR catalogAccessRole(currentUser(), n) createDirectory(n), newFile(n)
     PROPERTIES TOOLBAR createRootDirectory() SHOWIF NOT rootDirectory()
     PROPERTIES READONLY previewPdfFile() SHOWIF previewPdfFile(), previewImageFile() SHOWIF NOT previewPdfFile()
     PROPERTIES nameFindNode()
+    PROPERTIES(n) NEWSESSION DELETE
     FILTERS (n = findNode() OR level(findNode(), n)) OR NOT findNode()
     
     EVENTS ON CHANGE n {
