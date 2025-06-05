@@ -194,7 +194,7 @@ editObject 'Редактировать' (FileSystemNode n) {
 findNode = DATA LOCAL FileSystemNode;
 nameFindNode 'Название элемента' = nodeName(findNode());
 
-open 'Open' (FileSystemNode f) { IF f IS File THEN open(file(f), nodeName(f)); } IMAGE 'open.png';
+open 'Скачать' (FileSystemNode f) { IF f IS File THEN open(file(f), nodeName(f)); } IMAGE 'open.png';
 
 FORM fileCatalog 'Каталог файлов'
     TREE catalog n = FileSystemNode PARENT parent(n)
