@@ -97,10 +97,13 @@ DESIGN partner {
 isDesigner 'Дизайнер' = DATA BOOLEAN (Position);
 isDesigner (Individual d) = isDesigner(position(d));
 
+isManager 'Менеджер' = DATA BOOLEAN (Position);
+isManager (Individual d) = isManager(position(d));
+
 EXTEND FORM positions
-    PROPERTIES (o) isDesigner READONLY 
+    PROPERTIES (o) isDesigner, isManager 
 ;
 
 EXTEND FORM position
-    PROPERTIES (o) isDesigner
+    PROPERTIES (o) isDesigner, isManager
 ;

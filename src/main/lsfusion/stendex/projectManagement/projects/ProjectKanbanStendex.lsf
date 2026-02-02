@@ -1,20 +1,24 @@
 MODULE ProjectKanbanStendex;
 
-REQUIRE Project, ProjectDashboardStendex, ProjectExhibition, ProjectStendex;
+REQUIRE ProjectDashboardStendex, ProjectStendex, ProjectFilter;
 
 PRIORITY MasterData;
 
 NAMESPACE ProjectManagement;
 
 color 'Цвет' = DATA STRING (ProjectStatus);
+skipKanban 'Не отображать в Kanban' = DATA BOOLEAN (ProjectStatus);
+order 'Порядок' = DATA INTEGER (ProjectStatus) CHARWIDTH 10;
 
 budget (ProjectStatus s) = GROUP SUM budget(Project p) IF status(p) = s AND [FILTER projects.p](p);
 
-projectStatuses () = JSON FROM id = ProjectStatus s, name(s), color(s), budget = toChar(budget(s), '999 999 999 ₽') WHERE s IS ProjectStatus AND NOT closed(s);
+projectStatuses () = JSON FROM id = ProjectStatus s, name(s), color(s), budget = toChar(budget(s), '999 999 999 ₽')
+    WHERE s IS ProjectStatus AND NOT closed(s) AND NOT skipKanban(s) ORDER order(s), s;
+
 projectEmployees () = JSON FROM id = Employee e, name(e) WHERE e IS Employee;
 
 order = DATA LONG (CustomUser, Project);
-currentOrder (Project t) =  order(currentUser(), t);
+currentOrder (Project t) = order(currentUser(), t);
 
 createProject() {
     INPUT id = LONG DO {
@@ -32,13 +36,12 @@ dateInstallation (Project p) = toChar(installationStartDate(p), 'dd.mm.YY');
 dateExcibition (Project p) = toChar(startDateExhibition(p), 'dd.mm.YY');
 dateDemolition (Project p) = toChar(demolitionStartDate(p), 'dd.mm.YY');
 
-
 EXTEND FORM projects
     OBJECTS pp = Project CUSTOM 'projectKanban'
     HEADER JSON FROM employees = projectEmployees(), statuses = projectStatuses()
-    
+
     PROPERTIES(pp)
-        readonly = readonlyCurrentUser,
+    readonly = readonlyCurrentUser,
         namePartner,
         budget = budgetString,
         installDate = dateInstallation,
@@ -56,7 +59,7 @@ EXTEND FORM projects
         currentOrder ON CHANGE {
             INPUT ord = INTEGER DO order(currentUser(), pp) <- ord;
         }
-   
+
     PROPERTIES(pp) READONLYIF readonlyCurrentUser(p) PANEL edit = EDIT
     ORDERS status(pp), currentOrder(pp)
 
@@ -77,7 +80,6 @@ DESIGN projects {
     }
 }
 
-// change interval
 onWebClientInit() + {
     onWebClientInit('dragula.js') <- 1;
     onWebClientInit('dragula.css') <- 1;
@@ -103,3 +105,98 @@ DESIGN projects {
 EXTEND FORM projects
     FILTERS NOT inner(type(pp))
 ;
+
+onStarted() + {
+    IF NOT projectStatus('pending') THEN NEW ps = ProjectStatus {
+        id(ps) <- 'pending';
+        name(ps) <- 'Новый (на согласовании)';
+        skipKanban(ps) <- TRUE;
+        APPLY;
+    }
+
+    IF NOT projectStatus('approved') THEN NEW ps = ProjectStatus {
+        id(ps) <- 'approved';
+        name(ps) <- 'Новый (согласован)';
+        skipKanban(ps) <- TRUE;
+        APPLY;
+    }
+
+}
+
+status(Project o) <- projectStatus('pending') WHEN SET(o IS Project);
+
+EXTEND FORM projectStatus
+    PROPERTIES(o) order FIRST, skipKanban
+    ORDERS order(o)
+;
+
+EXTEND FORM projectStatuses
+    PROPERTIES(o) READONLY order FIRST, skipKanban
+    ORDERS order(o)
+;
+
+EXTEND FORM options
+    PROPERTIES(ps) order FIRST, skipKanban
+    ORDERS order(ps)
+;
+
+confirmProject 'Утвердить' (Project p) {
+    NEWSESSION {
+        status(p) <- projectStatus('approved');
+        APPLY;
+    }
+} IMAGE 'ok' CHARWIDTH 10;
+
+assignedToMe 'Assigned to me' = DATA LOCAL NESTED BOOLEAN ();
+
+EXTEND FORM projects
+    PROPERTIES() assignedToMe
+
+    OBJECTS pending = Project
+    PROPERTIES(pending) READONLY number, startDate, endDate, namePartner, nameType, name, nameCompany, nameManager
+    PROPERTIES(pending) GRID confirmProject SHOWIF canConfirmNewProject(currentUser())
+    PROPERTIES(pending) NEWSESSION NEW, EDIT, DELETE
+    FILTERS status(pending) = projectStatus('pending'),
+        type(pending) = projectType() OR NOT projectType(),
+        company(pending) = projectCompany() OR NOT projectCompany(),
+        partner(pending) = projectPartner() OR NOT projectPartner(),
+        status(pending) = projectStatus() OR NOT projectStatus(),
+        manager(pending) = projectManager() OR NOT projectManager(),
+        manager(pending) = currentUser() OR NOT assignedToMe()
+
+    OBJECTS approved = Project
+    PROPERTIES(approved) READONLY number, startDate, endDate, namePartner, nameType, name, nameCompany, nameManager
+    PROPERTIES(approved) NEWSESSION NEW, EDIT, DELETE
+    FILTERS status(approved) = projectStatus('approved'),
+        type(approved) = projectType() OR NOT projectType(),
+        company(approved) = projectCompany() OR NOT projectCompany(),
+        partner(approved) = projectPartner() OR NOT projectPartner(),
+        status(approved) = projectStatus() OR NOT projectStatus(),
+        manager(approved) = projectManager() OR NOT projectManager(),
+        manager(approved) = currentUser() OR NOT assignedToMe()
+
+    FILTERS manager(p) = currentUser() OR NOT assignedToMe()
+
+    EVENTS ON INIT { assignedToMe() <- TRUE; }
+;
+
+DESIGN projects {
+    REMOVE FILTERGROUP (my);
+    filters {
+        MOVE PROPERTY(assignedToMe());
+    }
+}
+
+countPendingProjects = GROUP SUM 1 IF status(Project p) = projectStatus('pending') AND [FILTER projects.pending](p);
+countApprovedProjects = GROUP SUM 1 IF status(Project p) = projectStatus('approved') AND [FILTER projects.approved](p);
+
+DESIGN projects {
+    tabbedPane {
+        MOVE BOX(pending) {
+            caption = badged('Новые (на согласовании)', countPendingProjects());
+        }
+        MOVE BOX(approved) {
+            caption = badged('Новые (согласованы)', countApprovedProjects());
+        }
+    }
+}

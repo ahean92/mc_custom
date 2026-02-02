@@ -6,16 +6,6 @@ NAMESPACE ProjectManagement;
 
 overNameManager 'Manager' (Project o) = OVERRIDE MasterData.overName(manager(o)), MasterData.name(manager(o));
 
-EXTEND FORM project
-    PROPERTIES(p) overNameManager
-;
-DESIGN project {
-    headerRight {
-        MOVE PROPERTY(overNameManager(p)) AFTER PROPERTY(nameManager(p));
-        REMOVE PROPERTY(nameManager(p));
-    }
-}
-
 EXTEND FORM projects
     PROPERTIES(p) READONLYIF isReadonly() overNameManager AFTER nameManager(p)
 ;
@@ -59,7 +49,6 @@ DESIGN options {
 standType 'Тип стенда' = DATA StandType (Project);
 nameStandType 'Тип стенда' (Project p) = name(standType(p));
 
-
 length 'Длина, м' = DATA NUMERIC[8,2] (Project);
 width 'Ширина, м' = DATA NUMERIC[8,2] (Project);
 square 'Площадь, м²' (Project p) = round2(length(p) * width(p));
@@ -67,7 +56,6 @@ upstairs 'Второй этаж' = DATA BOOLEAN (Project);
 lengthUpstairs 'Длина(второй этаж), м' = DATA NUMERIC[8,2] (Project);
 widthUpstairs 'Ширина(второй этаж), м' = DATA NUMERIC[8,2] (Project);
 squareUpstairs 'Площадь(второй этаж), м²' (Project p) = round2(lengthUpstairs(p) * widthUpstairs(p));
-
 
 designer 'Дизайнер' = DATA Individual (Project);
 nameDesigner 'Дизайнер' (Project p) = name(designer(p));
@@ -164,19 +152,20 @@ addFile 'Добавить' (Project o, FileType t, FileFolder f) {
         fileFolder(uof) <- f;
     }
 } IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE;
-    
+
 FORM inputProjectFiles 'Добавление файлов'
     OBJECTS p = Project PANEL
-    
+
     OBJECTS ff = FileFolder PANEL
-    OBJECTS t = FileType PANEL 
+
+    OBJECTS t = FileType PANEL
 
     OBJECTS of = ProjectFile
     PROPERTIES(of) READONLYIF readonly(p) name, extension, description
     PROPERTIES(of) READONLY nameUser, dateTime
     PROPERTIES(of) GRID open, DELETE READONLYIF readonly(p)
     FILTERS project(of) = p,
-            fileFolder(of) = ff
+        fileFolder(of) = ff
 
     PROPERTIES(p, t, ff) addFile DRAW of TOOLBAR READONLYIF readonly(p)
     PROPERTIES inputFile = '' CUSTOM 'inputFile' ON CHANGE {
@@ -195,7 +184,7 @@ FORM inputProjectFiles 'Добавление файлов'
 
 DESIGN inputProjectFiles {
     size = (800, 600);
-    caption = 'Добавление файлов: ${name(t)} в категорию ${name(ff)}';  
+    caption = 'Добавление файлов: ${name(t)} в категорию ${name(ff)}';
     BOX(of) {
         caption = '';
         MOVE PROPERTY(inputFile);
@@ -225,9 +214,9 @@ META addFileProjectByFolder(folder, capt, obj)
     newFile###folder 'File' (Project o, FileType t) {
         newFile(o, t, FileFolder.folder);
     }IMAGE 'add.png';
-    
+
     folder capt = DATA BOOLEAN (FileType);
-    
+
     EXTEND FORM fileType
         PROPERTIES (t) folder
     ;
@@ -236,7 +225,7 @@ META addFileProjectByFolder(folder, capt, obj)
             MOVE PROPERTY (folder(t));
         }
     }
-    
+
     EXTEND FORM project
         OBJECTS obj = ProjectFile
         PROPERTIES(obj) READONLYIF readonly(p) name, extension, description, nameType
@@ -245,7 +234,7 @@ META addFileProjectByFolder(folder, capt, obj)
         FILTERS folder(type(obj)) AND project(obj) == p AND fileFolder(obj) = FileFolder.folder
 
         OBJECTS t_##obj = FileType
-        PROPERTIES(p, t_##obj) READONLYIF readonly(p) newFile###folder COLUMNS (t_##obj) HEADER name(t_##obj) DRAW obj TOOLBAR 
+        PROPERTIES(p, t_##obj) READONLYIF readonly(p) newFile###folder COLUMNS (t_##obj) HEADER name(t_##obj) DRAW obj TOOLBAR
         FILTERS folder(t_##obj)
     ;
 
@@ -269,7 +258,6 @@ END
 @addFileProjectByFolder(twoD, '2D', twoD);
 @addFileProjectByFolder(documents, 'Документы', documents);
 @addFileProjectByFolder(blueprints, 'Чертежи', blueprints);
-
 
 CLASS ProjectHistory 'Change history';
 
@@ -295,7 +283,7 @@ META defineProjectHistoryAttr(attr, name, caption)
             user(l) <- currentUser();
             computer(l) <- currentComputer();
             type(l) <- caption;
-            description (l) <- CONCAT ' ', caption, 'на', (OVERRIDE STRING(name(p)),'пусто');
+            description (l) <- CONCAT ' ', caption, 'на', (OVERRIDE STRING(name(p)), 'пусто');
         }
     }
 END
@@ -375,7 +363,7 @@ EXTEND FORM projects
 
 EXTEND FORM dialogProjects
     PROPERTIES (p) inner, order SHOWIF NULL
-    ORDERS order(p) 
+    ORDERS order(p)
 ;
 
 DESIGN dialogProjects { PROPERTY (inner(p)) { hide = TRUE; } }
@@ -399,7 +387,7 @@ EXTEND FORM dialogProjects
             APPLY;
         }
     }
-    
+
     FILTERS (manager(p) = currentUser() IF showMyProjects(currentUser())) OR showAllProjects(currentUser())
 ;
 
@@ -409,3 +397,11 @@ DESIGN dialogProjects {
         MOVE PROPERTY (myProjects);
     }
 }
+
+CONSTRAINT designer(Project p) AND NOT isDesigner(designer(p))
+    CHECKED BY designer[Project]
+    MESSAGE 'Дизайнером может быть выбран только специалист, у которого в должности стоит отметка «Дизайнер»';
+
+CONSTRAINT manager(Project p) AND NOT isManager(manager(p))
+    CHECKED BY manager[Project]
+    MESSAGE 'Менеджером может быть выбран только специалист, у которого в должности стоит отметка «Менеджер»';

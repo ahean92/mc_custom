@@ -7,20 +7,42 @@ WHEN LOCAL SET(Project p IS Project) DO editingOn(p) <- TRUE;
 
 readonly(Project p) += WHEN p IS Project AND NOT editingOn(p) THEN TRUE;
 
-editAllProjects 'Редактировать все проекты' =  DATA BOOLEAN (UserRole);
+editAllProjects 'Редактировать все проекты' = DATA BOOLEAN (UserRole);
 editAllProjects (User u) = GROUP SUM 1 IF editAllProjects(UserRole r) AND has(u, r);
 
-EXTEND FORM securityPolicy PROPERTIES(ur) PANEL editAllProjects;
+canConfirmNewProject 'Утверждение новых проектов' = DATA BOOLEAN (UserRole);
+canConfirmNewProject (User u) = GROUP SUM 1 IF canConfirmNewProject(UserRole r) AND has(u, r);
+
+EXTEND FORM securityPolicy PROPERTIES(ur) PANEL editAllProjects, canConfirmNewProject;
 
 DESIGN securityPolicy {
     roleApplicationSettings {
         tabbed = TRUE;
         NEW project {
             caption = 'Project';
-            lines = 3;
             MOVE PROPERTY(editAllProjects(ur));
+            MOVE PROPERTY(canConfirmNewProject(ur));
         }
     }
+}
+
+readonlyNameStatus 'Статус' (Project p) = nameStatus(p);
+
+EXTEND FORM project
+    PROPERTIES(p) READONLYIF (readonly(p) OR (status(p) == projectStatus('pending') AND NOT canConfirmNewProject(currentUser())))
+    overNameManager, readonlyNameStatus
+;
+
+DESIGN project {
+    headerRight {
+        MOVE PROPERTY(overNameManager(p)) AFTER PROPERTY(nameManager(p));
+        MOVE PROPERTY(readonlyNameStatus(p)) AFTER PROPERTY(nameStatus(p));
+    }
+    PROPERTY(nameDesigner(p)) {
+        showIf = (status(p) != projectStatus('pending')) OR canConfirmNewProject(currentUser());
+    }
+    REMOVE PROPERTY(nameManager(p));
+    REMOVE PROPERTY(nameStatus(p));
 }
 
 readonlyCurrentUser(Project p) = NOT manager(p) = currentUser() AND NOT editAllProjects(currentUser());
@@ -33,13 +55,14 @@ EXTEND FORM projects
 DESIGN projects{
     REMOVE PROPERTY (startDate(p));
     REMOVE PROPERTY (endDate(p));
-    
+
     REMOVE PROPERTY(formOk());
     REMOVE PROPERTY(formClose());
 }
 
 EXTEND FORM project
     PROPERTIES (p) READONLYIF readonly(p) budget
+
     OBJECTS pf = Purchase.OrderFile
     PROPERTIES READONLY 'Заказ' = number(order(pf))
     PROPERTIES(pf) READONLYIF readonly(p) name, extension, description
@@ -121,9 +144,9 @@ DESIGN securityPolicy {
     }
 }
 
-FORM projectDashboard 'Закупка материалов' 
+FORM projectDashboard 'Закупка материалов'
     PROPERTIES () nameFilterProject, nameFilterRepresentative
-    
+
     OBJECTS request = ManufacturingOrder
     PROPERTIES (request) READONLY nameProject, 'Дата' = scheduledDate, namePriority, number, nameType, nameConsumedItem, nameStatus, overNameResponsible
     PROPERTIES (request) NEWSESSION NEW, EDIT, DELETE
@@ -135,7 +158,7 @@ FORM projectDashboard 'Закупка материалов'
 
     PROPERTIES requestOrder 'Порядок' = VALUE(request)
     ORDERS requestOrder DESC
-    
+
     PROPERTIES showRequestLines = Purchase.showLines() ON CHANGE {
         NEWSESSION APPLY {
             Purchase.showLines(currentUser()) <- NOT Purchase.showLines(currentUser());
@@ -148,12 +171,11 @@ FORM projectDashboard 'Закупка материалов'
     FILTERS manufacturingOrder(requestLine) = request
 
     PROPERTIES showRequestPanelControl = showPanelControl() PANEL DRAW request
-    
+
     OBJECTS requestDates = INTERVAL[DATE] BEFORE request PANEL NULL
     PROPERTIES requestFilterDates 'Date interval' = VALUE(requestDates)
     FILTERS NOT scheduledDate(request) < from(requestDates), NOT scheduledDate(request) > to(requestDates)
-    
-    
+
     OBJECTS order = Purchase.Order
     PROPERTIES (order) READONLY nameCompany, nameProjects, number, date, overNameRepresentative, scheduledDate, nameVendor, note, payBeforeDate, untaxedAmount, amount
     PROPERTIES(order) READONLY imagedNameStatus BACKGROUND colorStatus(order) BEFORE nameCompany(order)
@@ -171,14 +193,14 @@ FORM projectDashboard 'Закупка материалов'
         FILTER 'На рассмотрении' status(order) = OrderStatus.review
         FILTER 'Доставлен' status(order) = OrderStatus.delivered
 
-    PROPERTIES orderOrder 'Порядок' = VALUE(order) 
+    PROPERTIES orderOrder 'Порядок' = VALUE(order)
     ORDERS orderOrder DESC
     PROPERTIES showOrderLines = Purchase.showLines() ON CHANGE {
         NEWSESSION APPLY {
             Purchase.showLines(currentUser()) <- NOT Purchase.showLines(currentUser());
         }
-    } TOOLBAR DRAW order 
-    
+    } TOOLBAR DRAW order
+
     OBJECTS orderLine = Purchase.OrderLine
     PROPERTIES(orderLine) READONLY SHOWIF Purchase.showLines() index, nameItem, description, nameUom, idBarCodeItem, idItem, referenceItem, quantity, price, untaxedAmount, amount, taxes, nameProject
     FILTERS order(orderLine) = order
@@ -303,14 +325,13 @@ DESIGN projectDashboard {
                     MOVE PROPERTY(nameOrderType()) { caption = ''; placeholder = 'Type'; };
                     MOVE PROPERTY(nameOrderLocation()) { caption = ''; placeholder = 'Location'; };
                     MOVE PROPERTY(nameOrderVendor()) { caption = ''; placeholder = 'Vendor'; };
-                }   
-                
+                }
+
             }
         }
         REMOVE TOOLBARBOX;
     }
 }
-
 
 META dashboardStatus(st, capt)
     show###st##Tab 'Отображать вкладку '##capt = DATA BOOLEAN (UserRole);
@@ -325,7 +346,7 @@ META dashboardStatus(st, capt)
             MOVE PROPERTY(show###st##Tab(ur));
         }
     }
-    
+
     EXTEND FORM projectDashboard
         OBJECTS st = Purchase.Order
         PROPERTIES (st) READONLY BACKGROUND colorStatus(st) nameCompany, nameProjects, number, date, overNameRepresentative, scheduledDate, nameVendor, note, payBeforeDate, untaxedAmount, amount
@@ -337,17 +358,17 @@ META dashboardStatus(st, capt)
 
         PROPERTIES st##Order 'Порядок' = VALUE(st)
         ORDERS st##Order DESC
-        
+
         OBJECTS st##Status = Purchase.OrderStatus
         PROPERTIES (st, st##Status ) NEWSESSION changeStatus COLUMNS (st##Status) HEADER captionButton(st##Status) BACKGROUND dataColor(st##Status) SHOWIF countOrderLine(st)
         FILTERS showStatus(st, st##Status)
-        
+
         PROPERTIES show###st##Lines = Purchase.showLines() ON CHANGE {
             NEWSESSION APPLY {
                 Purchase.showLines(currentUser()) <- NOT Purchase.showLines(currentUser());
             }
         } TOOLBAR DRAW st
-        
+
         OBJECTS st##Line = Purchase.OrderLine
         PROPERTIES(st##Line) READONLY SHOWIF Purchase.showLines() index, nameItem, description, nameUom, idBarCodeItem, idItem, referenceItem, quantity, price, untaxedAmount, amount, taxes, nameProject
         FILTERS order(st##Line) = st
@@ -358,7 +379,7 @@ META dashboardStatus(st, capt)
     DESIGN projectDashboard{
         tab{
             NEW st{
-                caption =  badged(capt, countFiltered###st());
+                caption = badged(capt, countFiltered###st());
                 showIf = show###st##Tab();
                 NEW action##st{
                     caption = '';
@@ -367,7 +388,7 @@ META dashboardStatus(st, capt)
                     MOVE PROPERTY (changeStatus(st, st##Status ));
                 }
                 MOVE BOX(st) {
-                    caption = ''; 
+                    caption = '';
                     PROPERTY (fileInvoice(st)) { charWidth = 7; caption = 'Счет'; }
                     TOOLBARBOX(st) {
                         MOVE PROPERTY(show###st##Lines) BEFORE TOOLBARRIGHT(st);
@@ -377,8 +398,8 @@ META dashboardStatus(st, capt)
             }
         }
     }
-    
-END 
+
+END
 @dashboardStatus(draft, 'Формирование');
 @dashboardStatus(review, 'На рассмотрении');
 @dashboardStatus(inPayment, 'В оплате');
@@ -395,7 +416,7 @@ NAVIGATOR {
     }
 }
 
-@defineProjectHistoryAttr(budget,budget,'Изменен бюджет');
+@defineProjectHistoryAttr(budget, budget, 'Изменен бюджет');
 
 EXTEND FORM projectDashboard
     PROPERTIES BACKGROUND colorStatus(awaitingDelivery) openPaymentOrder(awaitingDelivery) GRID BEFORE fileInvoice(awaitingDelivery)
