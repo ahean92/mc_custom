@@ -50,7 +50,7 @@ REQUIRE Eval, ProcessMonitor, Backup,
         DrawingSchedule,
     
         WorkplaceStendex,
-        TimeEntryStendex, TaskNotificationStendex, ProjectTaskStendex;
+        TimeEntryStendex, TaskNotificationStendex, ProjectTaskStendex, ProjectNotificationStendex;
 
 
 onWebClientLoad() +{
