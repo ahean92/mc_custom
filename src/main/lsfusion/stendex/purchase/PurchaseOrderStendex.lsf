@@ -5,7 +5,7 @@ REQUIRE PurchaseOrderSearch, ProjectPurchaseOrder, PurchaseOrderConfirmed, Purch
 NAMESPACE Purchase;
 
 overNameRepresentative 'Our representative' (Order o) = OVERRIDE MasterData.overName(representative(o)), MasterData.name(representative(o));
-defaultTaxRate  = DATA Tax ();
+defaultTaxRate = DATA Tax ();
 nameDefaultTaxRate 'Налог по умолчанию' = name(defaultTaxRate());
 
 EXTEND FORM options
@@ -18,7 +18,7 @@ WHEN LOCAL SETCHANGED(type(Order o)) AND taxIncluded(type(o)) DO in(OrderLine l,
 
 EXTEND FORM order
     PROPERTIES(o) overNameRepresentative
-    PROPERTIES (l) 'Сумма налогов' = taxAmount 
+    PROPERTIES (l) 'Сумма налогов' = taxAmount
 ;
 DESIGN order {
     purchaseInformation {
@@ -46,7 +46,7 @@ status(Order o) += WHEN useCustomStatus() AND dataStatus(o) THEN dataStatus(o);
 dateTime = DATA DATETIME(Order, OrderStatus);
 
 WHEN SETCHANGED(status(Order o)) DO {
-    dateTime(o,status(o)) <- currentDateTime();
+    dateTime(o, status(o)) <- currentDateTime();
 }
 
 allowPrevStatusSet 'Разрешить возвращать статус заказа' = DATA BOOLEAN (UserRole);
@@ -71,9 +71,9 @@ allowStatusSet 'Разрешить' = DATA BOOLEAN (OrderStatus, UserRole);
 EXTEND FORM Purchase.options
     OBJECTS s = OrderStatus
     PROPERTIES (s) name, imagedName, dataColor, caption
-    
+
     OBJECTS role = UserRole
-    PROPERTIES allowStatusSet(s, role), name(role) READONLY 
+    PROPERTIES allowStatusSet(s, role), name(role) READONLY
 ;
 
 DESIGN Purchase.options{
@@ -131,25 +131,25 @@ EXTEND FORM orders
 ;
 
 changeStatus ABSTRACT LIST (Order, OrderStatus);
-changeStatus (Order o, OrderStatus s) +{
+changeStatus (Order o, OrderStatus s) + {
     APPLY;
     IF canceled() THEN RETURN;
 }
 META defineStatusOrder(name, caption)
-EXTEND CLASS OrderStatus{
-    name caption
-}
-
-changeStatus (Order o, OrderStatus s) +{
-    IF s = OrderStatus.##name THEN NEWSESSION {
-        dataStatus(o) <- s;
-        APPLY;
+    EXTEND CLASS OrderStatus{
+        name caption
     }
-}
-EXTEND FORM orders
-    EXTEND FILTERGROUP statusCustom
-        FILTER caption status(o) = OrderStatus.name
-;
+
+    changeStatus (Order o, OrderStatus s) + {
+        IF s = OrderStatus.##name THEN NEWSESSION {
+            dataStatus(o) <- s;
+            APPLY;
+        }
+    }
+    EXTEND FORM orders
+        EXTEND FILTERGROUP statusCustom
+            FILTER caption status(o) = OrderStatus.name
+    ;
 END
 
 @defineStatusOrder(inPayment, 'В оплате');
@@ -167,17 +167,17 @@ color(OrderStatus o) += WHEN o = OrderStatus.closed THEN RGB(102, 255, 102);
 @defineStatusOrder(review, 'На рассмотрении');
 
 @defineStatusOrder(delivered, 'Доставлен');
-WHEN SETCHANGED (dataStatus(Order o) = OrderStatus.delivered)  DO confirmed(o) <- TRUE;
+WHEN SETCHANGED (dataStatus(Order o) = OrderStatus.delivered) DO confirmed(o) <- TRUE;
 
-changeStatus (Order o, OrderStatus s) +{
-    IF s = OrderStatus.draft THEN  NEWSESSION {
+changeStatus (Order o, OrderStatus s) + {
+    IF s = OrderStatus.draft THEN NEWSESSION {
         dataStatus(o) <- s;
         APPLY;
     }
 }
 
-changeStatus (Order o, OrderStatus s) +{
-    IF s = OrderStatus.canceled THEN  NEWSESSION {
+changeStatus (Order o, OrderStatus s) + {
+    IF s = OrderStatus.canceled THEN NEWSESSION {
         dataStatus(o) <- s;
         APPLY;
     }
@@ -192,10 +192,10 @@ showStatusRule(Order o, OrderStatus s) += WHEN status(o) = OrderStatus.delivered
 showStatus (Order o, OrderStatus s) = showStatusRule(o, s) AND (GROUP SUM 1 IF allowStatusSet(s, UserRole r) AND in(currentUser(), r));
 
 changeToPrevStatus (Order o, OrderStatus s) {
-    dateTime(o,status(o)) <- NULL;
-    changeStatus(o,s);
+    dateTime(o, status(o)) <- NULL;
+    changeStatus(o, s);
 }
-prevStatus (Order o) = GROUP LAST OrderStatus s IF dateTime(o,s) < dateTime(o,status(o)) ORDER dateTime(o,s), s;
+prevStatus (Order o) = GROUP LAST OrderStatus s IF dateTime(o, s) < dateTime(o, status(o)) ORDER dateTime(o, s), s;
 showPrevStatus (Order o, OrderStatus s) = prevStatus(o) == s AND allowPrevStatusSet(currentUser());
 
 color(Order o, OrderStatus s) = IF o IS Order THEN color(s);
@@ -217,7 +217,7 @@ FORM inputOrderOtherFiles 'Добавление файлов'
     PROPERTIES(of) READONLY nameUser, dateTime
     PROPERTIES(of) GRID open, DELETE READONLYIF readonly(o)
     FILTERS order(of) = o,
-            type(of) = TypeFile.other
+        type(of) = TypeFile.other
 
     PROPERTIES(o) uploadOtherFile DRAW of TOOLBAR READONLYIF readonly(o)
     PROPERTIES inputFile = '' CUSTOM 'inputFile' ON CHANGE {
@@ -251,7 +251,7 @@ EXTEND FORM order
     OBJECTS ps = OrderStatus
     PROPERTIES (o, ps) changeToPrevStatus COLUMNS (ps) HEADER captionButton(ps) BACKGROUND dataColor(ps) SHOWIF countOrderLine(o)
     FILTERS showPrevStatus(o, ps)
-    
+
     OBJECTS s = OrderStatus
     PROPERTIES (o, s) changeStatus COLUMNS (s) HEADER captionButton(s) BACKGROUND dataColor(s) SHOWIF countOrderLine(o)
     FILTERS showStatus(o, s)
@@ -310,7 +310,7 @@ DESIGN orders{
         showIf = showPanel();
     }
 }
-CONSTRAINT SETCHANGED (vendor(Order o)) AND vendor(o) IS Employee CHECKED BY vendor[Order] 
+CONSTRAINT SETCHANGED (vendor(Order o)) AND vendor(o) IS Employee CHECKED BY vendor[Order]
     MESSAGE 'Сотрудник не может быть поставщиком';
 
 //WHEN SETCHANGED (isPP(OrderFile f)) AND amountPayed(order(f)) < untaxedAmount(order(f)) AND status(order(f)) = OrderStatus.inPayment 
@@ -328,8 +328,8 @@ showLines 'Показать состав' = DATA BOOLEAN (CustomUser);
 showLines 'Показать состав' = showLines(currentUser());
 
 EXTEND FORM orders
-    PROPERTIES showLines() TOOLBAR DRAW o 
-    
+    PROPERTIES showLines() TOOLBAR DRAW o
+
     OBJECTS l = OrderLine
     PROPERTIES(l) READONLY SHOWIF showLines() index, nameItem, description, nameUom, idBarCodeItem, idItem, referenceItem, quantity, price, untaxedAmount, taxes
     FILTERS order(l) = o
@@ -418,25 +418,25 @@ openPaymentOrder 'ПП' (Order o) {
         ELSE MESSAGE 'Отсутствует ПП, прикреплённое к счёту';
 }
 
-dataUom = DATA Uom (OrderLine); 
+dataUom = DATA Uom (OrderLine);
 overUom(OrderLine l) += dataUom(l);
 
 nameVendorStendEx 'Vendor' (Order o) = name(vendor(o));
 
 EXTEND FORM order
-    OBJECTS anyNamePartner = STRING 
+    OBJECTS anyNamePartner = STRING
     FILTERS anyNamePartner(anyNamePartner) == nameVendorStendEx(o)
-    
+
     PROPERTIES (o)
     nameVendorStendEx ON CHANGE {
         INPUT ss = anyNamePartner(anyNamePartner) DO
             vendor(o) <- partnerByAnyName(ss);
-        }
+    }
 ;
 
 DESIGN order {
     OBJECTS {
-        header {            
+        header {
             headerRight {
                 REMOVE PROPERTY(nameVendor(o));
                 MOVE PROPERTY(nameVendorStendEx(o)) { notNull = TRUE; }
@@ -448,8 +448,8 @@ DESIGN order {
             }
             MOVE preview{
                 fill = 0.5;
-                PROPERTY (previewImageFile()) { size = (40,40); fill = 1;}
-                PROPERTY (previewPdfFile()) { size = (40,40); fill = 1;}
+                PROPERTY (previewImageFile()) { size = (40, 40); fill = 1;}
+                PROPERTY (previewPdfFile()) { size = (40, 40); fill = 1;}
             }
         }
     }
@@ -457,8 +457,18 @@ DESIGN order {
 
 color (OrderStatus s) += WHEN s IS OrderStatus THEN dataColor(s);
 FORM orderStaus 'Статус заказа поставщику'
-    OBJECTS s = OrderStatus PANEL 
+    OBJECTS s = OrderStatus PANEL
     PROPERTIES(s) name, image, color
     PROPERTIES(s) readonly
     EDIT OrderStatus OBJECT s
 ;
+
+taxesWide 'Taxes' (OrderLine l) = taxes(l) CHARWIDTH 25;
+
+EXTEND FORM order
+    PROPERTIES(l) READONLYIF readonly(o) taxesWide AFTER taxes(l);
+;
+
+DESIGN order {
+    REMOVE PROPERTY (taxes(l));
+}
