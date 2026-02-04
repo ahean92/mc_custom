@@ -1,0 +1,168 @@
+MODULE ProjectNotificationStendex;
+
+REQUIRE ProjectDashboardStendex;
+
+NAMESPACE ProjectManagement;
+
+CLASS ProjectNotification 'Уведомления о проектах';
+
+project = DATA Project (ProjectNotification);
+employeeToNotify = DATA Employee (ProjectNotification);
+nameEmployeeToNotify 'Кого уведомить' (ProjectNotification pn) = name(employeeToNotify(pn));
+dateTimeNotification 'Дата и время' = DATA DATETIME (ProjectNotification) CHARWIDTH 15;
+sentSystem 'Отправлено\n(система)' = DATA BOOLEAN (ProjectNotification) CHARWIDTH 15;
+sentEmail 'Отправлено\n(почта)' = DATA BOOLEAN (ProjectNotification) CHARWIDTH 15;
+note 'Примечание' = DATA STRING (ProjectNotification) CHARWIDTH 20;
+
+countNotifications (Project p) = GROUP SUM 1 IF project(ProjectNotification pn) = p;
+
+notificationMessageSimple (ProjectNotification pn) = CONCAT '\n',
+    'Уведомление по проекту "' + name(project(pn)) + '"',
+    'Менеджер: ' + nameManager(project(pn)),
+    'Дизайнер: ' + nameDesigner(project(pn)),
+    'Клиент: ' + namePartner(project(pn)),
+    'Компания: ' + nameCompany(project(pn)),
+    'Примечание: ' + note(pn);
+
+showProject 'Открыть проект' (Project p) {
+    SHOW project OBJECTS p = p DOCKED;
+}
+
+showProjectId 'Открыть проект' (LONG id) {
+    showProject(GROUP MAX Project p AS Project IF LONG(p) = id);
+}
+
+FORM openProject 'Уведомление'
+    OBJECTS s = STRING PANEL
+    PROPERTIES READONLY notifi = TEXT(s)
+
+    OBJECTS p = Project
+    PROPERTIES(p) showProject
+;
+
+DESIGN openProject {
+    BOX(p) { caption = ''; }
+    BOX(s) { caption = ''; }
+    OBJECTS {
+        MOVE PROPERTY(notifi);
+        PROPERTY(notifi) { caption = ''; alignment = STRETCH; valueHeight = 150; valueWidth = 300; }
+    }
+    MOVE PANEL AFTER OBJECTS {
+        NEW horiz {
+            horizontal = TRUE;
+            MOVE PROPERTY(showProject(p)) { alignment = STRETCH; fill = 1; };
+            MOVE PROPERTY(formClose()) { alignment = STRETCH; fill = 1; };
+        }
+    }
+    REMOVE TOOLBAR;
+    REMOVE TOOLBARLEFT;
+    REMOVE PROPERTY(formOk());
+    REMOVE PROPERTY(formRefresh());
+}
+
+notifyProjectUsers () {
+    FOR Connection c IS Connection AND connectionStatus(c) = ConnectionStatus.connectedConnection DO {
+        FOR ProjectNotification pn IS ProjectNotification AND user(c) = employeeToNotify(pn)
+            AND currentDateTime() >= dateTimeNotification(pn) AND NOT sentSystem(pn) DO {
+            IF pushConnection(employeeToNotify(pn)) THEN {
+                NEWSESSION {
+                    NEWTHREAD {
+                        SHOW openProject OBJECTS p = project(pn), s = notificationMessageSimple(pn) FLOAT;
+                    } CONNECTION c;
+                }
+            }
+            sentSystem(pn) <- TRUE;
+        }
+    }
+}
+
+propertiesHtmlProject (ProjectNotification pn) = HTMLTEXT(CONCAT '',
+    '<h1>Уведомление по проекту "' + name(project(pn)) + '"</h1>',
+    '<p>Менеджер: ' + nameManager(project(pn)) + '</p>',
+    '<p>Дизайнер: ' + nameDesigner(project(pn)) + '</p>',
+    '<p>Клиент: ' + namePartner(project(pn)) + '</p>',
+    '<p>Компания: ' + nameCompany(project(pn)) + '</p>',
+    '<p>Примечание: ' + note(pn) + '</p>',
+    '<br>',
+    '<p><a href="' + contextUrl('/exec/ProjectManagement.showProjectId?id=' + LONG(project(pn))) +
+        '" style="display: inline-block; padding: 12px 24px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">Открыть проект</a></p>');
+
+notifyUserEmailProject 'Уведомление на почту' (ProjectNotification pn) {
+    EMAIL
+        SUBJECT 'Уведомление по проекту "' + name(project(pn)) + '"'
+        TO email[Contact](employeeToNotify(pn))
+        BODY propertiesHtmlProject(pn);
+    IF NOT canceled() THEN {
+        sentEmail(pn) <- TRUE;
+    }
+}
+
+WHEN SET(ProjectNotification pn IS ProjectNotification) AND NOT sentSystem(pn) DO {
+    notifyUserEmailProject(pn);
+    notifyProjectUsers();
+}
+
+WHEN SET(Project p IS Project) AND status(p) = projectStatus('pending') DO {
+    FOR canConfirmNewProject(Employee e) DO {
+        NEW pn = ProjectNotification {
+            project(pn) <- p;
+            employeeToNotify(pn) <- e;
+            dateTimeNotification(pn) <- currentDateTime();
+            note(pn) <- 'Новый проект ожидает утверждения';
+        }
+    }
+}
+
+WHEN SETCHANGED(status(Project p)) AND status(p) = projectStatus('approved') DO {
+    IF manager(p) THEN {
+        NEW pn = ProjectNotification {
+            project(pn) <- p;
+            employeeToNotify(pn) <- manager(p);
+            dateTimeNotification(pn) <- currentDateTime();
+            note(pn) <- 'Проект утвержден';
+        }
+    }
+    IF designer(p) THEN {
+        NEW pn = ProjectNotification {
+            project(pn) <- p;
+            employeeToNotify(pn) <- designer(p);
+            dateTimeNotification(pn) <- currentDateTime();
+            note(pn) <- 'Проект утвержден';
+        }
+    }
+}
+
+EXTEND FORM project
+    OBJECTS pn = ProjectNotification
+    PROPERTIES(pn) DISABLEIF (sentSystem(pn) OR sentEmail(pn)) nameEmployeeToNotify, dateTimeNotification, note
+    PROPERTIES(pn) READONLY sentSystem, sentEmail
+    PROPERTIES(pn) notifyUserEmailProject SHOWIF NOT sentEmail(pn)
+    PROPERTIES(pn) NEW, DELETE
+    FILTERS project(pn) = p
+;
+
+DESIGN project {
+    details {
+        MOVE BOX(pn) { caption = badged('Уведомления', countNotifications(p)); }
+    }
+}
+
+FORM projectNotifications 'Журнал уведомлений проектов'
+    OBJECTS dates = (from = DATETIME, to = DATETIME) PANEL
+    PROPERTIES valFrom = VALUE(from), valTo = VALUE(to)
+
+    OBJECTS pn = ProjectNotification LAST
+    PROPERTIES(pn) READONLY nameEmployeeToNotify, note, dateTimeNotification, sentSystem, sentEmail
+    FILTERS (sentSystem(pn) OR sentEmail(pn))
+    FILTERS dateTimeNotification(pn) >= from AND dateTimeNotification(pn) <= to
+    EVENTS
+        ON INIT {
+            SEEK projectNotifications.dates OBJECTS from = dateTimeToDateTime(currentDate(), 00:00), to = currentDateTime();
+        }
+;
+
+NAVIGATOR {
+    logs {
+        NEW projectNotifications;
+    }
+}

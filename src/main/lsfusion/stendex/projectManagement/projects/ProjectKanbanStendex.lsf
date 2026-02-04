@@ -177,7 +177,7 @@ EXTEND FORM projects
 
     FILTERS manager(p) = currentUser() OR NOT assignedToMe()
 
-    EVENTS ON INIT { assignedToMe() <- TRUE; }
+    EVENTS ON INIT { assignedToMe() <- NOT canConfirmNewProject(currentUser()); }
 ;
 
 DESIGN projects {
@@ -186,6 +186,10 @@ DESIGN projects {
         MOVE PROPERTY(assignedToMe());
     }
 }
+
+EXTEND FORM project
+    PROPERTIES(p) confirmProject SHOWIF canConfirmNewProject(currentUser()) AND status(p) = projectStatus('pending')
+;
 
 countPendingProjects = GROUP SUM 1 IF status(Project p) = projectStatus('pending') AND [FILTER projects.pending](p);
 countApprovedProjects = GROUP SUM 1 IF status(Project p) = projectStatus('approved') AND [FILTER projects.approved](p);
@@ -200,3 +204,7 @@ DESIGN projects {
         }
     }
 }
+
+CONSTRAINT projectManager() AND NOT isManager(projectManager())
+    CHECKED BY projectManager[]
+    MESSAGE 'Менеджером может быть выбран только специалист, у которого в должности стоит отметка «Менеджер»';
