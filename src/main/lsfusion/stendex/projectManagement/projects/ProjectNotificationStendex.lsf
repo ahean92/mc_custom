@@ -1,6 +1,6 @@
 MODULE ProjectNotificationStendex;
 
-REQUIRE ProjectDashboardStendex;
+REQUIRE ProjectKanbanStendex;
 
 NAMESPACE ProjectManagement;
 
@@ -15,6 +15,8 @@ sentEmail 'Отправлено\n(почта)' = DATA BOOLEAN (ProjectNotificati
 note 'Примечание' = DATA STRING (ProjectNotification) CHARWIDTH 20;
 
 countNotifications (Project p) = GROUP SUM 1 IF project(ProjectNotification pn) = p;
+
+numberReadonly 'Номер проекта' (Project p) = number(p);
 
 notificationMessageSimple (ProjectNotification pn) = CONCAT '\n',
     'Уведомление по проекту "' + name(project(pn)) + '"',
@@ -97,6 +99,29 @@ notifyUserEmailProject 'Уведомление на почту' (ProjectNotifica
     }
 }
 
+FORM selectDesigner 'Выбор дизайнера'
+    OBJECTS e = Individual
+    PROPERTIES(e) READONLY name
+    FILTERS isDesigner(position(e))
+;
+
+approveProject 'Утвердить' (Project p) {
+    DIALOG selectDesigner OBJECTS e INPUT DO {
+        designer(p) <- e;
+        status(p) <- projectStatus('approved');
+        APPLY;
+    }
+} IMAGE 'ok' CHARWIDTH 10;
+
+onOpenProject (Project p) {
+    IF manager(p) = currentUser() AND status(p) = projectStatus('approved') THEN {
+        NEWSESSION {
+            status(p) <- projectStatus('infoCollection');
+            APPLY;
+        }
+    }
+}
+
 WHEN SET(ProjectNotification pn IS ProjectNotification) AND NOT sentSystem(pn) DO {
     notifyUserEmailProject(pn);
     notifyProjectUsers();
@@ -133,19 +158,39 @@ WHEN SETCHANGED(status(Project p)) AND status(p) = projectStatus('approved') DO 
 }
 
 EXTEND FORM project
+    PROPERTIES(p) READONLY numberReadonly
+    PROPERTIES(p) approveProject
+
     OBJECTS pn = ProjectNotification
     PROPERTIES(pn) DISABLEIF (sentSystem(pn) OR sentEmail(pn)) nameEmployeeToNotify, dateTimeNotification, note
     PROPERTIES(pn) READONLY sentSystem, sentEmail
     PROPERTIES(pn) notifyUserEmailProject SHOWIF NOT sentEmail(pn)
     PROPERTIES(pn) NEW, DELETE
     FILTERS project(pn) = p
+
+    EVENTS ON INIT onOpenProject(p)
 ;
 
 DESIGN project {
+    statusPane {
+        NEW numberPane FIRST {
+            MOVE PROPERTY(numberReadonly(p)) { font = 'bold 14'; }
+        }
+    }
+    REMOVE PROPERTY(number(p));
     details {
+        NEW approvalTab FIRST {
+            caption = 'Согласование';
+            showIf = canConfirmNewProject(currentUser()) AND status(p) = projectStatus('pending');
+            MOVE PROPERTY(approveProject(p)) { alignment = STRETCH; font = 'bold 14'; }
+        }
         MOVE BOX(pn) { caption = badged('Уведомления', countNotifications(p)); }
     }
 }
+
+EXTEND FORM projects
+    PROPERTIES(pending) GRID approveProject SHOWIF canConfirmNewProject(currentUser())
+;
 
 FORM projectNotifications 'Журнал уведомлений проектов'
     OBJECTS dates = (from = DATETIME, to = DATETIME) PANEL
