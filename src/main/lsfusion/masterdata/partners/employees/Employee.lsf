@@ -121,13 +121,16 @@ FORM employees 'Employees'
 
 FORM dialogEmployees 'Employees'
     OBJECTS e = Employee
-    PROPERTIES(e) READONLY name, login, namePosition, nameLegalEntity
+    PROPERTIES(e) SHOWIF (NOT isEditable()) READONLY name, login, namePosition, nameLegalEntity
+    PROPERTIES(e) SHOWIF (isEditable()) firstName, lastName, phone, postAddress
     ORDERS name(e)
 
     FILTERGROUP active
         FILTER '{Active}' active(e) 'F10' DEFAULT
         FILTER 'Archived' archived(e) 'F9'
-
+    EVENTS ON CLOSE {
+        isEditable() <- NULL;
+    }
     LIST Employee OBJECT e
 ;
 

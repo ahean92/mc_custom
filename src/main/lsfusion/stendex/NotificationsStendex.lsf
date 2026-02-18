@@ -18,6 +18,8 @@ DESIGN System.options{
     }   
 }
 
+sendNotification 'Отправить уведомление' (DATETIME dateTimeNotification) ABSTRACT LIST;
+
 messageNotification (Order o) = CONCAT '\n', 'Новый заказ', '№' + number(o), 'Поставщик ' + nameVendor(o), 'Сумма ' + amount(o);   
 
 WHEN SET(Order o IS Order) AND number(o) AND chatOrderNotification() DO{
@@ -29,7 +31,7 @@ EXTEND FORM System.options PROPERTIES sendNotificiationInsteadMessage();
 
 DESIGN System.options {
     notification {
-        MOVE PROPERTY(sendNotificiationInsteadMessage());
+        MOVE PROPERTY(sendNotificiationInsteadMessage()) FIRST;
         PROPERTY(sendNotificiationInsteadMessage()) { panelCaptionLast = FALSE; }
     }
 }
