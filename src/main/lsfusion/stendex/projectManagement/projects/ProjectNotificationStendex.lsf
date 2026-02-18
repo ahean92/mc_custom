@@ -1,30 +1,109 @@
 MODULE ProjectNotificationStendex;
 
-REQUIRE ProjectKanbanStendex;
+REQUIRE ProjectKanbanStendex, EmployeeNotificationStendex;
 
 NAMESPACE ProjectManagement;
+
+baseProjectUrl 'Базовый URL приложения' = DATA STRING();
+
+EXTEND FORM options
+    PROPERTIES() baseProjectUrl
+;
+
+DESIGN options {
+    commons {
+        MOVE PROPERTY(baseProjectUrl());
+    }
+}
+
+projectLink (Project p) = baseProjectUrl() + '/exec/ProjectManagement.showProjectId?id=' + STRING(LONG(p));
+
+EXTEND CLASS Notifications.TypeEmailNotification {
+    pendingProject 'Новый проект (ожидание утверждения)',
+    approvedProject 'Проект утвержден'
+}
+
+titleNotification (Notifications.TypeEmailNotification en) = CASE
+    WHEN en == Notifications.TypeEmailNotification.pendingProject THEN 'Новый проект ожидает утверждения'
+    WHEN en == Notifications.TypeEmailNotification.approvedProject THEN 'Проект утвержден';
 
 CLASS ProjectNotification 'Уведомления о проектах';
 
 project = DATA Project (ProjectNotification);
 employeeToNotify = DATA Employee (ProjectNotification);
 nameEmployeeToNotify 'Кого уведомить' (ProjectNotification pn) = name(employeeToNotify(pn));
+typeNotification = DATA Notifications.TypeEmailNotification (ProjectNotification);
+nameTypeNotification 'Тип' (ProjectNotification pn) = Notifications.name(typeNotification(pn));
 dateTimeNotification 'Дата и время' = DATA DATETIME (ProjectNotification) CHARWIDTH 15;
-sentSystem 'Отправлено\n(система)' = DATA BOOLEAN (ProjectNotification) CHARWIDTH 15;
-sentEmail 'Отправлено\n(почта)' = DATA BOOLEAN (ProjectNotification) CHARWIDTH 15;
-note 'Примечание' = DATA STRING (ProjectNotification) CHARWIDTH 20;
+sentSystemDateTime 'Отправлено\n(система)' = DATA DATETIME (ProjectNotification) CHARWIDTH 15;
+sentEmailDateTime 'Отправлено\n(почта)' = DATA DATETIME (ProjectNotification) CHARWIDTH 15;
 
 countNotifications (Project p) = GROUP SUM 1 IF project(ProjectNotification pn) = p;
-
 numberReadonly 'Номер проекта' (Project p) = number(p);
 
+condionSendEmail = ABSTRACT VALUE BOOLEAN (Notifications.TypeEmailNotification, Project, Employee);
+
+condionSendEmail(Notifications.TypeEmailNotification en, Project p, Employee e) +=
+    canConfirmNewProject(e) AND p IS Project AND en == Notifications.TypeEmailNotification.pendingProject;
+
+condionSendEmail(Notifications.TypeEmailNotification en, Project p, Employee e) +=
+    (manager(p) = e OR designer(p) = e) AND en == Notifications.TypeEmailNotification.approvedProject;
+
+bodyHtmlProject (ProjectNotification pn) = HTMLTEXT(CONCAT '',
+    '<h1>' + titleNotification(typeNotification(pn)) + '</h1>',
+    '<p><b>Проект:</b> ' + name(project(pn)) + '</p>',
+    '<p><b>Менеджер:</b> ' + nameManager(project(pn)) + '</p>',
+    '<p><b>Дизайнер:</b> ' + nameDesigner(project(pn)) + '</p>',
+    '<p><b>Клиент:</b> ' + namePartner(project(pn)) + '</p>',
+    '<p><b>Компания:</b> ' + nameCompany(project(pn)) + '</p>',
+    '<br>',
+    '<p><a href="' + projectLink(project(pn)) +
+        '" style="display:inline-block;padding:12px 24px;background-color:#007bff;color:white;text-decoration:none;border-radius:5px;font-weight:bold;">Открыть проект</a></p>');
+
+subjectProject (ProjectNotification pn) = titleNotification(typeNotification(pn)) + ': ' + name(project(pn));
+
+sendEmailByNotification (ProjectNotification pn) {
+    EMAIL
+        SUBJECT subjectProject(pn)
+        TO email[Contact](employeeToNotify(pn))
+        BODY bodyHtmlProject(pn);
+}
+
+notifyUserEmailProject 'Отправить на почту' (ProjectNotification pn) {
+    sendEmailByNotification(pn);
+    sentEmailDateTime(pn) <- currentDateTime();
+    APPLY;
+}
+
+hasUnsentEmail (Notifications.TypeEmailNotification en, Project p) =
+    TRUE IF (GROUP SUM 1 IF project(ProjectNotification pn) = p AND typeNotification(pn) = en AND NOT sentEmailDateTime(pn));
+
+sendEmailNotificationProject (Notifications.TypeEmailNotification en, Project p) {
+    FOR project(ProjectNotification pn) = p AND typeNotification(pn) = en AND NOT sentEmailDateTime(pn) DO {
+        sendEmailByNotification(pn);
+        sentEmailDateTime(pn) <- currentDateTime();
+    }
+    APPLY;
+}
+
+condionSendEmail = ABSTRACT VALUE BOOLEAN (Notifications.TypeEmailNotification, Project);
+
+condionSendEmail(Notifications.TypeEmailNotification en, Project p) +=
+    hasUnsentEmail(en, p)
+        AND (en == Notifications.TypeEmailNotification.pendingProject OR en == Notifications.TypeEmailNotification.approvedProject);
+
+Notifications.sendEmailNotification(DATE dFrom) + {
+    FOR condionSendEmail(Notifications.TypeEmailNotification en, Project p)
+        DO sendEmailNotificationProject(en, p);
+}
+
 notificationMessageSimple (ProjectNotification pn) = CONCAT '\n',
-    'Уведомление по проекту "' + name(project(pn)) + '"',
+    titleNotification(typeNotification(pn)),
+    'Проект: ' + name(project(pn)),
     'Менеджер: ' + nameManager(project(pn)),
     'Дизайнер: ' + nameDesigner(project(pn)),
     'Клиент: ' + namePartner(project(pn)),
-    'Компания: ' + nameCompany(project(pn)),
-    'Примечание: ' + note(pn);
+    'Компания: ' + nameCompany(project(pn));
 
 showProject 'Открыть проект' (Project p) {
     SHOW project OBJECTS p = p DOCKED;
@@ -37,7 +116,6 @@ showProjectId 'Открыть проект' (LONG id) {
 FORM openProject 'Уведомление'
     OBJECTS s = STRING PANEL
     PROPERTIES READONLY notifi = TEXT(s)
-
     OBJECTS p = Project
     PROPERTIES(p) showProject
 ;
@@ -52,8 +130,8 @@ DESIGN openProject {
     MOVE PANEL AFTER OBJECTS {
         NEW horiz {
             horizontal = TRUE;
-            MOVE PROPERTY(showProject(p)) { alignment = STRETCH; fill = 1; };
-            MOVE PROPERTY(formClose()) { alignment = STRETCH; fill = 1; };
+            MOVE PROPERTY(showProject(p)) { alignment = STRETCH; fill = 1; valueClass = 'btn-primary'; }
+            MOVE PROPERTY(formClose()) { alignment = STRETCH; fill = 1; }
         }
     }
     REMOVE TOOLBAR;
@@ -65,7 +143,7 @@ DESIGN openProject {
 notifyProjectUsers () {
     FOR Connection c IS Connection AND connectionStatus(c) = ConnectionStatus.connectedConnection DO {
         FOR ProjectNotification pn IS ProjectNotification AND user(c) = employeeToNotify(pn)
-            AND currentDateTime() >= dateTimeNotification(pn) AND NOT sentSystem(pn) DO {
+            AND currentDateTime() >= dateTimeNotification(pn) AND NOT sentSystemDateTime(pn) DO {
             IF pushConnection(employeeToNotify(pn)) THEN {
                 NEWSESSION {
                     NEWTHREAD {
@@ -73,29 +151,8 @@ notifyProjectUsers () {
                     } CONNECTION c;
                 }
             }
-            sentSystem(pn) <- TRUE;
+            sentSystemDateTime(pn) <- currentDateTime();
         }
-    }
-}
-
-propertiesHtmlProject (ProjectNotification pn) = HTMLTEXT(CONCAT '',
-    '<h1>Уведомление по проекту "' + name(project(pn)) + '"</h1>',
-    '<p>Менеджер: ' + nameManager(project(pn)) + '</p>',
-    '<p>Дизайнер: ' + nameDesigner(project(pn)) + '</p>',
-    '<p>Клиент: ' + namePartner(project(pn)) + '</p>',
-    '<p>Компания: ' + nameCompany(project(pn)) + '</p>',
-    '<p>Примечание: ' + note(pn) + '</p>',
-    '<br>',
-    '<p><a href="' + contextUrl('/exec/ProjectManagement.showProjectId?id=' + LONG(project(pn))) +
-        '" style="display: inline-block; padding: 12px 24px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">Открыть проект</a></p>');
-
-notifyUserEmailProject 'Уведомление на почту' (ProjectNotification pn) {
-    EMAIL
-        SUBJECT 'Уведомление по проекту "' + name(project(pn)) + '"'
-        TO email[Contact](employeeToNotify(pn))
-        BODY propertiesHtmlProject(pn);
-    IF NOT canceled() THEN {
-        sentEmail(pn) <- TRUE;
     }
 }
 
@@ -122,39 +179,25 @@ onOpenProject (Project p) {
     }
 }
 
-WHEN SET(ProjectNotification pn IS ProjectNotification) AND NOT sentSystem(pn) DO {
-    notifyUserEmailProject(pn);
-    notifyProjectUsers();
+createProjectNotification (Notifications.TypeEmailNotification en, Project p, Employee e) {
+    NEW pn = ProjectNotification {
+        project(pn) <- p;
+        employeeToNotify(pn) <- e;
+        typeNotification(pn) <- en;
+        dateTimeNotification(pn) <- currentDateTime();
+    }
 }
 
 WHEN SET(Project p IS Project) AND status(p) = projectStatus('pending') DO {
-    FOR canConfirmNewProject(Employee e) DO {
-        NEW pn = ProjectNotification {
-            project(pn) <- p;
-            employeeToNotify(pn) <- e;
-            dateTimeNotification(pn) <- currentDateTime();
-            note(pn) <- 'Новый проект ожидает утверждения';
-        }
-    }
+    FOR Notifications.notifite(Notifications.TypeEmailNotification.pendingProject, Employee e)
+        AND condionSendEmail(Notifications.TypeEmailNotification.pendingProject, p, e) DO
+        createProjectNotification(Notifications.TypeEmailNotification.pendingProject, p, e);
 }
 
 WHEN SETCHANGED(status(Project p)) AND status(p) = projectStatus('approved') DO {
-    IF manager(p) THEN {
-        NEW pn = ProjectNotification {
-            project(pn) <- p;
-            employeeToNotify(pn) <- manager(p);
-            dateTimeNotification(pn) <- currentDateTime();
-            note(pn) <- 'Проект утвержден';
-        }
-    }
-    IF designer(p) THEN {
-        NEW pn = ProjectNotification {
-            project(pn) <- p;
-            employeeToNotify(pn) <- designer(p);
-            dateTimeNotification(pn) <- currentDateTime();
-            note(pn) <- 'Проект утвержден';
-        }
-    }
+    FOR Notifications.notifite(Notifications.TypeEmailNotification.approvedProject, Employee e)
+        AND condionSendEmail(Notifications.TypeEmailNotification.approvedProject, p, e) DO
+        createProjectNotification(Notifications.TypeEmailNotification.approvedProject, p, e);
 }
 
 EXTEND FORM project
@@ -162,13 +205,13 @@ EXTEND FORM project
     PROPERTIES(p) approveProject
 
     OBJECTS pn = ProjectNotification
-    PROPERTIES(pn) DISABLEIF (sentSystem(pn) OR sentEmail(pn)) nameEmployeeToNotify, dateTimeNotification, note
-    PROPERTIES(pn) READONLY sentSystem, sentEmail
-    PROPERTIES(pn) notifyUserEmailProject SHOWIF NOT sentEmail(pn)
+    PROPERTIES(pn) READONLY nameEmployeeToNotify, nameTypeNotification, dateTimeNotification, sentSystemDateTime, sentEmailDateTime
+    PROPERTIES(pn) notifyUserEmailProject SHOWIF NOT sentEmailDateTime(pn)
     PROPERTIES(pn) NEW, DELETE
     FILTERS project(pn) = p
 
-    EVENTS ON INIT onOpenProject(p)
+    EVENTS
+        ON INIT onOpenProject(p)
 ;
 
 DESIGN project {
@@ -182,23 +225,28 @@ DESIGN project {
         NEW approvalTab FIRST {
             caption = 'Согласование';
             showIf = canConfirmNewProject(currentUser()) AND status(p) = projectStatus('pending');
-            MOVE PROPERTY(approveProject(p)) { alignment = STRETCH; font = 'bold 14'; }
+            MOVE PROPERTY(approveProject(p)) { alignment = STRETCH; font = 'bold 14'; valueClass = 'btn-success'; }
         }
         MOVE BOX(pn) { caption = badged('Уведомления', countNotifications(p)); }
     }
+    PROPERTY(notifyUserEmailProject(pn)) { valueClass = 'btn-warning'; }
 }
 
 EXTEND FORM projects
     PROPERTIES(pending) GRID approveProject SHOWIF canConfirmNewProject(currentUser())
 ;
 
+DESIGN projects {
+    PROPERTY(approveProject(pending)) { valueClass = 'btn-success'; }
+}
+
 FORM projectNotifications 'Журнал уведомлений проектов'
     OBJECTS dates = (from = DATETIME, to = DATETIME) PANEL
     PROPERTIES valFrom = VALUE(from), valTo = VALUE(to)
 
     OBJECTS pn = ProjectNotification LAST
-    PROPERTIES(pn) READONLY nameEmployeeToNotify, note, dateTimeNotification, sentSystem, sentEmail
-    FILTERS (sentSystem(pn) OR sentEmail(pn))
+    PROPERTIES(pn) READONLY nameEmployeeToNotify, nameTypeNotification, dateTimeNotification, sentSystemDateTime, sentEmailDateTime
+    FILTERS sentSystemDateTime(pn) OR sentEmailDateTime(pn)
     FILTERS dateTimeNotification(pn) >= from AND dateTimeNotification(pn) <= to
     EVENTS
         ON INIT {
