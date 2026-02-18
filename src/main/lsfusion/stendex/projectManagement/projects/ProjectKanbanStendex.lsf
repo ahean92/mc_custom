@@ -121,6 +121,17 @@ onStarted() + {
         APPLY;
     }
 
+    IF NOT projectStatus('infoCollection') THEN {
+        LOCAL found = ProjectStatus();
+        found() <- GROUP MAX ProjectStatus ps IF name(ps) = 'Сбор информации';
+        IF found() THEN {
+            id(found()) <- 'infoCollection';
+        } ELSE NEW ps = ProjectStatus {
+            id(ps) <- 'infoCollection';
+            name(ps) <- 'Сбор информации';
+        }
+        APPLY;
+    }
 }
 
 status(Project o) <- projectStatus('pending') WHEN SET(o IS Project);
@@ -140,13 +151,6 @@ EXTEND FORM options
     ORDERS order(ps)
 ;
 
-confirmProject 'Утвердить' (Project p) {
-    NEWSESSION {
-        status(p) <- projectStatus('approved');
-        APPLY;
-    }
-} IMAGE 'ok' CHARWIDTH 10;
-
 assignedToMe 'Assigned to me' = DATA LOCAL NESTED BOOLEAN ();
 
 EXTEND FORM projects
@@ -154,7 +158,6 @@ EXTEND FORM projects
 
     OBJECTS pending = Project
     PROPERTIES(pending) READONLY number, startDate, endDate, namePartner, nameType, name, nameCompany, nameManager
-    PROPERTIES(pending) GRID confirmProject SHOWIF canConfirmNewProject(currentUser())
     PROPERTIES(pending) NEWSESSION NEW, EDIT, DELETE
     FILTERS status(pending) = projectStatus('pending'),
         type(pending) = projectType() OR NOT projectType(),
@@ -186,10 +189,6 @@ DESIGN projects {
         MOVE PROPERTY(assignedToMe());
     }
 }
-
-EXTEND FORM project
-    PROPERTIES(p) confirmProject SHOWIF canConfirmNewProject(currentUser()) AND status(p) = projectStatus('pending')
-;
 
 countPendingProjects = GROUP SUM 1 IF status(Project p) = projectStatus('pending') AND [FILTER projects.pending](p);
 countApprovedProjects = GROUP SUM 1 IF status(Project p) = projectStatus('approved') AND [FILTER projects.approved](p);
