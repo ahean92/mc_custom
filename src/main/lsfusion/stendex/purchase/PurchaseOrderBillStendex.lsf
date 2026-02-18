@@ -154,16 +154,43 @@ newConsigment 'Накладная' (Order o) {
     }
 } IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE;
 
-uploadInvoice 'Счет' (Purchase.Order o){
-    INPUT uf = NAMEDFILE DO NEW uof = OrderFile {
-        order(uof) <- o;
-        file(uof) <- RAWFILE(uf);
-        name(uof) <- name(uf);
-        extension(uof) <- extension(uf);
-        autoUploaded(uof) <- TRUE;
-        type(uof) <- TypeFile.invoice;
+processNewInvoiceFile (Order o, OrderFile uof) {
+    IF NOT lastBill(o) THEN {
+        NEW nb = Bill {
+            ready(nb) <- TRUE;
+            onApproval(nb) <- TRUE;
+            type(nb) <- billType(type(o));
+            company(nb) <- company(o);
+            urgency(nb) <- Urgency.notUrgent;
+            vendor(nb) <- vendor(o);
+            vendorReference(nb) <- vendorReference(o);
+            note(nb) <- CONCAT ' ', 'Счет по заказу', number(o), 'от  ' + date(o), 'поставщик ' + nameVendor(o);
+            in(nb, Project p) <- TRUE IF inOrder(p, o);
+            amount(nb, Project p) <- GROUP SUM amount(OrderLine l) IF order(l) = o AND project(l) == p;
+            currency(nb) <- currency(o);
+            paymentTerms(nb) <- paymentTerms(o);
 
-        FOR order(uof) == o AND order(Bill b) = o NEW bf = BillFile DO {
+            FOR order(OrderLine ol) = o AND toBillOrdered(ol) > 0
+                NEW bl = BillLine DO {
+                bill(bl) <- nb;
+                item(bl) <- item(ol);
+                description(bl) <- description(ol);
+                quantity(bl) <- toBillOrdered(ol);
+                price(bl) <- price(ol);
+                orderLine(bl) <- ol;
+                billine(ol) <- bl;
+                fill(bl, ol);
+            }
+
+            fill(nb, o);
+
+            executeLocalEvents();
+            FOR bill(BillLine bl) = nb DO {
+                in(bl, Tax t) <- in(orderLine(bl), t);
+            }
+        }
+    } ELSE {
+        FOR order(Bill b) = o NEW bf = BillFile DO {
             bill(bf) <- b;
             file(bf) <- file(uof);
             name(bf) <- name(uof);
@@ -172,6 +199,20 @@ uploadInvoice 'Счет' (Purchase.Order o){
             lockChangeType(bf) <- TRUE;
             billFile(uof) <- bf;
         }
+    }
+
+    IF status(o) = OrderStatus.draft THEN dataStatus(o) <- OrderStatus.review;
+}
+
+uploadInvoice 'Счет' (Purchase.Order o) {
+    INPUT uf = NAMEDFILE DO NEW uof = OrderFile {
+        order(uof) <- o;
+        file(uof) <- RAWFILE(uf);
+        name(uof) <- name(uf);
+        extension(uof) <- extension(uf);
+        autoUploaded(uof) <- TRUE;
+        type(uof) <- TypeFile.invoice;
+        processNewInvoiceFile(o, uof);
     }
 } IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE;
 
@@ -196,43 +237,7 @@ FORM inputOrderInvoices 'Добавление счетов'
                     extension(uof) <- extension;
                     autoUploaded(uof) <- TRUE;
                     type(uof) <- TypeFile.invoice;
-                    IF NOT lastBill(o) THEN NEW nb = Bill {
-                        ready(nb) <- TRUE;
-                        onApproval(nb) <- TRUE;
-                        type(nb) <- billType(type(o));
-
-                        company(nb) <- company(o);
-                        urgency(nb) <- Urgency.notUrgent;
-                        vendor(nb) <- vendor(o);
-                        vendorReference(nb) <- vendorReference(o);
-                        note(nb) <- CONCAT ' ', 'Счет по заказу', number(o), 'от  ' + date(o), 'поставщик' + nameVendor(o);
-                        in(nb, Project p) <- TRUE IF inOrder(p, o);
-                        amount(nb, Project p) <- GROUP SUM amount(OrderLine l) IF order(l) = o AND project(l) == p;
-                        currency(nb) <- currency(o);
-
-                        paymentTerms(nb) <- paymentTerms(o);
-
-                        FOR order(OrderLine ol) = o AND toBillOrdered(ol) > 0
-                            NEW bl = BillLine DO {
-                            bill(bl) <- nb;
-                            item(bl) <- item(ol);
-                            description(bl) <- description(ol);
-                            quantity(bl) <- toBillOrdered(ol);
-                            price(bl) <- price(ol);
-                            orderLine(bl) <- ol;
-                            billine(ol) <- bl;
-
-                            fill(bl, ol);
-                        }
-
-                        fill(nb, o);
-
-                        executeLocalEvents();
-                        FOR bill(BillLine bl) = nb DO {
-                            in(bl, Tax t) <- in(orderLine(bl), t);
-                        }
-                        dataStatus(o) <- OrderStatus.review;
-                    }
+                    processNewInvoiceFile(o, uof);
                 }
     }
 ;
@@ -564,7 +569,7 @@ fillBill(Order o){
         in(bl, Tax t) <- in(orderLine(bl), t);
     }
 
-    APPLY;
+//    APPLY;
 }
 
 WHEN [GROUP SUM 1 IF SETCHANGED(item(OrderLine l)) OR CHANGED(quantity(l)) OR CHANGED(price(l)) OR CHANGED(description(l))
