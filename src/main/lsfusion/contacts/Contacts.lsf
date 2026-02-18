@@ -1,0 +1,56 @@
+MODULE Contacts;
+
+REQUIRE PartnerStendex;
+
+CLASS Contacts 'Контакты';
+
+nameExhibition 'Выставка' = DATA STRING[50] (Contacts);
+nameOrganizer 'Контрагент' = DATA STRING[50] (Contacts);
+phoneNumber 'Контакты' = DATA STRING[30] (Contacts);
+comment 'Комментарий' = DATA STRING[100] (Contacts);
+date 'Дата взаимодействия' = DATA DATE (Contacts);
+manager = DATA Employee (Contacts);
+nameManager 'Менеджер' (Contacts c) = name(manager(c));
+reminder 'Напоминание' = DATA DATETIME (Contacts);
+
+FORM seletEmployee
+    OBJECTS e = Employee
+    PROPERTIES (e) name
+    FILTERS NOT isManager(e)
+;
+
+CONSTRAINT (Contacts c IS Contacts) AND NOT isManager(manager(c)) AND manager(c)
+    CHECKED BY manager[Contacts] MESSAGE 'Может быть задан только менеджер';
+
+WHEN LOCAL SET (Contacts c IS Contacts) AND NOT manager(c) AND isManager(currentUser()) DO {manager(c) <- (currentUser()); APPLY;};
+
+FORM contacts 'Контакты'
+    OBJECTS c = Contacts
+    PROPERTIES (c) nameExhibition ON CHANGE {
+        INPUT s = STRING[50] DO {formRefresh(); nameExhibition(c) <- s; APPLY;}
+    }, nameOrganizer ON CHANGE {
+        INPUT s = STRING[50] DO {formRefresh(); nameOrganizer(c) <- s; APPLY;}
+    }, phoneNumber ON CHANGE {
+        INPUT s = STRING[30] DO {formRefresh(); phoneNumber(c) <- s; APPLY;}
+    }, comment ON CHANGE {
+        INPUT s = STRING[100] DO {formRefresh(); comment(c) <- s; APPLY;}
+    }, date ON CHANGE {
+        INPUT d = DATE DO {formRefresh(); date(c) <- d; APPLY;}
+    }, nameManager NOSELECT ON CHANGE {
+    isEditable() <- TRUE;
+    INPUT m = manager(c) LIST name(m) WHERE isManager(m) DO {
+        manager(c) <- m;
+        APPLY;
+    }
+}, reminder ON CHANGE {
+        INPUT dT = DATETIME DO {formRefresh(); reminder(c) <- dT; APPLY;}
+    }
+    PROPERTIES (c) NEW, DELETE
+    ORDERS date(c)
+    EVENTS ON SCHEDULE PERIOD 10 formRefresh()
+    EVENTS ON CLOSE {isEditable() <- NULL;}
+;
+
+NAVIGATOR {
+    NEW contacts;
+}
