@@ -1,6 +1,6 @@
 MODULE ProjectNotificationStendex;
 
-REQUIRE ProjectKanbanStendex, EmployeeNotificationStendex;
+REQUIRE ProjectKanbanStendex, EmployeeNotificationStendex, NotificationsStendex;
 
 NAMESPACE ProjectManagement;
 
@@ -62,41 +62,6 @@ bodyHtmlProject (ProjectNotification pn) = HTMLTEXT(CONCAT '',
 
 subjectProject (ProjectNotification pn) = titleNotification(typeNotification(pn)) + ': ' + name(project(pn));
 
-sendEmailByNotification (ProjectNotification pn) {
-    EMAIL
-        SUBJECT subjectProject(pn)
-        TO email[Contact](employeeToNotify(pn))
-        BODY bodyHtmlProject(pn);
-}
-
-notifyUserEmailProject 'Отправить на почту' (ProjectNotification pn) {
-    sendEmailByNotification(pn);
-    sentEmailDateTime(pn) <- currentDateTime();
-    APPLY;
-}
-
-hasUnsentEmail (Notifications.TypeEmailNotification en, Project p) =
-    TRUE IF (GROUP SUM 1 IF project(ProjectNotification pn) = p AND typeNotification(pn) = en AND NOT sentEmailDateTime(pn));
-
-sendEmailNotificationProject (Notifications.TypeEmailNotification en, Project p) {
-    FOR project(ProjectNotification pn) = p AND typeNotification(pn) = en AND NOT sentEmailDateTime(pn) DO {
-        sendEmailByNotification(pn);
-        sentEmailDateTime(pn) <- currentDateTime();
-    }
-    APPLY;
-}
-
-condionSendEmail = ABSTRACT VALUE BOOLEAN (Notifications.TypeEmailNotification, Project);
-
-condionSendEmail(Notifications.TypeEmailNotification en, Project p) +=
-    hasUnsentEmail(en, p)
-        AND (en == Notifications.TypeEmailNotification.pendingProject OR en == Notifications.TypeEmailNotification.approvedProject);
-
-Notifications.sendEmailNotification(DATE dFrom) + {
-    FOR condionSendEmail(Notifications.TypeEmailNotification en, Project p)
-        DO sendEmailNotificationProject(en, p);
-}
-
 notificationMessageSimple (ProjectNotification pn) = CONCAT '\n',
     titleNotification(typeNotification(pn)),
     'Проект: ' + name(project(pn)),
@@ -140,20 +105,61 @@ DESIGN openProject {
     REMOVE PROPERTY(formRefresh());
 }
 
-notifyProjectUsers () {
-    FOR Connection c IS Connection AND connectionStatus(c) = ConnectionStatus.connectedConnection DO {
-        FOR ProjectNotification pn IS ProjectNotification AND user(c) = employeeToNotify(pn)
-            AND currentDateTime() >= dateTimeNotification(pn) AND NOT sentSystemDateTime(pn) DO {
-            IF pushConnection(employeeToNotify(pn)) THEN {
-                NEWSESSION {
-                    NEWTHREAD {
-                        SHOW openProject OBJECTS p = project(pn), s = notificationMessageSimple(pn) FLOAT;
-                    } CONNECTION c;
-                }
+sendEmailByNotification (ProjectNotification pn) {
+    EMAIL
+        SUBJECT subjectProject(pn)
+        TO email[Contact](employeeToNotify(pn))
+        BODY bodyHtmlProject(pn);
+}
+
+notifyUserEmailProject 'Отправить на почту' (ProjectNotification pn) {
+    sendEmailByNotification(pn);
+    sentEmailDateTime(pn) <- currentDateTime();
+    APPLY;
+}
+
+sendNotificationProject (ProjectNotification pn) {
+    FOR Connection c IS Connection AND connectionStatus(c) = ConnectionStatus.connectedConnection
+        AND user(c) = employeeToNotify(pn) DO {
+        IF pushConnection(employeeToNotify(pn)) THEN {
+            NEWSESSION {
+                NEWTHREAD {
+                    SHOW openProject OBJECTS p = project(pn), s = notificationMessageSimple(pn) FLOAT;
+                } CONNECTION c;
             }
-            sentSystemDateTime(pn) <- currentDateTime();
         }
     }
+    sentSystemDateTime(pn) <- currentDateTime();
+}
+
+Notifications.sendNotification(DATETIME dTFrom) + {
+    FOR dateTimeNotification(ProjectNotification pn) >= dTFrom
+        AND dateTimeNotification(pn) <= currentDateTime()
+        AND NOT sentSystemDateTime(pn) DO {
+        sendNotificationProject(pn);
+    }
+}
+
+hasUnsentEmail (Notifications.TypeEmailNotification en, Project p) =
+    TRUE IF (GROUP SUM 1 IF project(ProjectNotification pn) = p AND typeNotification(pn) = en AND NOT sentEmailDateTime(pn));
+
+sendEmailNotificationProject (Notifications.TypeEmailNotification en, Project p) {
+    FOR project(ProjectNotification pn) = p AND typeNotification(pn) = en AND NOT sentEmailDateTime(pn) DO {
+        sendEmailByNotification(pn);
+        sentEmailDateTime(pn) <- currentDateTime();
+    }
+    APPLY;
+}
+
+condionSendEmail = ABSTRACT VALUE BOOLEAN (Notifications.TypeEmailNotification, Project);
+
+condionSendEmail(Notifications.TypeEmailNotification en, Project p) +=
+    hasUnsentEmail(en, p)
+        AND (en == Notifications.TypeEmailNotification.pendingProject OR en == Notifications.TypeEmailNotification.approvedProject);
+
+Notifications.sendEmailNotification(DATE dFrom) + {
+    FOR condionSendEmail(Notifications.TypeEmailNotification en, Project p)
+        DO sendEmailNotificationProject(en, p);
 }
 
 FORM selectDesigner 'Выбор дизайнера'
