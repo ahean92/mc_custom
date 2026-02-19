@@ -13,11 +13,22 @@ manager = DATA Employee (Contacts);
 nameManager 'Менеджер' (Contacts c) = name(manager(c));
 reminder 'Напоминание' = DATA DATETIME (Contacts);
 
-FORM seletEmployee
-    OBJECTS e = Employee
-    PROPERTIES (e) name
-    FILTERS NOT isManager(e)
+FORM contactNotification 'Уведомление о контактах'
+    OBJECTS s = STRING PANEL
+    PROPERTIES READONLY notification = TEXT(s)
 ;
+
+DESIGN contactNotification {
+    BOX(s) { caption = ''; }
+    OBJECTS {
+        MOVE PROPERTY(notification);
+        PROPERTY(notification) { caption = ''; alignment = STRETCH; valueHeight = 150; valueWidth = 300; }
+    }
+    REMOVE TOOLBAR;
+    REMOVE TOOLBARLEFT;
+    REMOVE PROPERTY(formOk());
+    REMOVE PROPERTY(formRefresh());
+}
 
 CONSTRAINT (Contacts c IS Contacts) AND NOT isManager(manager(c)) AND manager(c)
     CHECKED BY manager[Contacts] MESSAGE 'Может быть задан только менеджер';

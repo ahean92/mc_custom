@@ -8,9 +8,6 @@ EXTEND CLASS TypeEmailNotification {
     contactReminder 'Напоминание (Контакты)'
 }
 
-userContactNotification = DATA CustomUser();
-nameCustomUser 'Пользователь отправки уведомлений о контактах' = name(userContactNotification());
-
 sentDateTimeMail 'Отправлено уведомление по почте'  = DATA DATETIME (TypeEmailNotification, Contacts);
 sentDateTimeNotification 'Отправлено уведомление' = DATA DATETIME (Contacts);
 
@@ -30,7 +27,7 @@ bodyNotificationContact (Contacts c) = CONCAT '\n', 'Напоминание о �
 
 sendEmailNotificationContact 'Отправить' (TypeEmailNotification en, Contacts c) {
     EMAIL
-        SUBJECT (CONCAT  ' ', 'Напоминание о выставке' + nameExhibition(c), 'Контрагент ' + nameOrganizer(c))
+        SUBJECT (CONCAT  ' ', 'Напоминание о выставке ' + nameExhibition(c), 'Контрагент ' + nameOrganizer(c))
         TO email(en, manager(c))
         BODY bodyNotificationContact(c);
     APPLY;
@@ -40,11 +37,19 @@ sendEmailNotificationContact 'Отправить' (TypeEmailNotification en, Con
     APPLY;
 }
 
-sendNotificationContact 'Отправить уведомление (почта)' (Contacts c) {
-    sendMessage(userContactNotification(), manager(c), bodyNotificationContact(c), TRUE);
-    IF canceled() THEN RETURN;
-    sentDateTimeNotification(c) <- currentDateTime();
-    APPLY;
+sendNotificationContact 'Отправить уведомление контакт' (Contacts c) {
+    FOR Connection con IS Connection AND connectionStatus(con) = ConnectionStatus.connectedConnection
+        AND user(con) = manager(c) DO {
+        IF pushConnection(manager(c)) THEN {
+            NEWSESSION {
+                NEWTHREAD {
+                    SHOW contactNotification OBJECTS s = bodyNotificationContact(c) FLOAT;//
+                    sentDateTimeNotification(c) <- currentDateTime();
+                    APPLY;
+                } CONNECTION con;
+            }
+        }
+    }
 }
 
 sendNotification (DATETIME dTFrom) +{
@@ -56,14 +61,4 @@ sendNotification (DATETIME dTFrom) +{
 sendEmailNotification(DATE dFrom) + {
     FOR toDate(reminder(Contacts c)) >= dFrom AND toDate(reminder(c)) <=currentDate() AND condionSendEmail(TypeEmailNotification.contactReminder, c) DO 
         {sendEmailNotificationContact(TypeEmailNotification.contactReminder, c);}
-}
-
-EXTEND FORM System.options
-    PROPERTIES nameCustomUser()
-;
-
-DESIGN System.options {
-    notification {
-        MOVE PROPERTY (nameCustomUser());
-    }
 }
