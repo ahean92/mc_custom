@@ -6,8 +6,8 @@ CLASS Contacts 'Контакты';
 
 nameExhibition 'Выставка' = DATA STRING[50] (Contacts);
 nameOrganizer 'Контрагент' = DATA STRING[50] (Contacts);
-phoneNumber 'Контакты' = DATA STRING[30] (Contacts);
-comment 'Комментарий' = DATA STRING[100] (Contacts);
+phoneNumber 'Контакты' = DATA TEXT (Contacts);
+comment 'Комментарий' = DATA TEXT (Contacts);
 date 'Дата взаимодействия' = DATA DATE (Contacts);
 manager = DATA Employee (Contacts);
 nameManager 'Менеджер' (Contacts c) = name(manager(c));
@@ -35,6 +35,11 @@ CONSTRAINT (Contacts c IS Contacts) AND NOT isManager(manager(c)) AND manager(c)
 
 WHEN LOCAL SET (Contacts c IS Contacts) AND NOT manager(c) AND isManager(currentUser()) DO {manager(c) <- (currentUser()); APPLY;};
 
+deleteContcat 'Удалить' (Contacts c){
+    DELETE c;
+    APPLY;
+} CONFIRM;
+
 FORM contacts 'Контакты'
     OBJECTS c = Contacts
     PROPERTIES (c) nameExhibition ON CHANGE {
@@ -42,9 +47,9 @@ FORM contacts 'Контакты'
     }, nameOrganizer ON CHANGE {
         INPUT s = STRING[50] DO {formRefresh(); nameOrganizer(c) <- s; APPLY;}
     }, phoneNumber ON CHANGE {
-        INPUT s = STRING[30] DO {formRefresh(); phoneNumber(c) <- s; APPLY;}
+        INPUT s = TEXT DO {formRefresh(); phoneNumber(c) <- s; APPLY;}
     }, comment ON CHANGE {
-        INPUT s = STRING[100] DO {formRefresh(); comment(c) <- s; APPLY;}
+        INPUT s = TEXT DO {formRefresh(); comment(c) <- s; APPLY;}
     }, date ON CHANGE {
         INPUT d = DATE DO {formRefresh(); date(c) <- d; APPLY;}
     }, nameManager NOSELECT ON CHANGE {
@@ -56,7 +61,7 @@ FORM contacts 'Контакты'
 }, reminder ON CHANGE {
         INPUT dT = DATETIME DO {formRefresh(); reminder(c) <- dT; APPLY;}
     }
-    PROPERTIES (c) NEW, DELETE
+    PROPERTIES (c) NEW, deleteContcat
     ORDERS date(c)
     EVENTS ON SCHEDULE PERIOD 10 formRefresh()
     EVENTS ON CLOSE {isEditable() <- NULL;}
@@ -64,4 +69,20 @@ FORM contacts 'Контакты'
 
 NAVIGATOR {
     NEW contacts;
+}
+
+DESIGN contacts {
+    GRID (c) {
+        TOOLBAR(c) {
+            MOVE PROPERTY (deleteContcat(c)){
+                valueClass = 'btn-primary';
+            } 
+        }
+        PROPERTY (date(c)) {
+            charWidth = 16;
+            valueAlignmentHorz = CENTER;
+            valueAlignmentVert = CENTER;
+            panelCaptionAlignment = CENTER;
+        }
+    }
 }
