@@ -38,10 +38,41 @@ demolitionEndDate 'Дата окончания демонтажа' = DATA DATETI
 FORM exhibition 'Выставка'
     OBJECTS e = Exhibition PANEL
     
-    PROPERTIES(e) nameType, name, year, namePlace, nameOrganizer,
-                  installationStartDate, installationEndDate, startDate,
-                  endDate, demolitionStartDate, demolitionEndDate
-    
+    PROPERTIES(e) nameType, name, year, namePlace, nameOrganizer, installationStartDate, 
+                  installationEndDate ON CHANGE {
+                      LOCAL lDT = DATETIME();
+                      lDT() <- installationStartDate(e);
+                      INPUT dT = lDT() CHANGE DO {
+                          installationEndDate(e) <- dT;
+                      }
+                  },
+                  startDate ON CHANGE {
+                      LOCAL lDT = DATETIME();
+                      lDT() <- installationStartDate(e);
+                      INPUT dT = lDT() CHANGE DO{
+                          startDate(e) <- dT;
+                      }
+                  }, 
+                  endDate ON CHANGE {
+                      LOCAL lDT = DATETIME();
+                      lDT() <- installationStartDate(e);
+                      INPUT dT = lDT() CHANGE DO{
+                          endDate(e) <- dT;
+                      }
+                  }, 
+                  demolitionStartDate ON CHANGE {
+                      LOCAL lDT = DATETIME();
+                      lDT() <- installationStartDate(e);
+                      INPUT dT = lDT() CHANGE DO {
+                          demolitionStartDate(e) <- dT;
+                      }
+                  }, demolitionEndDate ON CHANGE {
+                      LOCAL lDT = DATETIME();
+                      lDT() <- installationStartDate(e);
+                      INPUT dT = lDT() CHANGE DO {
+                          demolitionEndDate(e) <- dT;
+                      }
+                  }
     EDIT Exhibition OBJECT e
 ;
 

@@ -5,13 +5,30 @@ REQUIRE PartnerStendex;
 CLASS Contacts 'Контакты';
 
 nameExhibition 'Выставка' = DATA STRING[50] (Contacts);
-nameOrganizer 'Контрагент' = DATA STRING[50] (Contacts);
+nameOrganizer 'Контрагент' = DATA TEXT (Contacts);
 phoneNumber 'Контакты' = DATA TEXT (Contacts);
 comment 'Комментарий' = DATA TEXT (Contacts);
 date 'Дата взаимодействия' = DATA DATE (Contacts);
 manager = DATA Employee (Contacts);
 nameManager 'Менеджер' (Contacts c) = name(manager(c));
 reminder 'Напоминание' = DATA DATETIME (Contacts);
+
+CLASS DateContacts 'Даты взаимодействия';
+
+date 'Дата взаимодействия' = DATA DATE (DateContacts);
+dateContacts 'Даты взаимодействия' = DATA Contacts (DateContacts);
+dateConcat 'Даты взаимодействия' (Contacts c) = OVERRIDE (GROUP CONCAT toChar(date(DateContacts dC), 'DD.MM.YY') 
+IF dateContacts(dC) = c, '\n' ORDER date(dC)), ' ';
+
+FORM dateContacts 'Даты взаимодействия'
+    OBJECTS c = Contacts
+    OBJECTS dC = DateContacts
+    PROPERTIES (dC) date
+    PROPERTIES (dC) NEW, DELETE
+    EVENTS ON OK {APPLY;}
+    ORDERS date(dC)
+    FILTERS dateContacts(dC) = c
+;
 
 FORM contactNotification 'Уведомление о контактах'
     OBJECTS s = STRING PANEL
@@ -40,19 +57,30 @@ deleteContcat 'Удалить' (Contacts c){
     APPLY;
 } CONFIRM;
 
+showDateContacts 'Редактировать даты взаимодействия' (Contacts c) {
+    SHOW dateContacts;
+}
+
 FORM contacts 'Контакты'
     OBJECTS c = Contacts
     PROPERTIES (c) nameExhibition ON CHANGE {
         INPUT s = STRING[50] DO {formRefresh(); nameExhibition(c) <- s; APPLY;}
     }, nameOrganizer ON CHANGE {
-        INPUT s = STRING[50] DO {formRefresh(); nameOrganizer(c) <- s; APPLY;}
+        INPUT s = TEXT DO {formRefresh(); nameOrganizer(c) <- s; APPLY;}
     }, phoneNumber ON CHANGE {
         INPUT s = TEXT DO {formRefresh(); phoneNumber(c) <- s; APPLY;}
     }, comment ON CHANGE {
         INPUT s = TEXT DO {formRefresh(); comment(c) <- s; APPLY;}
-    }, date ON CHANGE {
-        INPUT d = DATE DO {formRefresh(); date(c) <- d; APPLY;}
-    }, nameManager NOSELECT ON CHANGE {
+    }
+    ,dateConcat ON CHANGE {
+        //SHOW dateContacts;
+        INPUT d = DATE DO {
+            NEW dC = DateContacts {
+                date(dC) <- d;
+                dateContacts(dC) <- c;
+            }
+        }
+    },nameManager NOSELECT ON CHANGE {
     isEditable() <- TRUE;
     INPUT m = manager(c) LIST name(m) WHERE isManager(m) DO {
         manager(c) <- m;
@@ -61,8 +89,9 @@ FORM contacts 'Контакты'
 }, reminder ON CHANGE {
         INPUT dT = DATETIME DO {formRefresh(); reminder(c) <- dT; APPLY;}
     }
-    PROPERTIES (c) NEW, deleteContcat
-    ORDERS date(c)
+    PROPERTIES (c) NEW, deleteContcat, showDateContacts
+    OBJECTS dC = DateContacts
+    FILTERS dateContacts(dC) = c
     EVENTS ON SCHEDULE PERIOD 10 formRefresh()
     EVENTS ON CLOSE {isEditable() <- NULL;}
 ;
@@ -76,13 +105,40 @@ DESIGN contacts {
         TOOLBAR(c) {
             MOVE PROPERTY (deleteContcat(c)){
                 valueClass = 'btn-primary';
-            } 
+            }
+            MOVE PROPERTY (showDateContacts(c)) {
+                valueClass = 'btn-primary';
+            }
         }
-        PROPERTY (date(c)) {
-            charWidth = 16;
+        PROPERTY (dateConcat(c)) {
+            valueWidth = 33;
+            valueClass = 'text-decoration-none text-dark text-wrap';
             valueAlignmentHorz = CENTER;
             valueAlignmentVert = CENTER;
             panelCaptionAlignment = CENTER;
+        }
+    }
+}
+
+DESIGN dateContacts{
+    width = 300;
+    PROPERTY (date(dC)) {
+        valueWidth = 38;
+    }
+}
+
+migratedDateContacts = DATA BOOLEAN();
+onStarted() + {
+    IF NOT migratedDateContacts() THEN {
+        NEWSESSION {
+            FOR (Contacts c IS Contacts) IF date(c) DO {
+                NEW dC = DateContacts {
+                    date(dC) <- date(c);
+                    dateContacts(dC) <- c;
+                }
+            }
+            migratedDateContacts() <- TRUE;
+            APPLY;
         }
     }
 }
