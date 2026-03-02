@@ -73,7 +73,6 @@ FORM contacts 'Контакты'
         INPUT s = TEXT DO {formRefresh(); comment(c) <- s; APPLY;}
     }
     ,dateConcat ON CHANGE {
-        //SHOW dateContacts;
         INPUT d = DATE DO {
             NEW dC = DateContacts {
                 date(dC) <- d;
