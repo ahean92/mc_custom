@@ -431,6 +431,14 @@ nameType 'Тип' (BillFile f) = staticCaption(type(f));
 
 WHEN LOCAL SET(BillFile f IS BillFile) AND NOT type(f) DO type(f) <- TypeFile.other;
 
+WHEN SETCHANGED(BillFile f IS BillFile) AND type(f) == TypeFile.paymentOrder DO {
+    TRY {
+        logToFile('uploadPayment', 'Наименование: ' + name(f) + ' Номер счета платежного поручения (сохраненное): ' + number(bill(f)));
+    } CATCH {
+        CONTINUE;
+    }
+}
+
 uploadFile 'Загрузить файл'(Bill b){
     INPUT uf = NAMEDFILE DO NEW uof = BillFile {
         bill(uof) <- b;
@@ -461,6 +469,11 @@ uploadPaymentOrder 'Платежное поручение' (Bill b){
         extension(uof) <- extension(uf);
         type(uof) <- TypeFile.paymentOrder;
         lockChangeType(uof) <- TRUE;
+        TRY {
+            logToFile('uploadLocalPayment', 'Наименование: ' + name(uf) + ' Номер счета платежного поручения: ' + number(b));
+        } CATCH {
+            CONTINUE;
+        }
     }
 } IMAGE 'add.png';
 
